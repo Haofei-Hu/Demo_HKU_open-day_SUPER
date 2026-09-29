@@ -1,4 +1,4 @@
-# Demo_HKU_open-day_SUPER
+# Demo_MaRS_open-day_SUPER
 This is the demo which used for HKU open days
 # UAV LiDAR System Setup
 
