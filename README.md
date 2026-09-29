@@ -2,19 +2,25 @@
 
 Deployment and integration notes for the SUPER UAV demonstration used at the HKU Open Day.
 
-**Last updated: September 29, 2026**
+Last updated: September 29, 2026
 
-**Current status: The MID360 → FAST_LIO → SUPER perception and planning pipeline has been verified. MAVROS is connected to PX4. External localization fusion and real flight control are still in progress.**
+Current status: The MID360 → FAST_LIO → SUPER perception and planning pipeline is operational. MAVROS is connected to PX4, the nominal LiDAR-to-body rotation has passed a bench rotation test, and ROS-side external-pose transport to MAVROS has been verified. PX4 external-vision fusion remains disabled because MAVLink time synchronization and the external-pose update rate are not yet suitable for flight.
+
+> `FOLLOW_TRAJ` is an internal SUPER planner state. It does not mean that the real UAV followed the trajectory.
+
+---
 
 ## 1. Quick Start: LiDAR and QGroundControl
 
 These commands are intended for Ubuntu 22.04 with ROS 2 Humble and zsh.
 
-Run each command separately. Do not copy the terminal prompt, HTML line-break tags, or trailing backslashes.
+Run every command separately. Do not copy terminal prompts, HTML line-break tags, or trailing backslashes.
 
-### MID360 for FAST_LIO using Livox CustomMsg
+### 1.1 MID360 for FAST_LIO
 
-```bash
+FAST_LIO requires the Livox CustomMsg output.
+
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
 ros2 launch livox_ros_driver2 msg_MID360_launch.py
@@ -22,77 +28,96 @@ ros2 launch livox_ros_driver2 msg_MID360_launch.py
 
 Keep this terminal running.
 
-Verified output rates:
+Verified output:
 
 ```text
 /livox/lidar: approximately 10 Hz
 /livox/imu: approximately 200 Hz
+/livox/lidar type: livox_ros_driver2/msg/CustomMsg
 ```
 
-### QGroundControl
+A successful driver startup includes a message similar to:
 
-```bash
+```text
+livox/lidar publish use livox custom format
+```
+
+### 1.2 QGroundControl
+
+Start QGroundControl with:
+
+```zsh
 ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
 If the AppImage does not have execution permission:
 
-```bash
+```zsh
 chmod +x ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
 Connection notes:
 
 - QGroundControl can connect directly to the flight controller through USB for standalone inspection.
-- During MAVROS integration, close QGroundControl before starting MAVROS because MAVROS must open the USB serial device.
-- MAVROS is configured to forward MAVLink to UDP port 14550 for QGroundControl.
-- The MAVROS-to-QGroundControl UDP connection has not yet been fully verified.
+- Close QGroundControl before MAVROS opens `/dev/ttyACM0`.
+- MAVROS is configured to forward MAVLink to UDP port `14550`.
+- The MAVROS-to-QGroundControl UDP connection still requires final verification.
 
-### MID360 with RViz for raw point-cloud inspection
+### 1.3 MID360 raw PointCloud2 inspection
 
-```bash
+Use this mode only when viewing the raw PointCloud2 output in RViz:
+
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
 ros2 launch livox_ros_driver2 rviz_MID360_launch.py
 ```
 
-This mode is only for viewing the raw PointCloud2 data.
+Do not run `rviz_MID360_launch.py` and `msg_MID360_launch.py` at the same time.
 
-Use `msg_MID360_launch.py` for FAST_LIO integration. Do not run both MID360 launch files at the same time.
+Use `msg_MID360_launch.py` for FAST_LIO.
+
+---
 
 ## 2. Current Progress
 
 | Module | Status | Verification |
-| --- | --- | --- |
-| SUPER build and click_demo | Completed | The simulator moves successfully after fixing the backup-trajectory parameter |
-| MID360 network and driver | Completed | CustomMsg point cloud at approximately 10 Hz and IMU at approximately 200 Hz |
+|---|---|---|
+| SUPER build and `click_demo` | Completed | The simulator moved after correcting the backup-trajectory parameter |
+| MID360 network | Completed | Ubuntu and MID360 communicate over `192.168.50.0/24` |
+| Livox ROS Driver 2 | Completed | CustomMsg point cloud at approximately 10 Hz and IMU at approximately 200 Hz |
 | FAST_LIO ROS 2 build | Completed | Official ROS2 branch and ikd-Tree submodule compiled successfully |
-| FAST_LIO odometry and point cloud | Basic verification completed | `/Odometry` and `/cloud_registered` both publish at approximately 10 Hz |
-| FAST_LIO frame consistency | Completed | Both outputs use `camera_init` |
-| SUPER real-sensor input | Completed | FAST_LIO odometry and point cloud are received by SUPER |
+| FAST_LIO initialization | Completed | `IMU Initial Done` and map k-d tree initialization observed |
+| FAST_LIO odometry | Completed | `/Odometry` publishes at approximately 10 Hz |
+| Registered point cloud | Completed | `/cloud_registered` publishes at approximately 10 Hz |
+| FAST_LIO frame consistency | Completed | Odometry and registered clouds use `camera_init` |
+| SUPER real-sensor input | Completed | SUPER receives FAST_LIO odometry and point-cloud data |
 | ROG-Map | Completed | Occupancy voxels are visible in RViz |
-| Planning on real point-cloud data | Basic verification completed | `GenerateExpTrajectory SUCCESS`, `FOLLOW_TRAJ`, and `ReplanOnce succeed` were observed |
-| Clicked goal height | Adjusted | Changed from 1.5 m to -0.19 m in the current FAST_LIO coordinate frame |
+| Planning on real point clouds | Basic verification completed | `GenerateExpTrajectory SUCCESS`, `FOLLOW_TRAJ`, and `ReplanOnce succeed` observed |
 | SUPER command output | Completed | `/planning/pos_cmd` publishes at approximately 99.5–100 Hz |
-| QGroundControl direct USB connection | Completed | Firmware and MAVLink status were read successfully |
+| QGroundControl direct USB connection | Completed | Firmware and MAVLink status read successfully |
 | MAVROS connection to PX4 | Completed | `/mavros/state` reports `connected: true` |
-| PX4 local position and estimator state | Pending | The next step is to inspect local position and estimator topics |
-| FAST_LIO external vision input to PX4 | Not completed | Frames, timestamps, extrinsics, and EKF fusion are not configured |
-| SUPER command conversion for PX4 | Not completed | The command bridge has not yet been implemented |
-| QGroundControl through MAVROS UDP forwarding | Pending verification | Forwarding is configured but has not yet been tested |
-| Offboard closed-loop control | Not verified | Current results cover perception, planning, command output, and communication only |
-| Autonomous real flight | Not verified | No real autonomous flight test has been completed |
+| PX4 local pose | Inspected | Local attitude and position topics are available |
+| PX4 horizontal estimator status | Not ready | Horizontal-position flags were false and constant-position mode was active |
+| LiDAR-to-body nominal transform | Bench validation completed | FAST_LIO and PX4 yaw changes agreed within approximately 1.33° |
+| ROS-to-MAVROS pose transport | Verified | `/super_debug/body_pose` was relayed to `/mavros/vision_pose/pose` |
+| PX4 external-vision fusion | Disabled | `EKF2_EV_CTRL = 0` |
+| MAVLink time synchronization | Blocked | Round-trip time was approximately 8.3–9.2 seconds |
+| External-pose update rate | Not flight-ready | FAST_LIO pose is approximately 10 Hz and its odometry twist is zero |
+| SUPER-to-PX4 command bridge | Not implemented | SUPER commands are not converted into PX4 setpoints |
+| Offboard closed-loop control | Not verified | No real closed-loop position test has been completed |
+| Autonomous real flight | Not verified | No autonomous real flight has been completed |
 
-`FOLLOW_TRAJ` is an internal SUPER state. It does not mean the real UAV has followed or completed the trajectory.
+---
 
 ## 3. Environment and Versions
 
 | Item | Current value |
-| --- | --- |
+|---|---|
 | Operating system | Ubuntu 22.04 |
 | ROS | ROS 2 Humble |
 | Shell | zsh |
-| Livox ROS Driver 2 | Version 1.2.7 shown in the runtime log |
+| Livox ROS Driver 2 | 1.2.7 |
 | SUPER commit | `2ad3419c127a617c6d7df6925e81a14175a9c096` |
 | FAST_LIO branch | `ROS2` |
 | FAST_LIO commit | `a4743b095409588842a5b30ddfa27e29d2f99164` |
@@ -101,13 +126,15 @@ Use `msg_MID360_launch.py` for FAST_LIO integration. Do not run both MID360 laun
 | mavros-extras | 2.14.0 |
 | Flight-controller architecture | `HKUST_NXT_DUAL` |
 | Flight-controller MCU | STM32H7 |
-| PX4 firmware | Release 1.17.0, custom board build |
+| PX4 firmware | Release 1.17.0 custom board build |
 | PX4 git hash | `d6f12ad1c4f70ad3230afd7d86e971421e02fef4` |
-| Firmware build time | May 13, 2026, 18:40:15 |
+| PX4 build time | May 13, 2026, 18:40:15 |
 | Flight-controller connection | USB |
 | Ubuntu serial device | `/dev/ttyACM0` |
-| Current DDS configuration | `UXRCE_DDS_CFG = 0` |
-| uXRCE-DDS client | Present in the firmware but not running |
+| PX4 board rotation | `SENS_BOARD_ROT = 8` |
+| uXRCE-DDS configuration | `UXRCE_DDS_CFG = 0` |
+| uXRCE-DDS client | Present but not running |
+| MAVROS transport | USB MAVLink at 2,000,000 baud |
 
 Workspace paths:
 
@@ -118,66 +145,282 @@ Workspace paths:
 ~/super_ws/                         SUPER workspace
 ~/super_ws/src/SUPER/               SUPER source
 ~/fastlio_ws/mid360_super.rviz      Saved RViz configuration
+~/Downloads/fastlio_body_debug.py   Body-frame diagnostic script
 ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
-The RViz configuration was initially intended to be saved under `~/super_ws/`, but the RViz window title later showed:
-
-```text
-~/fastlio_ws/mid360_super.rviz
-```
-
-Use the path that exists on the deployment computer.
+---
 
 ## 4. Current Data Pipeline
 
 ```mermaid
 flowchart LR
-    L[MID360] --> D[Livox ROS Driver 2]
-    D -->|CustomMsg and IMU| F[FAST_LIO]
-    F -->|Odometry and cloud_registered| S[SUPER and ROG-Map]
-    S --> R[RViz map and trajectory]
-    S -->|Approximately 100 Hz| C[planning/pos_cmd]
-    C -. Command conversion pending .-> M[MAVROS]
-    F -. External localization fusion pending .-> M
-    M <-->|USB MAVLink verified| P[PX4]
-    M -. UDP forwarding pending verification .-> Q[QGroundControl]
+    MID360[MID360 LiDAR and IMU]
+    DRIVER[Livox ROS Driver 2]
+    FASTLIO[FAST_LIO]
+    ODOM[/Odometry/]
+    CLOUD[/cloud_registered/]
+    SUPER[SUPER and ROG-Map]
+    COMMAND[/planning/pos_cmd/]
+    BODY[Body-frame diagnostic]
+    DEBUG[/super_debug/body_pose/]
+    MAVROS[MAVROS]
+    PX4[PX4]
+
+    MID360 --> DRIVER
+    DRIVER -->|/livox/lidar and /livox/imu| FASTLIO
+    FASTLIO --> ODOM
+    FASTLIO --> CLOUD
+    ODOM --> SUPER
+    CLOUD --> SUPER
+    SUPER --> COMMAND
+    ODOM --> BODY
+    BODY --> DEBUG
+    DEBUG -. bench transport test .-> MAVROS
+    MAVROS <-->|USB MAVLink| PX4
 ```
 
-## 5. Complete Startup Sequence
+The path from `/planning/pos_cmd` to PX4 has not been implemented.
 
-Use a separate terminal for each continuously running process.
+The external-pose path is currently a bench transport test. PX4 fusion remains disabled.
 
-The following sequence assumes that all packages have already been built and configured.
+---
+
+## 5. MID360 Network Configuration
+
+### 5.1 Current settings
+
+| Item | Value |
+|---|---|
+| Ubuntu Ethernet interface | `enp4s0` |
+| Ubuntu IP | `192.168.50.125/24` |
+| MID360 IP | `192.168.50.163` |
+
+Check the network interfaces:
+
+```zsh
+ip -br addr
+```
+
+Check communication with the LiDAR:
+
+```zsh
+ping 192.168.50.163
+```
+
+The MID360 interface and the Ubuntu Ethernet interface must be in the same subnet.
+
+---
+
+## 6. FAST_LIO Installation
+
+Create the workspace:
+
+```zsh
+mkdir -p ~/fastlio_ws/src
+```
+
+Clone the official ROS 2 branch:
+
+```zsh
+git clone --branch ROS2 --single-branch --recursive https://github.com/hku-mars/FAST_LIO.git ~/fastlio_ws/src/FAST_LIO
+```
+
+Verify the source commit:
+
+```zsh
+git -C ~/fastlio_ws/src/FAST_LIO rev-parse HEAD
+```
+
+Expected commit:
+
+```text
+a4743b095409588842a5b30ddfa27e29d2f99164
+```
+
+Verify the submodule:
+
+```zsh
+git -C ~/fastlio_ws/src/FAST_LIO submodule status
+```
+
+Expected ikd-Tree commit:
+
+```text
+e2e3f4e9d3b95a9e66b1ba83dc98d4a05ed8a3c4
+```
+
+Install dependencies:
+
+```zsh
+source /opt/ros/humble/setup.zsh
+rosdep install --from-paths ~/fastlio_ws/src --ignore-src -r -y
+```
+
+Build:
+
+```zsh
+cd ~/fastlio_ws
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+colcon build --symlink-install
+```
+
+The Boost placeholder and CMake policy messages observed during compilation are warnings. The build completed successfully.
+
+### 6.1 FAST_LIO MID360 configuration
+
+Configuration file:
+
+```text
+~/fastlio_ws/src/FAST_LIO/config/mid360.yaml
+```
+
+Required topics:
+
+```yaml
+common:
+  lid_topic: "/livox/lidar"
+  imu_topic: "/livox/imu"
+  time_sync_en: false
+```
+
+Preprocessing configuration:
+
+```yaml
+preprocess:
+  lidar_type: 1
+  scan_line: 4
+  blind: 0.5
+  timestamp_unit: 3
+  scan_rate: 10
+```
+
+Current nominal extrinsics:
+
+```yaml
+mapping:
+  extrinsic_est_en: true
+  extrinsic_T: [ -0.011, -0.02329, 0.04412 ]
+  extrinsic_R: [ 1.0, 0.0, 0.0,
+                 0.0, 1.0, 0.0,
+                 0.0, 0.0, 1.0 ]
+```
+
+PCD saving is disabled:
+
+```yaml
+pcd_save:
+  pcd_save_en: false
+  interval: -1
+```
+
+Because `extrinsic_est_en` is enabled, the values in the configuration are initial estimates. They are not necessarily the final live LiDAR–IMU extrinsics.
+
+---
+
+## 7. SUPER Real-Sensor Configuration
+
+Configuration file:
+
+```text
+~/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml
+```
+
+Required input topics:
+
+```yaml
+cloud_topic: "/cloud_registered"
+odom_topic: "/Odometry"
+```
+
+Required click-goal settings:
+
+```yaml
+fsm:
+  click_goal_en: true
+  click_goal_topic: "/goal_pose"
+  click_height: -0.19
+  click_yaw_en: true
+```
+
+ROG-Map settings used during the current test:
+
+```yaml
+rog_map:
+  resolution: 0.1
+  inflation_resolution: 0.2
+  inflation_step: 2
+  unk_inflation_step: 1
+  virtual_ground_height: -1.0
+
+  raycasting:
+    enable: true
+    batch_update_size: 1
+    local_update_box: [100, 100, 5]
+    ray_range: [0.5, 100]
+```
+
+The earlier virtual-ground warning occurred because the effective inflated ground height was above the FAST_LIO odometry height.
+
+The earlier setting:
+
+```yaml
+virtual_ground_height: -0.5
+```
+
+still produced an effective ground height near `-0.1 m` after voxel rounding and inflation. FAST_LIO reported a height near `-0.217 m`, so ROG-Map rejected the odometry as being below the virtual ground.
+
+The corrected value is:
+
+```yaml
+virtual_ground_height: -1.0
+```
+
+Required backup-trajectory parameter:
+
+```yaml
+traj_opt:
+  backup_traj:
+    penna_thr: 1.0e+5
+```
+
+Do not use the unsupported parameter name:
+
+```yaml
+penna_max_acc_thr
+```
+
+The incorrect parameter name caused backup-trajectory optimization failures in the simulator.
+
+---
+
+## 8. Complete Startup Sequence
+
+Use a separate terminal for every continuously running process.
 
 ### Terminal 1: MID360 driver
 
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
 ros2 launch livox_ros_driver2 msg_MID360_launch.py
-```
-
-A successful startup includes a message similar to:
-
-```text
-livox/lidar publish use livox custom format
 ```
 
 Keep this terminal running.
 
 ### Terminal 2: FAST_LIO
 
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
 source ~/fastlio_ws/install/setup.zsh
 ros2 launch fast_lio mapping.launch.py config_file:=mid360.yaml
 ```
 
-Keep the LiDAR stationary for several seconds during initialization.
+Keep the vehicle stationary for several seconds during initialization.
 
-Expected initialization messages include:
+Expected messages:
 
 ```text
 IMU Initial Done
@@ -186,13 +429,13 @@ Initialize the map kdtree
 
 This launch file also starts RViz.
 
-To load the saved RViz configuration, use:
+Load the saved RViz configuration with:
 
 ```text
 RViz → File → Open Config
 ```
 
-Then select:
+Select:
 
 ```text
 /home/mars/fastlio_ws/mid360_super.rviz
@@ -200,42 +443,41 @@ Then select:
 
 ### Terminal 3: visualization frame alignment
 
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
-ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id world --child-frame-id camera_init
+ros2 run tf2_ros static_transform_publisher \
+  --x 0 --y 0 --z 0 \
+  --roll 0 --pitch 0 --yaw 0 \
+  --frame-id world \
+  --child-frame-id camera_init
 ```
 
-FAST_LIO publishes data in `camera_init`, while SUPER publishes visualization markers in `world`.
+This static transform is only used for the current SUPER and RViz visualization convention.
 
-The current integration treats their numerical coordinates as identical, so this static transform makes the frames overlap in RViz.
+It does not prove that:
 
-This transform is only for the current planning and visualization convention. It does not prove that:
-
-- FAST_LIO is aligned with the PX4 local frame.
-- The LiDAR-to-body extrinsic calibration is correct.
+- `camera_init` is aligned with PX4 `map`.
 - The `camera_init` X axis points north.
-- ENU and NED transformations have been handled correctly.
+- The LiDAR-to-body extrinsics are fully calibrated.
+- ENU/NED conversion has been completed for flight.
 
 ### Terminal 4: SUPER with real sensor data
 
 Create the log directories once:
 
-```bash
+```zsh
 mkdir -p ~/super_ws/src/SUPER/super_planner/log/replan_logs
 mkdir -p ~/super_ws/src/SUPER/super_planner/log/cmd_logs
 ```
 
-Load ROS 2 and SUPER:
+Start SUPER:
 
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/super_ws/install/setup.zsh
-```
-
-Start the planner:
-
-```bash
-ros2 run super_planner fsm_node --ros-args -p config_name:=mid360_real_ros2.yaml
+ros2 run super_planner fsm_node \
+  --ros-args \
+  -p config_name:=mid360_real_ros2.yaml
 ```
 
 A normal waiting state is:
@@ -245,78 +487,22 @@ Wait for goal
 Current state: INIT
 ```
 
-Use this standalone planner command for real-sensor integration.
+Use the standalone `fsm_node` command for real sensors.
 
-Do not use `click_demo.launch.py` for real-sensor integration because that launch file also starts the ideal drone simulator. The simulator publishes its own point cloud and odometry, which can conflict with the real FAST_LIO data.
+Do not use `click_demo.launch.py` for real-sensor integration. That launch file also starts the ideal drone simulator, which publishes simulated odometry and point clouds.
 
 ### Terminal 5: MAVROS
 
-Close QGroundControl if it is directly connected to `/dev/ttyACM0`.
+Close QGroundControl before opening the USB device.
 
-Load ROS 2:
-
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
+ros2 launch mavros px4.launch \
+  fcu_url:="serial:///dev/ttyACM0:2000000" \
+  gcs_url:="udp://:14555@127.0.0.1:14550"
 ```
 
-Start MAVROS:
-
-```bash
-ros2 launch mavros px4.launch fcu_url:="serial:///dev/ttyACM0:2000000" gcs_url:="udp://:14555@127.0.0.1:14550"
-```
-
-The USB connection between MAVROS and PX4 has been verified.
-
-This command does not convert SUPER commands into PX4 setpoints. The UAV will not follow `/planning/pos_cmd` automatically.
-
-The following MAVROS requirements were checked:
-
-- `/usr/share/GeographicLib/geoids/egm96-5.pgm` exists.
-- User `mars` belongs to the `dialout` group.
-- The flight controller appears as `/dev/ttyACM0`.
-
-After reconnecting the USB cable, check the device name again because it may change.
-
-### Terminal 6: system checks
-
-Load all required environments:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-source ~/fastlio_ws/install/setup.zsh
-source ~/super_ws/install/setup.zsh
-```
-
-Run each frequency check separately and stop it with `Ctrl+C` after several seconds:
-
-```bash
-ros2 topic hz /livox/lidar
-```
-
-```bash
-ros2 topic hz /livox/imu
-```
-
-```bash
-ros2 topic hz /Odometry
-```
-
-```bash
-ros2 topic hz /cloud_registered
-```
-
-```bash
-ros2 topic hz /planning/pos_cmd
-```
-
-Check the MAVROS connection:
-
-```bash
-ros2 topic echo /mavros/state --once
-```
-
-The verified MAVROS state was:
+Verified MAVROS state:
 
 ```yaml
 connected: true
@@ -327,997 +513,562 @@ mode: AUTO.LOITER
 system_status: 0
 ```
 
-This is only a connection-state snapshot.
+This state confirms communication only. It does not confirm estimator readiness or Offboard control.
 
-`guided: true` does not prove that the flight controller is currently in Offboard mode, and it does not prove that the estimator is ready.
+### Terminal 6: nominal body-frame diagnostic
 
-## 6. MID360 Network Configuration
-
-### Current network settings
-
-| Item | Value |
-| --- | --- |
-| Ubuntu Ethernet interface | `enp4s0` |
-| Ubuntu IP | `192.168.50.125/24` |
-| MID360 IP | `192.168.50.163` |
-
-Check the network interfaces:
-
-```bash
-ip -br addr
+```zsh
+source /opt/ros/humble/setup.zsh
+source ~/fastlio_ws/install/setup.zsh
+python3 ~/Downloads/fastlio_body_debug.py
 ```
 
-Ping the LiDAR:
-
-```bash
-ping -I enp4s0 -c 4 192.168.50.163
-```
-
-Check the neighbor table:
-
-```bash
-ip neigh show dev enp4s0
-```
-
-Inspect MID360 network traffic:
-
-```bash
-sudo tcpdump -ni enp4s0 -nn host 192.168.50.163
-```
-
-Check the source configuration:
-
-```bash
-grep -n '192.168.' ~/ws_livox/src/livox_ros_driver2/config/MID360_config.json
-```
-
-Check the installed configuration:
-
-```bash
-grep -n '192.168.' ~/ws_livox/install/livox_ros_driver2/share/livox_ros_driver2/config/MID360_config.json
-```
-
-When changing the MID360 network settings, preserve the complete JSON structure and all port fields. Only change the relevant IP addresses.
-
-## 7. FAST_LIO Installation
-
-### Clone FAST_LIO
-
-```bash
-mkdir -p ~/fastlio_ws/src
-```
-
-```bash
-git clone --branch ROS2 --single-branch --recursive https://github.com/hku-mars/FAST_LIO.git ~/fastlio_ws/src/FAST_LIO
-```
-
-Verify the source version:
-
-```bash
-git -C ~/fastlio_ws/src/FAST_LIO rev-parse HEAD
-```
-
-Expected commit during this deployment:
+The script publishes:
 
 ```text
-a4743b095409588842a5b30ddfa27e29d2f99164
+/super_debug/body_pose
 ```
 
-Verify the ikd-Tree submodule:
+It does not send motor commands, arm commands, mode changes, or PX4 setpoints.
 
-```bash
-git -C ~/fastlio_ws/src/FAST_LIO submodule status
-```
+### Terminal 7: system checks
 
-Expected submodule commit:
-
-```text
-e2e3f4e9d3b95a9e66b1ba83dc98d4a05ed8a3c4
-```
-
-### Install dependencies
-
-```bash
+```zsh
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
-rosdep install --from-paths ~/fastlio_ws/src --ignore-src -r -y
-```
-
-### Build FAST_LIO
-
-```bash
-cd ~/fastlio_ws
-```
-
-```bash
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
-```
-
-Load the result:
-
-```bash
 source ~/fastlio_ws/install/setup.zsh
+source ~/super_ws/install/setup.zsh
 ```
 
-### FAST_LIO MID360 configuration
+Run frequency checks separately:
 
-Configuration file:
+```zsh
+ros2 topic hz /livox/lidar
+```
+
+```zsh
+ros2 topic hz /livox/imu
+```
+
+```zsh
+ros2 topic hz /Odometry
+```
+
+```zsh
+ros2 topic hz /cloud_registered
+```
+
+```zsh
+ros2 topic hz /planning/pos_cmd
+```
+
+```zsh
+ros2 topic hz /super_debug/body_pose
+```
+
+Stop each frequency command with `Ctrl+C`.
+
+### Terminal 8: external-pose transport test
+
+Install `topic_tools` once:
+
+```zsh
+sudo apt update
+sudo apt install ros-humble-topic-tools
+```
+
+The transport test command is:
+
+```zsh
+source /opt/ros/humble/setup.zsh
+ros2 run topic_tools relay \
+  /super_debug/body_pose \
+  /mavros/vision_pose/pose
+```
+
+The relay normally runs silently.
+
+Do not run this relay while diagnosing the current MAVLink time-synchronization problem.
+
+Keep:
 
 ```text
-~/fastlio_ws/src/FAST_LIO/config/mid360.yaml
+EKF2_EV_CTRL = 0
 ```
 
-Important parameters:
+during transport testing.
 
-| Parameter | Current value |
-| --- | --- |
-| `common.lid_topic` | `/livox/lidar` |
-| `common.imu_topic` | `/livox/imu` |
-| `common.time_sync_en` | `false` |
-| `common.time_offset_lidar_to_imu` | `0.0` |
-| `preprocess.lidar_type` | `1` |
-| `preprocess.scan_rate` | `10` |
-| `mapping.extrinsic_est_en` | `true` |
-| `pcd_save.pcd_save_en` | `false` |
+---
 
-Automatic PCD saving was disabled:
+## 9. RViz Configuration
 
-```yaml
-pcd_save:
-  pcd_save_en: false
-  interval: -1
-```
+### 9.1 ROG-Map occupancy data
 
-The original configuration could accumulate all frames into one PCD file, which may consume excessive memory or disk space during long runs.
-
-The current setup has been verified for basic mapping and topic output. Long-term drift, motion performance, time synchronization, and extrinsic accuracy still require dedicated testing.
-
-## 8. SUPER Real-Sensor Configuration
-
-### Configuration file
-
-The original simulation configuration was preserved.
-
-A separate real-sensor configuration was created:
+Add a `PointCloud2` display and set:
 
 ```text
-~/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml
+Topic: /rog_map/occ
+Reliability Policy: Best Effort
+Durability Policy: Volatile
+Style: Boxes
+Size: 0.1
 ```
 
-It was copied from the corrected simulation configuration:
-
-```bash
-cp ~/super_ws/src/SUPER/super_planner/config/click_smooth_ros2.yaml ~/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml
-```
-
-### Important current values
-
-The following table lists important parameters. It is not a complete replacement YAML file.
-
-| Parameter | Current value |
-| --- | --- |
-| `fsm.click_goal_topic` | `/goal_pose` |
-| `fsm.click_height` | `-0.19` |
-| `fsm.cmd_topic` | `/planning/pos_cmd` |
-| `rog_map.ros_callback.cloud_topic` | `/cloud_registered` |
-| `rog_map.ros_callback.odom_topic` | `/Odometry` |
-| `rog_map.resolution` | `0.1` |
-| `rog_map.inflation_resolution` | `0.2` |
-| `rog_map.inflation_step` | `2` |
-| `rog_map.virtual_ground_height` | `-1.0` |
-| `rog_map.raycasting.enable` | `true` |
-| `traj_opt.backup_traj.penna_thr` | `1.0e+5` |
-| `traj_opt.boundary.max_omg` | `2.5` |
-
-After changing the YAML file, restart the SUPER process so that it reloads the parameters.
-
-The runtime log confirmed that SUPER loaded:
+A successful occupancy message was observed with:
 
 ```text
-/home/mars/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml
+width: 7637
 ```
 
-## 9. Fixed Issues
+If RViz shows only axes or no map data, check the QoS settings first.
 
-### 9.1 Backup-trajectory parameter name
+### 9.2 SUPER committed trajectory
 
-The original backup-trajectory configuration used:
-
-```yaml
-penna_max_acc_thr: 1.0e+5
-```
-
-The current source loader reads:
-
-```yaml
-penna_thr: 1.0e+5
-```
-
-The backup configuration was changed to:
-
-```yaml
-backup_traj:
-  penna_thr: 1.0e+5
-```
-
-After this correction, `click_demo` successfully generated a trajectory and moved the simulated vehicle.
-
-Temporarily increasing `max_omg` was not the actual fix. It was restored to:
-
-```yaml
-max_omg: 2.5
-```
-
-Planning still succeeded after restoring this value.
-
-Related discussion:
-
-- [SUPER Issue #20](https://github.com/hku-mars/SUPER/issues/20#issuecomment-3323124309)
-
-### 9.2 Virtual-ground warning
-
-Observed warning:
+Add a `MarkerArray` display and select:
 
 ```text
-Odom below virtual ground, please check map parameter
+/visualization/committed_traj
 ```
 
-At that time, the FAST_LIO Z position was approximately:
+Set:
 
 ```text
--0.217 m
+Reliability Policy: Best Effort
+Durability Policy: Volatile
 ```
 
-ROG-Map adjusts the effective virtual-ground height using the inflation parameters.
+The green markers show the trajectory generated by SUPER.
 
-For the current source, the calculation is approximately:
+### 9.3 Sending a goal
+
+Use:
 
 ```text
-effective_ground =
-    [floor(configured_ground / inflation_resolution) + inflation_step]
-    × inflation_resolution
-    + 0.5 × inflation_resolution
+2D Goal Pose
 ```
 
-Current inflation settings:
+The configured topic is:
 
-```yaml
-resolution: 0.1
-inflation_resolution: 0.2
-inflation_step: 2
+```text
+/goal_pose
 ```
 
-Result:
+Do not use `2D Pose Estimate` for sending a planning target.
 
-| Configured ground | Effective ground | Result |
-| --- | --- | --- |
-| `-0.5 m` | Approximately `-0.1 m` | The odometry remained below the effective ground |
-| `-1.0 m` | Approximately `-0.5 m` | The odometry passed the height check |
-
-The configuration was therefore changed to:
-
-```yaml
-virtual_ground_height: -1.0
-```
-
-This value is currently used for integration testing. The actual floor position still needs to be confirmed from the point cloud.
-
-FAST_LIO may choose a different origin after restarting, so the current Z position and ground settings should be checked again after each fresh initialization.
-
-### 9.3 Goal trajectory appeared as a diagonal line
-
-The original configuration contained:
+The earlier sharply inclined trajectory was caused by:
 
 ```yaml
 click_height: 1.5
 ```
 
-This parameter overrides the Z value of the goal message.
+while the FAST_LIO pose height was near `-0.19 m`.
 
-Even when the user clicked on a horizontal plane in RViz, SUPER changed the goal to:
-
-```text
-z = 1.5 m
-```
-
-The measured FAST_LIO height was approximately:
-
-```text
-z = -0.186 m
-```
-
-This created a vertical difference of approximately 1.69 m, so the planned trajectory rose diagonally.
-
-For same-height planning tests, the parameter was changed to:
+The current value is:
 
 ```yaml
 click_height: -0.19
 ```
 
-This is a fixed coordinate value in the current FAST_LIO frame. It is not height above the physical floor and it does not automatically follow the current vehicle altitude.
+This places clicked goals near the current horizontal plane.
 
-SUPER may still change altitude along the middle of a trajectory to avoid obstacles.
+---
 
-### 9.4 SUPER log-writing error
+## 10. LiDAR-to-Body Transform Validation
 
-Observed error during shutdown:
+The current mounting assumptions are:
 
-```text
-Error: Could not open file for writing
-```
+- The flight-controller arrow points toward the vehicle nose.
+- The flight controller is physically upside down.
+- PX4 compensates for the upside-down installation with `SENS_BOARD_ROT = 8`.
+- Viewed from above, the LiDAR is rotated approximately 45 degrees counter-clockwise relative to the vehicle nose.
+- The LiDAR centre is approximately `0.10 m` above the flight-controller centre.
+- No horizontal offset is currently assumed.
 
-SUPER saves replanning and command logs during destruction.
-
-The required directories were created:
-
-```bash
-mkdir -p ~/super_ws/src/SUPER/super_planner/log/replan_logs
-mkdir -p ~/super_ws/src/SUPER/super_planner/log/cmd_logs
-```
-
-Future shutdowns should be checked to confirm that both log files are written successfully.
-
-## 10. RViz Configuration
-
-### Global frame
-
-Set:
-
-```text
-Global Options
-└── Fixed Frame: world
-```
-
-### SUPER occupancy map
-
-Add:
-
-```text
-Topic: /rog_map/occ
-Display type: PointCloud2
-```
-
-Set the topic QoS to:
-
-```text
-Reliability Policy: Best Effort
-Durability Policy: Volatile
-```
-
-Recommended display properties:
-
-```text
-Style: Boxes
-Size (m): 0.1
-Alpha: 1
-Position Transformer: XYZ
-Color Transformer: FlatColor
-Color: 255; 255; 255
-```
-
-During testing, `/rog_map/occ` contained 7637 points but initially did not appear in RViz.
-
-The cause was a QoS mismatch. SUPER publishes the map with Best Effort reliability. After changing the RViz subscription to Best Effort, the occupancy voxels appeared.
-
-`Status: Ok` alone does not prove that RViz is receiving a non-empty point cloud.
-
-### SUPER trajectory
-
-Add:
-
-```text
-Topic: /visualization/committed_traj
-Display type: MarkerArray
-```
-
-Set:
-
-```text
-Reliability Policy: Best Effort
-Durability Policy: Volatile
-```
-
-### Sending a goal
-
-Open:
-
-```text
-Panels → Tool Properties
-```
-
-Set:
-
-```text
-2D Goal Pose → Topic: /goal_pose
-```
-
-Then:
-
-1. Select **2D Goal Pose** from the RViz toolbar.
-2. Click in a nearby free area.
-3. Hold and drag the mouse to choose the goal heading.
-4. Release the mouse button to send the goal.
-
-Do not use **2D Pose Estimate** to send a goal. It is intended for initial-pose estimation.
-
-Successful planning logs include:
-
-```text
-GenerateExpTrajectory SUCCESS
-change state from [GENERATE_TRAJ] to [FOLLOW_TRAJ]
-ReplanOnce succeed
-```
-
-Because PX4 is not yet executing the SUPER trajectory, the real LiDAR position does not move with the command.
-
-A trajectory may finish and be replanned even though the real UAV has not reached the goal.
-
-## 11. Topic Verification
-
-### Livox message type
-
-```bash
-ros2 topic type /livox/lidar
-```
-
-Expected:
-
-```text
-livox_ros_driver2/msg/CustomMsg
-```
-
-If the message type is reported as invalid:
-
-```bash
-source ~/ws_livox/install/setup.zsh
-```
-
-### FAST_LIO output topics
-
-```bash
-ros2 topic list | grep -E 'cloud_registered|Odometry|path'
-```
-
-Expected topics:
-
-```text
-/Odometry
-/cloud_registered
-/cloud_registered_body
-/path
-```
-
-Check the output frames:
-
-```bash
-ros2 topic echo /Odometry --once --field header
-```
-
-```bash
-ros2 topic echo /cloud_registered --once --field header
-```
-
-Both were verified with:
-
-```text
-frame_id: camera_init
-```
-
-### SUPER map width
-
-```bash
-ros2 topic echo /rog_map/occ --once --field width
-```
-
-Example result:
-
-```text
-7637
-```
-
-This confirms that the map point cloud is not empty.
-
-### SUPER command type
-
-```bash
-ros2 topic type /planning/pos_cmd
-```
-
-Expected:
-
-```text
-mars_quadrotor_msgs/msg/PositionCommand
-```
-
-If the message type is reported as invalid:
-
-```bash
-source ~/super_ws/install/setup.zsh
-```
-
-### SUPER command frequency
-
-```bash
-ros2 topic hz /planning/pos_cmd
-```
-
-Verified rate:
-
-```text
-Approximately 99.5–100 Hz
-```
-
-## 12. PX4 and MAVROS
-
-### Flight-controller information
-
-QGroundControl reported:
-
-```text
-Hardware architecture: HKUST_NXT_DUAL
-PX4 version: Release 1.17.0
-PX4 git hash: d6f12ad1c4f70ad3230afd7d86e971421e02fef4
-Operating system: NuttX 11.0.0
-MCU: STM32H7
-USB device on Ubuntu: /dev/ttyACM0
-```
-
-### MAVLink status
-
-QGroundControl's MAVLink Console reported:
-
-```text
-type: USB CDC
-MAVLink version: 2
-transport protocol: serial (/dev/ttyACM0 @2000000)
-```
-
-### uXRCE-DDS status
-
-The following commands were run in the QGroundControl MAVLink Console:
-
-```text
-param show UXRCE_DDS_CFG
-```
-
-Result:
-
-```text
-UXRCE_DDS_CFG: 0
-```
-
-The client status was checked with:
-
-```text
-uxrce_dds_client status
-```
-
-Result:
-
-```text
-uxrce_dds_client not running
-```
-
-The current integration therefore uses MAVROS over USB MAVLink. It does not currently use the PX4 uXRCE-DDS bridge.
-
-### USB serial permission
-
-Device:
-
-```text
-/dev/ttyACM0
-```
-
-Permission:
-
-```text
-crw-rw---- root dialout
-```
-
-User `mars` belongs to the `dialout` group, so the serial device can be opened without using `sudo`.
-
-### MAVROS installation
-
-Installed packages:
-
-```text
-ros-humble-mavros: 2.14.0
-ros-humble-mavros-extras: 2.14.0
-```
-
-The required GeographicLib geoid file exists:
-
-```text
-/usr/share/GeographicLib/geoids/egm96-5.pgm
-```
-
-### MAVROS launch
-
-Close QGroundControl before allowing MAVROS to open the USB serial device:
-
-```bash
-source /opt/ros/humble/setup.zsh
-```
-
-```bash
-ros2 launch mavros px4.launch fcu_url:="serial:///dev/ttyACM0:2000000" gcs_url:="udp://:14555@127.0.0.1:14550"
-```
-
-Check the connection:
-
-```bash
-ros2 topic echo /mavros/state --once
-```
+The diagnostic script converts FAST_LIO odometry to a nominal forward-left-up UAV body frame.
 
 Verified output:
 
+```text
+Topic: /super_debug/body_pose
+Rate: approximately 10 Hz
+Frame: camera_init
+```
+
+### 10.1 Manual rotation test
+
+The complete vehicle frame was rotated counter-clockwise.
+
+Measured yaw changes:
+
+| Source | Before | After | Change |
+|---|---:|---:|---:|
+| Converted FAST_LIO body pose | -41.06° | -4.57° | +36.49° |
+| PX4 local attitude through MAVROS | +86.32° | +121.48° | +35.16° |
+
+Difference between the measured changes:
+
+```text
+approximately 1.33°
+```
+
+Relative yaw offset:
+
+```text
+Before rotation: 127.38°
+After rotation:  126.05°
+```
+
+This confirms that the nominal 45-degree rotation correction has the correct direction.
+
+It does not yet determine the world-frame transform between FAST_LIO `camera_init` and PX4 `map`.
+
+---
+
+## 11. MAVROS External-Pose Interface
+
+The following MAVROS odometry topic directions were verified:
+
+```text
+/mavros/odometry/in   PX4 → ROS
+/mavros/odometry/out  ROS → PX4
+```
+
+Verified `/mavros/odometry/out` endpoint:
+
+```text
+Type: nav_msgs/msg/Odometry
+Publisher count: 0
+Subscription count: 1
+Subscriber node: /mavros/odometry
+QoS: Reliable / Volatile
+```
+
+The MAVROS vision-pose input is:
+
+```text
+/mavros/vision_pose/pose
+Type: geometry_msgs/msg/PoseStamped
+```
+
+During the relay test:
+
+```text
+Publisher: /relay
+Subscriber: /mavros/vision_pose
+Publisher count: 1
+Subscription count: 1
+Rate: approximately 10 Hz
+QoS: Reliable / Volatile
+```
+
+MAVROS converts ROS ENU/FLU pose data into the MAVLink/PX4 convention before sending `VISION_POSITION_ESTIMATE`.
+
+PX4 external-vision fusion is currently disabled:
+
+```text
+EKF2_EV_CTRL = 0
+```
+
+---
+
+## 12. Current External-Pose Limitations
+
+### 12.1 FAST_LIO update rate
+
+FAST_LIO currently publishes `/Odometry` at approximately `10 Hz`.
+
+PX4 documentation recommends external-vision messages at approximately `30–50 Hz`.
+
+The current 10 Hz pose stream is not considered flight-ready.
+
+### 12.2 Missing velocity
+
+FAST_LIO currently publishes zero odometry twist:
+
 ```yaml
-connected: true
-armed: false
-guided: true
-manual_input: false
-mode: AUTO.LOITER
-system_status: 0
+twist:
+  linear:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  angular:
+    x: 0.0
+    y: 0.0
+    z: 0.0
 ```
 
-## 13. Troubleshooting
+The current data cannot be safely extrapolated to a higher rate using the published twist.
 
-### No Livox data
+Repeatedly publishing an unchanged pose with a fabricated timestamp is not a valid flight solution.
 
-Check the Ethernet interface:
+### 12.3 Position-frame alignment
 
-```bash
-ip -br addr
+FAST_LIO publishes in `camera_init`.
+
+PX4 local pose is published in `map`.
+
+Their absolute positions and yaw values cannot be compared directly until a fixed world-frame alignment is established.
+
+The earlier PX4 estimator report showed:
+
+```yaml
+attitude_status_flag: true
+velocity_horiz_status_flag: false
+velocity_vert_status_flag: true
+pos_horiz_rel_status_flag: false
+pos_horiz_abs_status_flag: false
+pos_vert_abs_status_flag: true
+pos_vert_agl_status_flag: false
+const_pos_mode_status_flag: true
 ```
 
-Check the physical link:
+The PX4 local position should not be used as a trusted horizontal reference while these flags remain invalid.
 
-```bash
-cat /sys/class/net/enp4s0/carrier
-```
+---
 
-Expected result:
+## 13. Current MAVLink Time-Synchronization Problem
+
+MAVROS is publishing:
 
 ```text
-1
+/mavros/timesync_status
 ```
 
-Check the Ethernet speed:
+A healthy external-pose integration requires stable timestamps and low synchronization latency.
 
-```bash
-sudo ethtool enp4s0 | grep -E 'Speed|Duplex|Link detected'
-```
-
-Ping the LiDAR:
-
-```bash
-ping -I enp4s0 -c 4 192.168.50.163
-```
-
-Inspect incoming packets:
-
-```bash
-sudo tcpdump -ni enp4s0 -nn host 192.168.50.163
-```
-
-### ROS 2 reports an invalid Livox message type
-
-Load the Livox workspace:
-
-```bash
-source ~/ws_livox/install/setup.zsh
-```
-
-Then retry:
-
-```bash
-ros2 topic hz /livox/lidar
-```
-
-### ROS 2 reports an invalid SUPER message type
-
-Load the SUPER workspace:
-
-```bash
-source ~/super_ws/install/setup.zsh
-```
-
-Then retry:
-
-```bash
-ros2 topic hz /planning/pos_cmd
-```
-
-Each new terminal must load the required workspace environments.
-
-### SUPER reports `No odom`
-
-Check the odometry frequency:
-
-```bash
-ros2 topic hz /Odometry
-```
-
-Inspect the publisher and subscribers:
-
-```bash
-ros2 topic info /Odometry --verbose
-```
-
-The current SUPER FSM source treats odometry as stale after 0.1 seconds.
-
-FAST_LIO publishes at approximately 10 Hz, and a maximum interval of approximately 0.139 seconds was observed. Timing jitter can therefore trigger occasional `No odom` messages.
-
-A previous continuous `No odom` condition was not fully diagnosed. Planning later recovered without modifying the timeout threshold.
-
-Selecting **2D Pose Estimate** instead of **2D Goal Pose** explains why a planning goal was not sent, but it does not directly explain missing odometry.
-
-### RViz map topic is valid but nothing is visible
-
-Check whether the point cloud contains points:
-
-```bash
-ros2 topic echo /rog_map/occ --once --field width
-```
-
-Then set the RViz topic QoS to:
+Observed values:
 
 ```text
-Reliability Policy: Best Effort
-Durability Policy: Volatile
+round_trip_time_ms: approximately 8300–9200 ms
 ```
 
-### Terminal reports `parse error near '<'`
+The values decreased by approximately `100 ms` per received sample:
 
-This usually happens when HTML markup such as `<br/>` is copied into the shell.
+```text
+9204 ms
+9104 ms
+9005 ms
+8906 ms
+8806 ms
+8706 ms
+8607 ms
+8507 ms
+8408 ms
+8307 ms
+```
 
-Copy only the command text inside a code block.
+The synchronization topic was also irregular:
 
-### Terminal reports `no such file or directory: br/`
+```text
+Observed average rate: approximately 2.7–4.1 Hz
+Maximum interval: approximately 5.05 seconds
+```
 
-This is also caused by copying an HTML line-break tag into the terminal.
+This suggests delayed or queued MAVLink time-synchronization messages.
 
-Cancel the command with `Ctrl+C` and enter the command again manually.
+External-pose fusion must remain disabled until this is resolved.
 
-### Terminal shows a `>` continuation prompt
+### 13.1 Isolation test
 
-A quote or trailing backslash was probably left open.
-
-Press:
+Stop the external-pose relay in Terminal 8:
 
 ```text
 Ctrl+C
 ```
 
-Then enter the command again without a trailing backslash.
+Keep the MID360 driver, FAST_LIO, SUPER, MAVROS, and body diagnostic running.
 
-## 14. Current Integration Boundary
+Collect synchronization samples:
 
-The current verified pipeline is:
-
-```text
-MID360
-  → Livox ROS Driver 2
-  → FAST_LIO
-  → SUPER / ROG-Map
-  → trajectory generation
-  → /planning/pos_cmd at approximately 100 Hz
+```zsh
+timeout 15s ros2 topic echo \
+  /mavros/timesync_status \
+  --field round_trip_time_ms
 ```
 
-MAVROS is connected to PX4, but the following control path is not yet implemented:
+Check which process owns the USB serial device:
 
-```text
-/planning/pos_cmd
-  → command conversion and frame transformation
-  → MAVROS setpoint
-  → PX4 Offboard control
+```zsh
+sudo fuser -v /dev/ttyACM0
 ```
 
-The SUPER command message is:
+Only the intended MAVROS process should own the device during this test.
 
-```text
-mars_quadrotor_msgs/msg/PositionCommand
+Also check:
+
+```zsh
+ros2 topic hz /mavros/timesync_status
 ```
 
-It cannot be forwarded directly to PX4 without conversion.
-
-Important interface details:
-
-- `position` is expressed in the SUPER planning frame.
-- `velocity`, `acceleration`, and `jerk` require coordinate-frame verification.
-- `attitude` contains Euler-angle values, not a quaternion.
-- `thrust.z` is related to acceleration magnitude and is not normalized PX4 throttle.
-- PX4 commonly uses NED and FRD conventions, while ROS commonly uses ENU and FLU conventions.
-- Frame conversion, yaw conversion, timestamps, command freshness, failsafe behavior, and trajectory-end behavior must be implemented explicitly.
-
-## 15. Next Steps
-
-**Current continuation point: MAVROS is connected to PX4, but PX4 local-position and estimator topics have not yet been checked.**
-
-In a terminal with ROS 2 loaded, run:
-
-```bash
-timeout 10s ros2 topic echo /mavros/local_position/pose --once
-```
-
-Then run:
-
-```bash
-timeout 10s ros2 topic echo /mavros/estimator_status --once
-```
-
-Remaining work:
-
-- [ ] Verify PX4 local-position output.
-- [ ] Verify PX4 estimator status.
-- [ ] Check the publication rates of the PX4 state topics.
-- [ ] Verify QGroundControl through MAVROS UDP forwarding.
-- [ ] Determine the FAST_LIO-to-PX4 frame transformation.
-- [ ] Confirm LiDAR-to-body extrinsic calibration.
-- [ ] Confirm time synchronization and timestamp behavior.
-- [ ] Publish FAST_LIO external localization to PX4.
-- [ ] Configure and verify PX4 EKF external-vision fusion.
-- [ ] Implement the SUPER PositionCommand-to-MAVROS bridge.
-- [ ] Verify position, velocity, acceleration, and yaw conversions.
-- [ ] Implement continuous setpoint streaming.
-- [ ] Implement command timeout handling.
-- [ ] Implement trajectory-end position hold.
-- [ ] Verify Offboard mode transitions without propellers.
-- [ ] Perform controlled closed-loop tests.
-- [ ] Perform a real autonomous flight test only after all previous checks pass.
-
-## 16. References
-
-- [This project](https://github.com/Haofei-Hu/Demo_HKU_open-day_SUPER)
-- [SUPER](https://github.com/hku-mars/SUPER)
-- [FAST_LIO ROS2 branch](https://github.com/hku-mars/FAST_LIO/tree/ROS2)
-- [Livox ROS Driver 2](https://github.com/Livox-SDK/livox_ros_driver2)
-- [MAVROS ROS 2 connection URLs](https://github.com/mavlink/mavros/blob/ros2/docs/connection_urls.md)
-- [PX4 uXRCE-DDS documentation](https://docs.px4.io/main/en/middleware/uxrce_dds)
-
-This README records the deployment and integration completed on the current Ubuntu computer.
-
-Whether the modified configuration files, RViz configuration, and future command-bridge source files have been committed to this repository must be verified against the actual repository contents.
-### Terminal 1 — Start MID360 with RViz
-
-Use this mode to display the raw LiDAR point cloud.
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-ros2 launch livox_ros_driver2 rviz_MID360_launch.py
-```
-
-### Terminal 2 — Start QGroundControl
-
-```bash
-~/Downloads/QGroundControl-x86_64.AppImage
-```
-
-If permission is denied, run this once, then launch QGC again:
-
-```bash
-chmod +x ~/Downloads/QGroundControl-x86_64.AppImage
-```
-
-### Alternative — MID360 for FAST-LIO
-
-Use CustomMsg mode when working with FAST-LIO.
-
-Stop the existing Livox driver with Ctrl+C before switching modes.
-Run only one Livox driver instance.
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-ros2 launch livox_ros_driver2 msg_MID360_launch.py
-```
-
-- `rviz_MID360_launch.py`: PointCloud2 output for RViz.
-- `msg_MID360_launch.py`: CustomMsg output for FAST-LIO.
-- CustomMsg cannot be displayed directly using RViz's standard PointCloud2 display.
-
-### Check LiDAR and IMU Frequency
-
-Open another terminal:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-```
-
-Run each check separately. Press Ctrl+C before the next check.
-
-```bash
-ros2 topic hz /livox/lidar
-```
-
-```bash
-ros2 topic hz /livox/imu
-```
-
-Latest observed rates in CustomMsg mode:
-
-| Topic | Observed rate |
-|---|---:|
-| `/livox/lidar` | Approximately 10 Hz |
-| `/livox/imu` | Approximately 200 Hz |
-
-## Deployment Progress
-
-Updated: **2026-09-29**
-
-| Component | Status | Notes |
-|---|---|---|
-| Ubuntu 22.04 + ROS 2 Humble | Complete | zsh environment |
-| SUPER compilation | Complete | 6 packages built |
-| Official click_demo | Passed | Simulated drone moves and reaches the goal |
-| Backup trajectory configuration | Fixed | Added `backup_traj.penna_thr` |
-| Original angular-rate limit | Passed | Demo succeeds with `max_omg: 2.5` |
-| MID360 network | Passed | LiDAR: `192.168.50.163`; PC: `192.168.50.125` |
-| MID360 point cloud | Verified | Approximately 10 Hz |
-| MID360 IMU | Verified | Approximately 200 Hz |
-| QGroundControl | Launch command documented | FCU connection not verified in this session |
-| FAST-LIO ROS2 | Pending | Download/build not yet confirmed |
-| FAST-LIO → SUPER | Pending | Registered cloud and odometry integration |
-| SUPER → PX4 | Pending | Controller/bridge and SITL validation |
-
-## SUPER Simulation — Verified Setup
-
-Workspace: `~/super_ws`
-
-Source: `~/super_ws/src/SUPER`
-
-Upstream commit:
-
-```text
-2ad3419c127a617c6d7df6925e81a14175a9c096
-```
-
-Configuration file: `super_planner/config/click_smooth_ros2.yaml`
-
-Verified limits:
-
-```yaml
-max_vel: 5.0
-max_acc: 5.0
-max_omg: 2.5
-```
-
-Required setting under `traj_opt.backup_traj`:
-
-```yaml
-penna_thr: 1.0e+5
-```
-
-The ROS2 example used `penna_max_acc_thr` and `penna_min_acc_thr`,
-but the loader expects `penna_thr`. Correcting this restored successful
-planning. Restoring `max_omg` from 6.0 to 2.5 also passed.
-
-See [upstream issue #20](https://github.com/hku-mars/SUPER/issues/20).
-
-### Launch SUPER Simulation
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/super_ws/install/setup.zsh
-ros2 launch mission_planner click_demo.launch.py
-```
-
-Use **2D Goal Pose** in the top-down RViz window to select a nearby,
-unobstructed target.
-
-This demo uses an ideal tracking simulator and does not validate PX4
-flight control. Stop it before connecting real FAST-LIO data to SUPER,
-because the simulator also publishes `/cloud_registered`.
-
-## Next Steps
-
-- [ ] Build and run FAST-LIO ROS2.
-- [ ] Verify `/cloud_registered`, `/Odometry` and stable handheld mapping.
-- [ ] Connect real FAST-LIO data to SUPER without the simulator.
-- [ ] Verify coordinate consistency, mapping and planning.
-- [ ] Integrate the PX4 control layer.
-- [ ] Complete SITL and propeller-off bench testing.
+Do not set `EKF2_EV_CTRL` until the synchronization stream becomes stable.
 
 ---
+
+## 14. Common Problems
+
+### zsh parse error near `<`
+
+Cause: an HTML `<br/>` tag was pasted into the terminal.
+
+Incorrect:
+
+```text
+source /opt/ros/humble/setup.zsh<br/>
+```
+
+Correct:
+
+```zsh
+source /opt/ros/humble/setup.zsh
+```
+
+Run one command per line.
+
+### zsh: no such file or directory: br/
+
+This has the same cause: the shell interpreted an HTML line-break tag as a path.
+
+Retype the command without `<br/>`.
+
+### Message type is invalid
+
+Example:
+
+```text
+The message type 'livox_ros_driver2/msg/CustomMsg' is invalid
+```
+
+Load the Livox overlay:
+
+```zsh
+source ~/ws_livox/install/setup.zsh
+```
+
+For SUPER message types:
+
+```zsh
+source ~/super_ws/install/setup.zsh
+```
+
+### Topic initially appears unpublished
+
+Commands such as `ros2 topic hz` may first display:
+
+```text
+topic does not appear to be published yet
+```
+
+If frequency measurements appear afterward, the initial warning only means the subscriber was waiting for the first message.
+
+### ROG-Map is invisible in RViz
+
+Set:
+
+```text
+Reliability Policy: Best Effort
+Durability Policy: Volatile
+```
+
+### SUPER reports `No odom`
+
+Check:
+
+```zsh
+ros2 topic hz /Odometry
+```
+
+FAST_LIO publishes close to 10 Hz, with occasional intervals greater than 0.1 seconds. SUPER contains a strict odometry-age check, so timing jitter may temporarily trigger `No odom`.
+
+### ROG-Map reports odometry below virtual ground
+
+Check the current odometry height:
+
+```zsh
+ros2 topic echo /Odometry --once --field pose.pose.position
+```
+
+Use the corrected configuration:
+
+```yaml
+virtual_ground_height: -1.0
+```
+
+Restart SUPER after editing its configuration.
+
+### QGroundControl and MAVROS cannot use USB simultaneously
+
+Close QGroundControl before MAVROS opens:
+
+```text
+/dev/ttyACM0
+```
+
+Alternatively, connect QGroundControl through MAVROS UDP forwarding after that forwarding path has been verified.
+
+### The relay terminal has no output
+
+`topic_tools relay` normally runs silently.
+
+Check whether it is active with:
+
+```zsh
+ros2 topic info /mavros/vision_pose/pose --verbose
+```
+
+A running relay should appear as a publisher.
+
+---
+
+## 15. Required Next Steps
+
+1. Stop the external-pose relay.
+2. Resolve MAVLink time synchronization and USB message delays.
+3. Confirm stable millisecond-level time-sync round-trip values.
+4. Determine how to publish fresh external odometry at a suitable rate.
+5. Add valid pose covariance.
+6. Add valid velocity and velocity covariance if available.
+7. Establish the fixed transform between `camera_init` and the PX4 local frame.
+8. Verify external pose while the vehicle remains disarmed.
+9. Inspect PX4 external-vision innovations and estimator status.
+10. Enable only the required `EKF2_EV_CTRL` fields after bench validation.
+11. Implement the SUPER-to-PX4 setpoint bridge.
+12. Validate Offboard heartbeat, mode switching, failsafes, and setpoint conventions.
+13. Perform restrained ground tests before any autonomous flight.
+
+---
+
+## 16. Safety and Scope
+
+The currently verified system covers:
+
+- MID360 communication
+- LiDAR and IMU ROS topics
+- FAST_LIO localization and mapping
+- SUPER occupancy mapping
+- SUPER trajectory generation
+- SUPER command publication
+- MAVROS USB communication
+- Nominal LiDAR-to-body rotation
+- ROS-side external-pose transport to MAVROS
+
+The following have not been verified:
+
+- PX4 fusion of FAST_LIO position
+- PX4 fusion of FAST_LIO yaw
+- Position-controlled flight using FAST_LIO
+- SUPER-to-PX4 command conversion
+- Offboard closed-loop control
+- Autonomous real flight
+
+Keep the vehicle disarmed during estimator and coordinate-frame integration.
+
+---
+
+## 17. References
+
+- [SUPER](https://github.com/hku-mars/SUPER)
+- [FAST_LIO](https://github.com/hku-mars/FAST_LIO)
+- [Livox ROS Driver 2](https://github.com/Livox-SDK/livox_ros_driver2)
+- [MAVROS](https://github.com/mavlink/mavros)
+- [PX4 external position estimation](https://docs.px4.io/main/en/ros/external_position_estimation)
+- [PX4 EKF2 external vision configuration](https://docs.px4.io/main/en/advanced_config/tuning_the_ecl_ekf)
