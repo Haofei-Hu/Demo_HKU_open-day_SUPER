@@ -1,10 +1,5 @@
 # Demo_HKU_open-day_SUPER
 
-HKU Open Day UAV demonstration using Livox MID360, ROS 2 Humble, SUPER and PX4.
-
-## Quick Start — LiDAR and QGroundControl
-# Demo_HKU_open-day_SUPER
-
 Deployment and integration notes for the SUPER UAV demonstration used at the HKU Open Day.
 
 **Last updated: September 29, 2026**
