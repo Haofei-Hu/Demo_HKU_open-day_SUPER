@@ -1,5 +1,5 @@
 # Demo_MaRS_open-day_SUPER
-This is the demo which used for HKU open days
+This is the demo which used for HKU (MaRS) open days
 # UAV LiDAR System Setup
 
 This repository contains the setup and launch instructions for the UAV onboard system, including:
