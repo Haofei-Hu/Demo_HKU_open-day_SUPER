@@ -205,7 +205,33 @@ Closing process terminals or rebooting the computer normally requires starting t
 
 These are paths on the onboard Ubuntu computer. Check the repository contents separately to determine which configuration files and scripts have been committed.
 
-This repository currently contains `README.md` and `fastlio_body_debug.py`. The raw transport script was saved separately on the Ubuntu computer; the FAST_LIO source repair and workspace YAML files are also outside this repository.
+Today's diagnostic scripts and covariance repair are now archived in this repository:
+
+| File | Purpose |
+| --- | --- |
+| [fastlio_body_debug.py](fastlio_body_debug.py) | Existing nominal mounting diagnostic; no flight-control output |
+| [raw_pose_cov_transport.py](raw_pose_cov_transport.py) | Raw ROS pose/covariance transport test; requires external vision fusion disabled |
+| [odom_age_check.py](odom_age_check.py) | The isolated 15-second, depth-one timestamp-age check |
+| [apply_fastlio_covariance_fix.py](apply_fastlio_covariance_fix.py) | Apply the reviewed source replacement with a backup and mismatch check |
+| [fastlio_pose_covariance_fix.patch](patches/fastlio_pose_covariance_fix.patch) | Equivalent patch for the recorded FAST_LIO source |
+| [test_raw_transport.py](tests/test_raw_transport.py) | ROS DDS test with a simulated MAVROS parameter service |
+| [verify_fastlio_pose_covariance.py](tests/verify_fastlio_pose_covariance.py) | Isolated Eigen/C++ covariance verification against the actual patched function |
+
+The complete FAST_LIO/Livox/SUPER workspaces and their local configuration files are not vendored here. Their paths above still refer to the Ubuntu machine.
+
+From the root of a local clone, the following copies the diagnostic scripts to the locations used in this runbook:
+
+```bash
+cp fastlio_body_debug.py raw_pose_cov_transport.py odom_age_check.py ~/Downloads/
+```
+
+The covariance helper defaults to `~/fastlio_ws/src/FAST_LIO/src/laserMapping.cpp`. Run it only after checking that this is the intended source file:
+
+```bash
+python3 apply_fastlio_covariance_fix.py
+```
+
+It detects the exact repair already used today, makes no change if present, refuses an unexpected old block, and saves a source backup under `~/fastlio_cov_backup_*` before writing. Alternatively use the patch with `git apply --check` first; do not apply both approaches. Building and verifying the installed executable remain separate steps.
 
 ### MID360 network
 
@@ -842,7 +868,7 @@ MAVROS performs its ENU/FLU to NED/FRD conversion, but the vision-pose input doe
 
 This is a diagnostic operation, not part of the default startup sequence.
 
-Use the separately saved `~/Downloads/raw_pose_cov_transport.py` only while the aircraft is disarmed and `EKF2_EV_CTRL = 0`. It forwards raw `/Odometry` pose and covariance to `/mavros/vision_pose/pose_cov`, retaining the original frame and timestamp. It does not convert to the flight-controller center or align with the PX4 navigation frame.
+Use [raw_pose_cov_transport.py](raw_pose_cov_transport.py), copied to `~/Downloads/`, only while the aircraft is disarmed and `EKF2_EV_CTRL = 0`. It forwards raw `/Odometry` pose and covariance to `/mavros/vision_pose/pose_cov`, retaining the original frame and timestamp. It does not convert to the flight-controller center or align with the PX4 navigation frame.
 
 Check the prerequisite in Terminal 3:
 
@@ -951,6 +977,8 @@ The trigger of the old process's delay is still unknown. Process CPU percentages
 ### Odometry timestamp-age check
 
 Run in Terminal 3 after sourcing ROS. This measures receipt time minus the original measurement timestamp using a depth-one subscriber:
+
+The same check is available as [odom_age_check.py](odom_age_check.py). After copying it to Downloads, run `python3 ~/Downloads/odom_age_check.py`, or paste the inline version below.
 
 ```bash
 python3 - <<'PY'
@@ -1246,7 +1274,26 @@ Do not copy its fields directly into an unrelated flight-control interface. In p
 - [ ] Define behavior when the ground connection is lost.
 - [ ] Add an automatic startup gate if unattended service startup is required.
 
-## 13. References
+## 13. Development Checks
+
+Run the transport test on a separate test host with ROS 2 Humble sourced, from this repository's root:
+
+```bash
+source /opt/ros/humble/setup.bash
+ROS_DOMAIN_ID=77 ROS_LOCALHOST_ONLY=1 PYTHONPATH="$PWD" python3 tests/test_raw_transport.py
+```
+
+This test creates its own `/Odometry` publisher and simulated `/mavros/param` service. Use a dedicated ROS domain with no hardware nodes; it does not use a real flight controller. It checks field preservation, invalid-input rejection, the nonzero/stale parameter gate, and resumed forwarding.
+
+To check the repaired C++ publisher without building the whole ROS package, install `g++` and Eigen headers on the test host and run from the repository root:
+
+```bash
+python3 tests/verify_fastlio_pose_covariance.py ~/fastlio_ws/src/FAST_LIO/src/laserMapping.cpp /usr/include/eigen3
+```
+
+This compiles the actual function against message/publisher stubs and checks covariance block order, fixed-axis rotation/cross terms, first/second-frame publication, and unchanged pose/time/TF. It does not replace the real FAST_LIO build or PX4 fusion validation.
+
+## 14. References
 
 - [Project repository](https://github.com/Haofei-Hu/Demo_HKU_open-day_SUPER)
 - [SUPER](https://github.com/hku-mars/SUPER)

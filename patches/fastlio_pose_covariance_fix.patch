@@ -1,0 +1,35 @@
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -631,18 +631,21 @@
+     odomAftMapped.child_frame_id = "body";
+     odomAftMapped.header.stamp = get_ros_time(lidar_end_time);
+     set_posestamp(odomAftMapped.pose);
++    // Position first; convert the IMU-local rotation error to world axes.
++    const auto P = kf.get_P();
++    Eigen::Matrix<double, 6, 6> covariance_axes =
++        Eigen::Matrix<double, 6, 6>::Identity();
++    covariance_axes.block<3, 3>(3, 3) = state_point.rot.toRotationMatrix();
++    const Eigen::Matrix<double, 6, 6> pose_covariance =
++        covariance_axes * P.block<6, 6>(0, 0) * covariance_axes.transpose();
++    for (int i = 0; i < 6; ++i)
++    {
++        for (int j = 0; j < 6; ++j)
++        {
++            odomAftMapped.pose.covariance[i * 6 + j] = pose_covariance(i, j);
++        }
++    }
+     pubOdomAftMapped->publish(odomAftMapped);
+-    auto P = kf.get_P();
+-    for (int i = 0; i < 6; i ++)
+-    {
+-        int k = i < 3 ? i + 3 : i - 3;
+-        odomAftMapped.pose.covariance[i*6 + 0] = P(k, 3);
+-        odomAftMapped.pose.covariance[i*6 + 1] = P(k, 4);
+-        odomAftMapped.pose.covariance[i*6 + 2] = P(k, 5);
+-        odomAftMapped.pose.covariance[i*6 + 3] = P(k, 0);
+-        odomAftMapped.pose.covariance[i*6 + 4] = P(k, 1);
+-        odomAftMapped.pose.covariance[i*6 + 5] = P(k, 2);
+-    }
+
+     geometry_msgs::msg::TransformStamped trans;
+     trans.header.frame_id = "camera_init";
