@@ -7,7 +7,119 @@ Deployment notes for an HKU Open Day UAV demonstration using Livox MID360, FAST_
 **Current stage:** LiDAR sensing, FAST_LIO localization, SUPER planning, and MAVROS–PX4 communication have been demonstrated. Host clock synchronization has now been configured and checked. External localization fusion, trajectory execution, and autonomous flight remain unfinished.
 
 This README documents the existing Ubuntu deployment. It is not a complete fresh-install guide.
+## Quick Start
 
+Run these commands on the **onboard Ubuntu computer** using separate zsh terminals.
+
+Before starting, connect to the network and wait until the computer's date and time are correct. Keep QGroundControl closed while MAVROS uses the flight controller USB port.
+
+Keep each process terminal open. This procedure starts localization, planning, and communication; it does not automatically arm or take off.
+
+### Terminal 1 — MID360
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+ros2 launch livox_ros_driver2 msg_MID360_launch.py
+```
+
+### Terminal 2 — FAST_LIO
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+source ~/fastlio_ws/install/setup.zsh
+ros2 launch fast_lio mapping.launch.py config_file:=mid360.yaml
+```
+
+Keep the sensor stationary during initialization. Wait for:
+
+```text
+IMU Initial Done
+Initialize the map kdtree
+```
+
+### Terminal 3 — Visualization Transform
+
+```bash
+source /opt/ros/humble/setup.zsh
+ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id world --child-frame-id camera_init
+```
+
+This defines the current visualization convention. It does not align FAST_LIO with the PX4 navigation frame.
+
+### Terminal 4 — SUPER
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+mkdir -p ~/super_ws/src/SUPER/super_planner/log/replan_logs ~/super_ws/src/SUPER/super_planner/log/cmd_logs
+ros2 run super_planner fsm_node --ros-args -p config_name:=mid360_real_ros2.yaml
+```
+
+`Wait for goal` is normal before submitting a goal.
+
+### Terminal 5 — MAVROS
+
+Close any QGroundControl instance directly connected to the flight controller USB port.
+
+```bash
+source /opt/ros/humble/setup.zsh
+ros2 launch mavros px4.launch fcu_url:="serial:///dev/ttyACM0:2000000"
+```
+
+### Terminal 6 — Body-Pose Diagnostic (Optional)
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+source ~/fastlio_ws/install/setup.zsh
+python3 ~/Downloads/fastlio_body_debug.py
+```
+
+This publishes `/super_debug/body_pose` for inspection. It does not send flight commands.
+
+### Terminal 7 — Checks
+
+```bash
+source /opt/ros/humble/setup.zsh
+```
+
+Run each check separately:
+
+```bash
+timeout 10s ros2 topic hz /Odometry
+```
+
+```bash
+timeout 10s ros2 topic echo /mavros/state --once
+```
+
+```bash
+timeout 10s ros2 topic echo /mavros/timesync_status --field round_trip_time_ms
+```
+
+Expected basic results:
+
+- `/Odometry`: approximately 10 Hz.
+- `/mavros/state`: `connected: true`.
+- Time-sync output: assess the current measurements; the previous multi-second delay remains a troubleshooting item.
+
+### RViz — Map and Planning Goal
+
+In the RViz window started by FAST_LIO:
+
+1. Open `~/fastlio_ws/mid360_super.rviz` through **File → Open Config**.
+2. Set **Fixed Frame** to `world`.
+3. Enable the PointCloud2 display for `/rog_map/occ`.
+4. Enable the MarkerArray display for `/visualization/committed_traj`.
+5. Set both displays to **Best Effort / Volatile**.
+6. Under **Tool Properties → 2D Goal Pose**, set the topic to `/goal_pose`.
+7. Select **2D Goal Pose**, then click and drag in a nearby accessible area.
+
+Use **2D Goal Pose** to submit a goal. **2D Pose Estimate** is the initial-pose tool.
+
+Recheck the configured goal height after restarting FAST_LIO. A visible trajectory or `FOLLOW_TRAJ` state confirms planner activity; aircraft trajectory execution is still pending integration.
 ## 1. Deployment Status
 
 The table distinguishes previous successful tests from the latest startup session.
