@@ -4,16 +4,17 @@ Deployment notes for an HKU Open Day UAV demonstration using Livox MID360, FAST_
 
 **Last updated: 2026-10-06**
 
-**Current stage:** LiDAR sensing, FAST_LIO localization, SUPER planning, and MAVROS–PX4 communication have been demonstrated. Host clock synchronization has now been configured and checked. External localization fusion, trajectory execution, and autonomous flight remain unfinished.
-
-This README documents the existing Ubuntu deployment. It is not a complete fresh-install guide.
 ## Quick Start
 
-Run these commands on the **onboard Ubuntu computer** using separate zsh terminals.
+Run these commands on the **existing Ubuntu 22.04 / ROS 2 Humble computer**, using separate zsh terminals. The original system disk and workspaces are now running on the replacement AMD computer. This is a restart guide, not a fresh installation guide.
+
+**Next-session breakpoint:** the FAST_LIO pose-covariance repair is present in the local source. A successful build and restart with the repaired binary have **not** been confirmed. Complete [the build and restart checkpoint](#build-and-restart-checkpoint) before treating the repair as active.
 
 Before starting, connect to the network and wait until the computer's date and time are correct. Keep QGroundControl closed while MAVROS uses the flight controller USB port.
 
-Keep each process terminal open. This procedure starts localization, planning, and communication; it does not automatically arm or take off.
+Keep each process terminal open. External vision fusion remains disabled (`EKF2_EV_CTRL = 0`). This procedure starts localization, planning, and communication; it does not automatically arm or take off.
+
+The terminal labels used today are: **1 MID360, 2 FAST_LIO/RViz, 3 checks, 4 visualization TF, 5 SUPER, 6 MAVROS, 7 body-pose diagnostic**. Terminal 8 is an optional transport test; Terminal 9 is for the pending build.
 
 ### Terminal 1 — MID360
 
@@ -39,7 +40,7 @@ IMU Initial Done
 Initialize the map kdtree
 ```
 
-### Terminal 3 — Visualization Transform
+### Terminal 4 — Visualization Transform
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -48,7 +49,7 @@ ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --roll 0 --pitch 0
 
 This defines the current visualization convention. It does not align FAST_LIO with the PX4 navigation frame.
 
-### Terminal 4 — SUPER
+### Terminal 5 — SUPER
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -59,7 +60,7 @@ ros2 run super_planner fsm_node --ros-args -p config_name:=mid360_real_ros2.yaml
 
 `Wait for goal` is normal before submitting a goal.
 
-### Terminal 5 — MAVROS
+### Terminal 6 — MAVROS
 
 Close any QGroundControl instance directly connected to the flight controller USB port.
 
@@ -68,7 +69,7 @@ source /opt/ros/humble/setup.zsh
 ros2 launch mavros px4.launch fcu_url:="serial:///dev/ttyACM0:2000000"
 ```
 
-### Terminal 6 — Body-Pose Diagnostic (Optional)
+### Terminal 7 — Body-Pose Diagnostic (Optional)
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -79,10 +80,13 @@ python3 ~/Downloads/fastlio_body_debug.py
 
 This publishes `/super_debug/body_pose` for inspection. It does not send flight commands.
 
-### Terminal 7 — Checks
+### Terminal 3 — Checks
 
 ```bash
 source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+source ~/fastlio_ws/install/setup.zsh
+source ~/super_ws/install/setup.zsh
 ```
 
 Run each check separately:
@@ -96,6 +100,10 @@ timeout 10s ros2 topic echo /mavros/state --once
 ```
 
 ```bash
+ros2 param get /mavros/param EKF2_EV_CTRL
+```
+
+```bash
 timeout 10s ros2 topic echo /mavros/timesync_status --field round_trip_time_ms
 ```
 
@@ -103,7 +111,10 @@ Expected basic results:
 
 - `/Odometry`: approximately 10 Hz.
 - `/mavros/state`: `connected: true`.
-- Time-sync output: assess the current measurements; the previous multi-second delay remains a troubleshooting item.
+- `/mavros/state`: `armed: false`; `EKF2_EV_CTRL` remains `0` for these diagnostics.
+- Latest time-sync round-trip samples were approximately **0.72–4.20 ms**. Recheck each session; the older multi-second anomaly has no confirmed root cause.
+
+A 10 Hz topic can still carry old measurements. After restarting FAST_LIO, run [the timestamp-age check](#odometry-timestamp-age-check) in Terminal 3. Today's recovered stream averaged **21–23 ms**, with a maximum of **50 ms** during a two-minute planning test.
 
 ### RViz — Map and Planning Goal
 
@@ -120,29 +131,34 @@ In the RViz window started by FAST_LIO:
 Use **2D Goal Pose** to submit a goal. **2D Pose Estimate** is the initial-pose tool.
 
 Recheck the configured goal height after restarting FAST_LIO. A visible trajectory or `FOLLOW_TRAJ` state confirms planner activity; aircraft trajectory execution is still pending integration.
+
+The last reported test setting was `click_height: -0.05`. It is a coordinate in the initialized planning frame, not height above the floor. The final 3 m × 6 m venue settings have not been applied; see [the demonstration requirements](#11-demonstration-venue-requirements).
+
 ## 1. Deployment Status
 
-The table distinguishes previous successful tests from the latest startup session.
+**Current stage:** sensing, localization, real-data planning, and MAVROS communication were rechecked on 2026-10-06. ROS pose-covariance transport was demonstrated with external vision fusion disabled. The source covariance repair awaits a confirmed machine build and runtime check. PX4 fusion, trajectory execution, and venue boundary protection remain unfinished.
 
 | Component | Status | Evidence / remaining work |
 | --- | --- | --- |
 | Ubuntu 22.04, ROS 2 Humble, zsh | Installed | Working deployment environment |
-| MID360 network and driver | Previously verified | CustomMsg LiDAR approximately 10 Hz; IMU approximately 200 Hz |
-| FAST_LIO localization | Previously verified | `/Odometry` and `/cloud_registered` approximately 10 Hz |
+| MID360 network and driver | Rechecked today | Driver initialized; isolated `/livox/imu` check approximately 200 Hz |
+| FAST_LIO localization | Rechecked today | `/Odometry` approximately 10 Hz; after restart, timestamp age averaged 21–23 ms during a two-minute planning test |
 | SUPER simulation | Previously verified | Click-goal demo succeeded after correcting the backup trajectory configuration |
-| SUPER with real FAST_LIO data | Previously verified | Occupancy map and committed trajectory displayed in RViz |
-| SUPER trajectory generation | Previously verified | `GenerateExpTrajectory SUCCESS`, `FOLLOW_TRAJ`, and `ReplanOnce succeed` |
-| SUPER command output | Previously verified | `/planning/pos_cmd` approximately 99.5–100 Hz |
-| Nominal body-pose diagnostic script | Previously verified | `/super_debug/body_pose` approximately 10 Hz; timing gaps require further assessment |
+| SUPER with real FAST_LIO data | Rechecked today | `/rog_map/occ` width 4266; map and trajectory displayed in RViz |
+| SUPER trajectory generation | Rechecked today | `FOLLOW_TRAJ` and repeated `ReplanOnce succeed` after a clicked goal |
+| SUPER command output | Rechecked today | `/planning/pos_cmd` approximately 99.5–100 Hz |
+| Nominal body-pose diagnostic script | Rechecked today | `/super_debug/body_pose` approximately 10 Hz; mounting and world alignment remain preliminary |
 | QGroundControl direct USB connection | Previously verified | Firmware and MAVLink information retrieved |
 | MAVROS–PX4 USB connection | Recovered after reboot | Latest reported state: `connected: true`, `armed: false`, `mode: AUTO.LOITER` |
-| Diagnostic pose relay to MAVROS | Previously verified at ROS topic level | One publisher and one MAVROS subscriber; approximately 10 Hz |
-| Chrony clock synchronization | Verified on 2026-10-06 | Startup synchronization check passed; runtime automatic stepping disabled for the current Chrony process |
-| MAVROS time synchronization | Pending recheck | Previous measurements showed approximately 8–9 seconds of round-trip time |
+| Raw pose-covariance transport to MAVROS | Verified at ROS topic level today | One publisher and one MAVROS subscriber; approximately 10 Hz after timestamp freshness recovered |
+| Host clock synchronization | Rechecked after reboot | `timedatectl`: synchronized, NTP active, Asia/Hong_Kong, RTC in UTC |
+| MAVROS time synchronization | Rechecked today | Observed round-trip samples approximately 0.72–4.20 ms; older anomaly cause unresolved |
+| FAST_LIO pose-covariance source repair | Present in local source | Build, installed binary, and first-message runtime verification pending |
 | FAST_LIO localization fused by PX4 | Not completed | Last confirmed `EKF2_EV_CTRL` value was `0` |
 | SUPER commands converted to PX4 setpoints | Not completed | Controller/bridge implementation and validation required |
 | Autonomous takeoff and task management | Not implemented | Takeoff, hover, goal sequencing, and landing states required |
 | Offboard flight and autonomous obstacle avoidance | Not validated | No completed real-flight execution test |
+| Final venue configuration | Requirements recorded | 3 m wide × 6 m long × 3 m high, target 2 m/s, maximum height 2 m; boundary enforcement pending |
 
 A successful planner state does not establish that the aircraft followed the trajectory.
 
@@ -152,7 +168,8 @@ Closing process terminals or rebooting the computer normally requires starting t
 
 | Item | Recorded configuration |
 | --- | --- |
-| Onboard computer | Ubuntu 22.04 |
+| Current computer | Replacement AMD computer using the original Ubuntu 22.04 system disk and existing workspaces |
+| Available resources | 8 logical CPUs; approximately 15 GiB RAM, 11 GiB available at the last check; 2 GiB swap unused |
 | ROS distribution | ROS 2 Humble |
 | Shell | zsh |
 | LiDAR | Livox MID360 |
@@ -182,10 +199,13 @@ Closing process terminals or rebooting the computer normally requires starting t
 ~/super_ws/src/SUPER/
 ~/fastlio_ws/mid360_super.rviz
 ~/Downloads/fastlio_body_debug.py
+~/Downloads/raw_pose_cov_transport.py
 ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
 These are paths on the onboard Ubuntu computer. Check the repository contents separately to determine which configuration files and scripts have been committed.
+
+This repository currently contains `README.md` and `fastlio_body_debug.py`. The raw transport script was saved separately on the Ubuntu computer; the FAST_LIO source repair and workspace YAML files are also outside this repository.
 
 ### MID360 network
 
@@ -194,6 +214,7 @@ These are paths on the onboard Ubuntu computer. Check the repository contents se
 | Ethernet interface | `enp4s0` |
 | Onboard computer IP | `192.168.50.125/24` |
 | MID360 IP | `192.168.50.163` |
+| General network interface | `enp5s0`, last reported `192.168.1.102/24` |
 
 Useful checks:
 
@@ -204,6 +225,8 @@ ip neigh show dev enp4s0
 ```
 
 The driver startup log reports the configuration file actually loaded. Preserve the full JSON structure when changing addresses.
+
+Today's launch loaded `~/ws_livox/install/livox_ros_driver2/share/livox_ros_driver2/config/MID360_config.json` and successfully enabled normal mode, Livox CustomMsg output, and IMU output.
 
 ## 3. System Architecture
 
@@ -230,7 +253,7 @@ Controller bridge          RViz
 MAVROS <---- USB MAVLink ----> PX4
 ```
 
-A separate diagnostic path has been tested:
+A nominal mounting diagnostic is available:
 
 ```text
 FAST_LIO /Odometry
@@ -240,15 +263,21 @@ fastlio_body_debug.py
   |
   v
 /super_debug/body_pose
-  |
-  v
-Optional topic relay
-  |
-  v
-/mavros/vision_pose/pose
 ```
 
-The diagnostic relay establishes ROS-side transport. It does not establish PX4 estimator fusion or correct alignment with the PX4 local frame.
+Today's separate covariance transport test used:
+
+```text
+FAST_LIO /Odometry
+  |
+  v
+raw_pose_cov_transport.py [transport only; EKF2_EV_CTRL must remain 0]
+  |
+  v
+/mavros/vision_pose/pose_cov → MAVROS vision_pose plugin
+```
+
+The raw transport test retains the FAST_LIO IMU origin, `camera_init` frame, timestamp, and covariance. It does not apply the nominal mounting diagnostic transform. Neither path establishes PX4 fusion or alignment with its navigation frame. The older PoseStamped relay test is a separate historical transport check.
 
 ### Intended operator workflow
 
@@ -284,95 +313,57 @@ Clicking a goal in the current deployment generates a plan. It does not automati
 
 ## 4. Clock Synchronization
 
-### Why this was added
+### Current startup practice
 
-The onboard computer can change its system time after obtaining a network connection during boot.
+Connect to the network and wait for the date and time to be correct **before** starting ROS. A manual `chronyc` command is not required for the current restart procedure. The existing Chrony installation has not been removed or disabled.
 
-A clock step while ROS nodes are running can make timestamps discontinuous and affect time-dependent processing. This is a possible contributor to earlier timing problems, but it has not been established as the sole cause of the MAVROS communication failures.
+Check:
 
-The startup policy is:
+```bash
+timedatectl status
+```
 
-1. Connect to a valid time source.
-2. Complete initial synchronization.
-3. Disable further automatic clock stepping for the current Chrony process.
-4. Start the LiDAR and ROS nodes.
-5. Keep Chrony running for gradual clock corrections.
+After today's reboot, the reported state was:
 
-### Verified configuration
+```text
+Local time: Tue 2026-10-06 21:14:42 HKT
+Universal time: Tue 2026-10-06 13:14:42 UTC
+Time zone: Asia/Hong_Kong (HKT, +0800)
+System clock synchronized: yes
+NTP service: active
+RTC in local TZ: no
+```
 
-Chrony is now installed and active. `systemd-timesyncd` is inactive.
+This verifies the reported synchronization state. It does not identify the active NTP daemon, measure absolute clock accuracy, or confirm that runtime stepping was disabled for this boot.
 
-Relevant entries in `/etc/chrony/chrony.conf`:
+A clock step while ROS is running can make timestamps discontinuous. Avoid manually changing the time during a run. The earlier timing problems were not conclusively attributed to clock steps.
+
+### Historical Chrony troubleshooting
+
+An earlier session installed Chrony, checked that `systemd-timesyncd` was inactive, and retained these configuration entries:
 
 ```text
 rtcsync
 makestep 1 3
 ```
 
-`makestep 1 3` allows a clock step for an offset larger than one second during the first three clock updates after Chrony starts.
-
-The limit counts clock updates, not seconds after boot. A late network connection can therefore still cause a startup step unless the synchronization gate has been completed.
-
-The existing NTP pool configuration was retained.
-
-### Required startup gate
-
-Run this in a check terminal before starting Livox, FAST_LIO, MAVROS, or SUPER:
+That session also ran the following manual gate and received `200 OK`, with approximately 28 microseconds of remaining correction and 2.658 ppm skew:
 
 ```bash
 chronyc waitsync 60 0.01 10 1 && sudo chronyc makestep 1 0
 ```
 
-The command:
+The second command disables automatic stepping for that Chrony process. Its effect must not be assumed to survive a reboot or Chrony restart. It is retained here as troubleshooting history, not as a mandatory command for today's startup.
 
-- Checks synchronization up to 60 times, approximately once per second.
-- Requires the reported remaining clock correction to be below 10 milliseconds.
-- Requires the reported frequency-estimation skew to be below 10 ppm.
-- Runs the second command only when the synchronization check succeeds.
-- Disables further automatic stepping for the current Chrony process.
-
-Expected final response:
-
-```text
-200 OK
-```
-
-Run the gate once per computer boot, before starting the ROS processes. Run it again if Chrony is restarted.
-
-This is a manual startup gate. No automatic ROS startup service has been configured to enforce it.
-
-If synchronization fails, inspect the time source before starting the stack:
+If time synchronization fails, inspect the configured time service before starting the stack:
 
 ```bash
 chronyc sources -v
 chronyc tracking
-```
-
-An offline cold start needs an appropriate local time source or a separately designed offline startup policy.
-
-### Latest successful result
-
-Recorded on 2026-10-06:
-
-```text
-Startup gate: passed
-Chrony command response: 200 OK
-Remaining correction: approximately 28 microseconds
-Skew: 2.658 ppm
-Leap status: Normal
-
-chrony: active
-systemd-timesyncd: inactive
-```
-
-The reported remaining correction is not a measurement of absolute clock accuracy.
-
-Status checks:
-
-```bash
-chronyc tracking
 systemctl is-active chrony systemd-timesyncd
 ```
+
+An offline cold start needs a suitable time source or a separately validated offline startup procedure. No unattended ROS startup service has been configured.
 
 ### FAST_LIO time parameters
 
@@ -399,13 +390,13 @@ Preserve original measurement timestamps in diagnostic and localization bridges.
 
 Use a separate terminal for each long-running process.
 
-The terminal numbers below are fixed labels for this runbook. Keep terminals 1–6 open while their processes are required. Terminal 7 is for temporary checks.
+The terminal numbers below match the current session: 1 MID360, 2 FAST_LIO/RViz, 3 checks, 4 visualization TF, 5 SUPER, 6 MAVROS, and 7 body-pose diagnostics. Keep the process terminals open while they are needed; Terminal 3 is for temporary checks. Terminal 8 is optional transport testing and Terminal 9 is the build terminal.
 
 Do not start duplicate driver or MAVROS instances.
 
 ### Before starting any ROS process
 
-Complete the clock synchronization gate from Section 4.
+Connect to the network, wait for correct system time, and inspect `timedatectl status` as described in Section 4. Complete the pending source build before using the covariance repair.
 
 ### Terminal 1 — MID360 driver
 
@@ -453,7 +444,7 @@ File → Open Config → ~/fastlio_ws/mid360_super.rviz
 
 An initial `No point, skip this scan!` message should be assessed together with subsequent initialization and topic output.
 
-### Terminal 3 — Visualization frame convention
+### Terminal 4 — Visualization frame convention
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -466,7 +457,7 @@ The current visualization setup treats `world` and `camera_init` as coincident.
 
 This convention does not align FAST_LIO with the PX4 local frame, establish geographic heading, or calibrate the LiDAR-to-airframe mounting transform.
 
-### Terminal 4 — SUPER with real sensor data
+### Terminal 5 — SUPER with real sensor data
 
 Create the log directories once:
 
@@ -495,7 +486,7 @@ Use this standalone planner for real FAST_LIO input.
 
 The simulation entry point `click_demo.launch.py` also launches simulated data sources. Run simulation separately to avoid conflicting point-cloud and odometry publishers.
 
-### Terminal 5 — MAVROS
+### Terminal 6 — MAVROS
 
 Close QGroundControl if it is directly using the flight controller USB port.
 
@@ -528,7 +519,7 @@ Check the device after reconnecting USB:
 ls -l /dev/serial/by-id/
 ```
 
-### Terminal 6 — Nominal body-pose diagnostic
+### Terminal 7 — Nominal body-pose diagnostic
 
 Use the previously deployed diagnostic script:
 
@@ -545,7 +536,7 @@ If the script is stored elsewhere, adjust the path to the actual file.
 
 This script is for mounting-transform inspection. It is not the flight controller bridge.
 
-### Terminal 7 — Checks
+### Terminal 3 — Checks
 
 Initialize this terminal:
 
@@ -644,7 +635,7 @@ File:
 | --- | --- |
 | `fsm.click_goal_en` | `true` |
 | `fsm.click_goal_topic` | `/goal_pose` |
-| `fsm.click_height` | `-0.19` |
+| `fsm.click_height` | `-0.05` in the latest test; previously `-0.19` |
 | `fsm.click_yaw_en` | `true` |
 | `fsm.cmd_topic` | `/planning/pos_cmd` |
 | `fsm.mpc_cmd_topic` | `/planning_cmd/poly_traj` |
@@ -704,13 +695,15 @@ click_height: 1.5
 
 SUPER overwrote the clicked goal's Z coordinate with this value. With odometry near `z = -0.186 m`, the resulting trajectory climbed toward `z = 1.5 m`.
 
-The setting was changed to:
+The first test adjustment was:
 
 ```yaml
 click_height: -0.19
 ```
 
-This is a fixed coordinate in the current planning frame. It is not height above the floor or an automatic “maintain current altitude” command.
+The latest reported test used `click_height: -0.05`. After a FAST_LIO restart, raw odometry Z was approximately `-0.070 m`, so this target was only about 2 cm higher in that initialized frame.
+
+These are fixed coordinates in the current planning frame. They are not height above the floor or an automatic “maintain current altitude” command. `click_height` does not constrain the entire trajectory to the venue's 2 m maximum height.
 
 Recheck it after restarting FAST_LIO because its initialized frame can change. A three-dimensional planner can also change intermediate altitude to avoid obstacles.
 
@@ -809,13 +802,24 @@ It does not perform:
 - PX4 estimator fusion validation.
 - Flight control.
 
-Previous rotation tests showed broadly consistent changes in diagnostic and PX4 yaw. This is preliminary evidence, not a completed calibration.
+Today's separately sampled motion checks showed approximately:
+
+| Motion | Diagnostic angle change | PX4 angle change |
+| --- | --- | --- |
+| Yaw | +24.96 degrees | +24.77 degrees |
+| Pitch | -11.18 degrees | -10.27 degrees |
+| Roll | +10.01 degrees | +11.16 degrees |
+
+This supports the nominal axis directions but is not synchronized calibration. A later stationary snapshot gave an approximately 145.4-degree yaw difference; it is not an accepted alignment parameter. Earlier yaw offsets must also be discarded after initialization changes.
+
+The inspected FAST_LIO initialization sets its gravity estimate without guaranteeing that `camera_init` is level. Validate gravity and full world-frame rotation, rather than assuming that a yaw-only alignment is sufficient. PX4's invalid horizontal-position status also prevents using its current local translation as a validated alignment reference.
 
 ### MAVROS topic direction
 
 | Topic | Direction |
 | --- | --- |
 | `/mavros/vision_pose/pose` | ROS pose input to MAVROS |
+| `/mavros/vision_pose/pose_cov` | ROS pose-with-covariance input to MAVROS |
 | `/mavros/odometry/out` | ROS odometry input to MAVROS |
 | `/mavros/odometry/in` | MAVROS odometry output to ROS |
 | `/mavros/local_position/pose` | PX4 local pose reported through MAVROS |
@@ -832,35 +836,37 @@ A PoseStamped message cannot be directly relayed into an Odometry topic.
 
 A snapshot of FAST_LIO `/Odometry` contained zero twist values. Do not treat those values as validated measured velocity for PX4 velocity fusion.
 
-### Optional Terminal 8 — Transport-only pose relay
+MAVROS performs its ENU/FLU to NED/FRD conversion, but the vision-pose input does not establish FAST_LIO-to-PX4 world alignment by reading `frame_id` or applying the visualization TF. Perform the required physical and world-frame alignment explicitly, without duplicating MAVROS axis conversions.
+
+### Optional Terminal 8 — Raw pose-covariance transport test
 
 This is a diagnostic operation, not part of the default startup sequence.
 
-Use it only after confirming that external vision fusion remains disabled and the aircraft is disarmed.
+Use the separately saved `~/Downloads/raw_pose_cov_transport.py` only while the aircraft is disarmed and `EKF2_EV_CTRL = 0`. It forwards raw `/Odometry` pose and covariance to `/mavros/vision_pose/pose_cov`, retaining the original frame and timestamp. It does not convert to the flight-controller center or align with the PX4 navigation frame.
 
-If needed, install the relay package:
+Check the prerequisite in Terminal 3:
 
 ```bash
-sudo apt install ros-humble-topic-tools
+ros2 param get /mavros/param EKF2_EV_CTRL
 ```
 
-Run:
+Run in Terminal 8:
 
 ```bash
 source /opt/ros/humble/setup.zsh
-ros2 run topic_tools relay /super_debug/body_pose /mavros/vision_pose/pose
+python3 ~/Downloads/raw_pose_cov_transport.py
 ```
 
-The relay can run without printing continuous output.
+The script checks for a recent read-only confirmation of `EKF2_EV_CTRL = 0`. It rejects stale/future, repeated or backward timestamps, unexpected frames, invalid pose values, and invalid covariance diagonals. Its parameter polling is not an atomic interlock: **stop this script before changing fusion parameters**.
 
-Inspect it from Terminal 7:
+Inspect it from Terminal 3:
 
 ```bash
-ros2 topic info /mavros/vision_pose/pose --verbose
-timeout 10s ros2 topic hz /mavros/vision_pose/pose
+ros2 topic info /mavros/vision_pose/pose_cov --verbose
+timeout 15s ros2 topic hz /mavros/vision_pose/pose_cov
 ```
 
-A previous test showed:
+Today's test showed:
 
 ```text
 Publisher count: 1
@@ -868,7 +874,34 @@ Subscription count: 1
 Rate: approximately 10 Hz
 ```
 
-This confirms topic transport only. Matching topic connections do not establish correct coordinate alignment, timing, or fusion.
+Initially, the endpoints existed but no sustained output passed the freshness check because input timestamps were approximately 1.3–1.8 seconds old. After restarting FAST_LIO, the output recovered to approximately 10 Hz, with a measured maximum interval of 0.131 seconds.
+
+This confirms ROS transport only. PX4 receipt of the underlying visual-odometry measurement has not been verified, and fusion remains disabled. A valid covariance diagonal check also does not establish correct covariance semantics; the FAST_LIO source repair below still needs runtime verification.
+
+An earlier `topic_tools` relay from `/super_debug/body_pose` to `/mavros/vision_pose/pose` was a separate PoseStamped transport test. Do not run multiple pose input paths together.
+
+### FAST_LIO pose-covariance source repair
+
+The actual machine source was inspected at commit `a4743b095409588842a5b30ddfa27e29d2f99164`, in `~/fastlio_ws/src/FAST_LIO/src/laserMapping.cpp`. `state_ikfom` stores **position first, then rotation**. The old `publish_odometry()` code published before filling covariance and incorrectly swapped those state blocks.
+
+The repair computes the current covariance before publishing and converts the IMU-local rotation error to fixed world axes, including position/rotation cross terms:
+
+```cpp
+const auto P = kf.get_P();
+Eigen::Matrix<double, 6, 6> covariance_axes =
+    Eigen::Matrix<double, 6, 6>::Identity();
+covariance_axes.block<3, 3>(3, 3) = state_point.rot.toRotationMatrix();
+const Eigen::Matrix<double, 6, 6> pose_covariance =
+    covariance_axes * P.block<6, 6>(0, 0) * covariance_axes.transpose();
+for (int i = 0; i < 6; ++i)
+    for (int j = 0; j < 6; ++j)
+        odomAftMapped.pose.covariance[i * 6 + j] = pose_covariance(i, j);
+pubOdomAftMapped->publish(odomAftMapped);
+```
+
+The last patch command reported `Fix already present; no changes made.` This confirms that the replacement block was detected in the local source; it does **not** confirm a successful package build or that the running executable contains it. Existing YAML and RViz edits must be preserved.
+
+Isolated Eigen/C++ checks exercised current-frame covariance publication, cross terms, and the rotation Jacobian. They do not substitute for building the real ROS package or validating its output on the aircraft. A later bridge must also transform covariance for its mounting, lever-arm, and world-frame conversions.
 
 ## 9. MAVROS, PX4, and Timing Findings
 
@@ -880,9 +913,11 @@ The last confirmed value was:
 EKF2_EV_CTRL = 0
 ```
 
-At that point, PX4 external vision fusion was disabled.
+External vision fusion remained disabled during today's transport tests.
 
-Earlier estimator status also reported invalid horizontal-position flags and constant-position mode. The presence of `/mavros/local_position/pose` therefore did not establish usable horizontal localization.
+The reported estimator status had valid attitude, invalid horizontal velocity and horizontal-position flags, and `const_pos_mode_status_flag: true`. The presence of `/mavros/local_position/pose` therefore did not establish usable horizontal localization.
+
+Other read-only parameter checks returned `EKF2_HGT_REF = 1` and `EKF2_EV_DELAY = 0.0`. The height-reference setting does not prove a valid height source. A zero configured delay correction does not mean that actual measurement latency is zero.
 
 Before enabling fusion, validate:
 
@@ -893,21 +928,63 @@ Before enabling fusion, validate:
 - Covariance and delay handling.
 - Which measurements are actually available for fusion.
 
-The current diagnostic pose stream is approximately 10 Hz. A higher average publication rate created by repeating old measurements would not improve sensor freshness.
+The current diagnostic pose stream is approximately 10 Hz. PX4 documentation recommends 30–50 Hz external pose input; the inspected upstream 1.17 source does not automatically reject a fresh 10 Hz stream solely for that rate. Acceptance on this custom firmware and flight suitability still need measurement. Repeating old measurements at a higher publication rate does not improve sensor freshness.
 
-### Previous timing anomalies
+### Timing findings on 2026-10-06
 
-Before the Chrony setup, MAVROS time-sync measurements included:
+Historical MAVROS time-sync measurements included approximately 8300–9200 ms round-trip time. Today's visible samples were approximately **0.72–4.20 ms**. The previous anomaly was not reproduced in those samples; its cause has not been proven or permanently resolved.
 
-```text
-round_trip_time_ms: approximately 8300–9200
+The FAST_LIO latency investigation found:
+
+| Check | Result | Interpretation |
+| --- | --- | --- |
+| Isolated `/livox/imu` frequency | Approximately 200 Hz | The FAST_LIO IMU input was not running at the suspected 50 Hz |
+| Raw serialized LiDAR header, depth 1 | Age min/mean/max 0.104 / 0.109 / 0.118 s | Avoided expensive CustomMsg decoding; scan timestamp semantics include acquisition time |
+| Isolated `/Odometry`, depth 1, before restart | Age min/mean/max 1.292 / 1.376 / 1.786 s | Approximately 10 Hz publication did not guarantee fresh estimates |
+| Same odometry check after FAST_LIO restart | Age min/mean/max 0.016 / 0.023 / 0.035 s | Freshness recovered after restarting FAST_LIO |
+| Two minutes with SUPER planning active | Window means 0.021–0.023 s; largest observed age 0.050 s | No progressive backlog observed during this test |
+
+The combined Python LiDAR/IMU/odometry probe received too few IMU messages and reported much larger LiDAR ages. Its CustomMsg decoding and callback load made it unsuitable for attributing the delay. Separate lightweight checks were used instead. Stopping SUPER alone did not clear the earlier odometry delay; restarting FAST_LIO did.
+
+The trigger of the old process's delay is still unknown. Process CPU percentages on an eight-core host do not establish whole-machine CPU saturation. If it recurs, inspect processing queues and active accumulated-map/path publication settings. The two-minute recovery test is not a long-duration flight validation. Preserve measurement timestamps rather than substituting the current time or loosening the transport freshness check.
+
+### Odometry timestamp-age check
+
+Run in Terminal 3 after sourcing ROS. This measures receipt time minus the original measurement timestamp using a depth-one subscriber:
+
+```bash
+python3 - <<'PY'
+import time
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from nav_msgs.msg import Odometry
+
+rclpy.init()
+node = Node('odom_age_check')
+ages = []
+
+def callback(msg):
+    stamp = msg.header.stamp.sec * 1000000000 + msg.header.stamp.nanosec
+    ages.append((node.get_clock().now().nanoseconds - stamp) / 1e9)
+
+qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+sub = node.create_subscription(Odometry, '/Odometry', callback, qos)
+try:
+    end = time.monotonic() + 15
+    while time.monotonic() < end:
+        rclpy.spin_once(node, timeout_sec=0.1)
+    if ages:
+        print(f'/Odometry: n={len(ages)}, age min/avg/max='
+              f'{min(ages):.3f}/{sum(ages)/len(ages):.3f}/'
+              f'{max(ages):.3f} seconds')
+    else:
+        print('No Odometry received')
+finally:
+    node.destroy_node()
+    rclpy.shutdown()
+PY
 ```
-
-Diagnostic pose checks also showed nonuniform message intervals, including gaps of several hundred milliseconds.
-
-The causes were not isolated. Startup discovery warnings alone do not explain all measured timing gaps.
-
-After the clock setup, remeasure both the MAVROS time-sync stream and pose delivery intervals before proceeding with estimator fusion.
 
 ### Communication interruption after reboot
 
@@ -944,7 +1021,7 @@ MAVROS and QGroundControl should not independently open the same USB serial devi
 
 For a direct QGroundControl USB check:
 
-1. Stop MAVROS in Terminal 5 with Ctrl+C.
+1. Stop MAVROS in Terminal 6 with Ctrl+C.
 2. Close any other program using the port.
 3. Open QGroundControl.
 4. Close QGroundControl before restarting MAVROS.
@@ -991,7 +1068,7 @@ ros2 topic info /super_debug/body_pose --verbose
 
 If the diagnostic script was stopped to run a check in the same terminal, its output topic will stop as well.
 
-Keep the publisher in Terminal 6 and run the check in Terminal 7.
+Keep the body-pose diagnostic publisher in Terminal 7 and run checks in Terminal 3. Keep the optional raw covariance transport in Terminal 8 when testing that path.
 
 A timeout returning without a message means no sample was received during that interval. Investigate the publisher and connection before changing settings.
 
@@ -1052,27 +1129,91 @@ Copy only the commands inside a code block.
 
 Do not include terminal prompts, HTML line-break tags, or trailing backslashes. Press Ctrl+C to cancel accidental continuation input.
 
-## 11. Remaining Work
+## 11. Demonstration Venue Requirements
 
-### Immediate continuation
+The user specified these final demonstration requirements on 2026-10-06:
 
-- [x] Install and enable Chrony.
-- [x] Confirm that systemd-timesyncd is inactive.
-- [x] Pass the startup synchronization gate.
-- [x] Disable runtime automatic stepping for the current Chrony process.
-- [ ] Restart Livox and FAST_LIO after the clock setup.
-- [ ] Recheck odometry and diagnostic pose delivery intervals.
-- [ ] Restart SUPER and confirm real-data planning.
-- [ ] Restart MAVROS and remeasure time synchronization.
-- [ ] Confirm current PX4 estimator status and external vision parameters.
+| Requirement | Value |
+| --- | --- |
+| Venue width | 3 m |
+| Venue length | 6 m |
+| Venue ceiling height | 3 m |
+| Demonstration target speed | 2 m/s |
+| Maximum flight height | 2 m |
+| Boundary clearance | The whole aircraft, including propellers, must not collide with any venue boundary |
+
+**These are requirements, not an applied or validated configuration.** The flight-height reference point and whether 2 m/s is a cruise target or strict speed ceiling still need clarification. Raw FAST_LIO Z is not a measured height above the venue floor.
+
+Before selecting final values, measure the aircraft's complete horizontal and vertical envelope, define the demonstration route, and locate the floor and boundaries in a fixed venue frame. Account for localization and tracking error, total reaction latency, braking acceleration, and jerk when shrinking the usable volume. At 2 m/s, the observed 50 ms pose age alone corresponds to 0.10 m of travel; it excludes other reaction delays and braking distance.
+
+Relevant SUPER configuration entries and their limits are:
+
+| Setting | Purpose and limitation |
+| --- | --- |
+| `traj_opt.boundary.max_vel`, `max_acc`, `max_jerk` | Optimization bounds; setting `max_vel: 2` alone does not establish a strict executed speed ceiling |
+| `super_planner.robot_r` | Collision envelope; derive it from the actual aircraft including propellers and accessories |
+| `rog_map.inflation_resolution`, `inflation_step`, unknown-space inflation | Obstacle margins; account for their interaction with robot radius and grid quantization |
+| `rog_map.virtual_ground_height`, `virtual_ceil_height` | Vertical map boundaries; effective heights are adjusted by grid and inflation settings |
+| `rog_map.map_size`, map origin, `map_sliding.enable` | Map storage and sliding behavior; these do not establish a fixed venue geofence |
+| `fsm.click_height` | Clicked goal Z only; does not bound the entire trajectory |
+
+The inspected velocity constraints use optimization penalties, and backup trajectories can exceed the configured nominal velocity bound. A negative `penna_jerk` disables its jerk penalty, so changing `max_jerk` alone may have no effect. Final limits must be verified on both committed and backup trajectories and during execution.
+
+The eventual configuration needs fixed horizontal and vertical boundaries, goal and complete-trajectory validation, execution monitoring, and tested stopping/hover behavior. A visible wall in the occupancy map or a chosen map size does not by itself guarantee boundary protection. No final parameter values or flight-clearance guarantees have been accepted yet.
+
+## 12. Remaining Work
+
+### Build and restart checkpoint
+
+Today's last confirmed action was detecting the covariance repair already present in the FAST_LIO source. Available memory was approximately 11 GiB. **No successful build output or repaired-binary restart has been reported.** The final running/stopped state of the terminals has not been confirmed.
+
+On the next session, inspect existing processes first. Stop FAST_LIO/RViz in Terminal 2, SUPER in Terminal 5, and the optional transport test in Terminal 8 before rebuilding. Keep external vision fusion disabled. Do not start duplicate driver or MAVROS instances.
+
+In a separate **Terminal 9**, source the dependencies and back up the existing installed workspace before building:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+cd ~/fastlio_ws
+tar -czf ~/fastlio_install_before_covfix_$(date +%Y%m%d_%H%M%S).tar.gz install
+```
+
+After the backup succeeds, run:
+
+```bash
+MAKEFLAGS="-j2" CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --packages-select fast_lio --executor sequential
+```
+
+Wait for a successful build summary. If it fails, retain the error output and resolve it before restarting; the old installed executable may still exist. Re-source `~/fastlio_ws/install/setup.zsh` in Terminal 2 and restart FAST_LIO using Quick Start with the sensor stationary.
+
+Then inspect `/Odometry` from initialization onward: confirm covariance is populated for the current pose, finite and consistent with the intended fixed-axis convention. Run the timestamp-age check in Terminal 3. Restart SUPER and repeat the planning-load freshness check only after localization is ready. Restart the optional transport test only if needed and only with `EKF2_EV_CTRL = 0`.
+
+FAST_LIO initialization can change the planning frame. Recheck clicked goal height and perform a new mounting/world-alignment assessment; do not reuse an earlier yaw or translation offset.
+
+### Confirmed today
+
+- [x] Recover the deployment after reboot on the replacement computer.
+- [x] Check system time, Ethernet interfaces, and flight-controller USB identity.
+- [x] Confirm MID360 output and isolated IMU input at approximately 200 Hz.
+- [x] Recover fresh approximately 10 Hz odometry after restarting FAST_LIO.
+- [x] Confirm real-data SUPER mapping, clicked-goal planning, and approximately 100 Hz command publication.
+- [x] Observe stable odometry timestamp age for two minutes under planning load.
+- [x] Confirm MAVROS connection, disarmed state, and `EKF2_EV_CTRL = 0`.
+- [x] Recheck MAVROS time-sync samples in the millisecond range.
+- [x] Demonstrate raw pose-covariance ROS transport at approximately 10 Hz.
+- [x] Confirm the source covariance repair is present; record build and runtime verification as pending.
+- [x] Record final venue dimensions, speed, height, and boundary requirements.
 
 ### Localization integration
 
+- [ ] Complete the FAST_LIO build and verify the repaired covariance from the installed executable.
 - [ ] Validate mounting transforms with synchronized motion tests.
-- [ ] Define the relationship between the FAST_LIO planning frame and PX4 navigation frame.
+- [ ] Define the FAST_LIO-to-PX4 world rotation and origin, including gravity alignment.
 - [ ] Validate measurement rate, timestamps, covariance, and delay.
+- [ ] Confirm PX4 receives visual-odometry measurements, not merely that MAVROS subscribes to a ROS topic.
 - [ ] Configure only the external measurements that are actually available.
 - [ ] Verify PX4 fusion and estimator validity from logs and status.
+- [ ] Run longer-duration freshness checks and investigate the earlier delay if it recurs.
 
 ### Control integration
 
@@ -1088,6 +1229,13 @@ Do not include terminal prompts, HTML line-break tags, or trailing backslashes. 
 
 Do not copy its fields directly into an unrelated flight-control interface. In particular, its thrust-related fields must not be assumed to represent PX4 normalized throttle.
 
+### Venue configuration and validation
+
+- [ ] Measure the aircraft envelope and establish floor/height reference, fixed venue frame, and demonstration route.
+- [ ] Select and verify velocity, acceleration, jerk, collision margins, and effective vertical boundaries.
+- [ ] Implement fixed venue boundary checks for goals, complete trajectories, backup trajectories, and execution.
+- [ ] Validate braking, tracking error, and clearance before attempting the target 2 m/s demonstration.
+
 ### Operator and task management
 
 - [ ] Configure and verify the ground-to-onboard network connection.
@@ -1098,7 +1246,7 @@ Do not copy its fields directly into an unrelated flight-control interface. In p
 - [ ] Define behavior when the ground connection is lost.
 - [ ] Add an automatic startup gate if unattended service startup is required.
 
-## 12. References
+## 13. References
 
 - [Project repository](https://github.com/Haofei-Hu/Demo_HKU_open-day_SUPER)
 - [SUPER](https://github.com/hku-mars/SUPER)
