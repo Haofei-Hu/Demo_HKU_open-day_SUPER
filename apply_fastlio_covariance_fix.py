@@ -38,7 +38,8 @@ new = b'''    // Position first; convert the IMU-local rotation error to world a
 
 def fix(source, backup_root):
     original = source.read_bytes()
-    if new in original:
+    # The timing probe inserts a log between covariance assignment and publish.
+    if new in original or new.rsplit(b'    pubOdomAftMapped->publish(odomAftMapped);', 1)[0] in original:
         print('Covariance fix already present; no changes made.')
         return
     if original.count(old) != 1:

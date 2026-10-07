@@ -1,0 +1,73 @@
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -89,6 +89,15 @@
+ 
+ double res_mean_last = 0.05, total_residual = 0.0;
+ double last_timestamp_lidar = 0, last_timestamp_imu = -1.0;
++// FASTLIO_TIMING_PROBE_V1
++double fastlio_probe_lrx = -1.0, fastlio_probe_irx = -1.0;
++double fastlio_probe_pre_ms = -1.0, fastlio_probe_proc_ms = -1.0;
++double fastlio_probe_now()
++{
++    static rclcpp::Clock clock(RCL_SYSTEM_TIME);
++    return clock.now().seconds();
++}
++
+ double gyr_cov = 0.1, acc_cov = 0.1, b_gyr_cov = 0.0001, b_acc_cov = 0.0001;
+ double filter_size_corner_min = 0, filter_size_surf_min = 0, filter_size_map_min = 0, fov_deg = 0;
+ double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0, lidar_end_time = 0, first_lidar_time = 0.0;
+@@ -310,6 +319,7 @@
+ bool   timediff_set_flg = false;
+ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg) 
+ {
++    fastlio_probe_lrx = fastlio_probe_now() - get_time_sec(msg->header.stamp);
+     mtx_buffer.lock();
+     double cur_time = get_time_sec(msg->header.stamp);
+     double preprocess_start_time = omp_get_wtime();
+@@ -341,6 +351,7 @@
+     p_pre->process(msg, ptr);
+     lidar_buffer.push_back(ptr);
+     time_buffer.push_back(last_timestamp_lidar);
++    fastlio_probe_pre_ms = 1000.0 * (omp_get_wtime() - preprocess_start_time);
+     
+     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
+     mtx_buffer.unlock();
+@@ -349,6 +360,7 @@
+ 
+ void imu_cbk(const sensor_msgs::msg::Imu::UniquePtr msg_in)
+ {
++    fastlio_probe_irx = fastlio_probe_now() - get_time_sec(msg_in->header.stamp);
+     publish_count ++;
+     // cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
+     sensor_msgs::msg::Imu::SharedPtr msg(new sensor_msgs::msg::Imu(*msg_in));
+@@ -644,6 +656,22 @@
+         {
+             odomAftMapped.pose.covariance[i * 6 + j] = pose_covariance(i, j);
+         }
++    }
++    static double fastlio_probe_last_log = 0.0;
++    const double probe_steady = omp_get_wtime();
++    if (probe_steady - fastlio_probe_last_log >= 1.0)
++    {
++        fastlio_probe_last_log = probe_steady;
++        const double now = fastlio_probe_now();
++        RCLCPP_INFO(rclcpp::get_logger("fastlio_timing"),
++            "pub_age=%.3f lrx=%.3f irx=%.3f latest_lidar=%.3f latest_imu=%.3f "
++            "lidar_q=%zu imu_q=%zu oldest_lidar_age=%.3f pre_ms=%.1f proc_ms=%.1f scan_dt=%.3f",
++            now - lidar_end_time, fastlio_probe_lrx, fastlio_probe_irx,
++            now - last_timestamp_lidar, now - last_timestamp_imu,
++            lidar_buffer.size(), imu_buffer.size(),
++            time_buffer.empty() ? -1.0 : now - time_buffer.front(),
++            fastlio_probe_pre_ms, fastlio_probe_proc_ms,
++            lidar_end_time - Measures.lidar_beg_time);
+     }
+     pubOdomAftMapped->publish(odomAftMapped);
+ 
+@@ -1064,6 +1092,7 @@
+             double t_update_end = omp_get_wtime();
+ 
+             /******* Publish odometry *******/
++            fastlio_probe_proc_ms = 1000.0 * (omp_get_wtime() - t0);
+             publish_odometry(pubOdomAftMapped_, tf_broadcaster_);
+ 
+             /*** add the feature points to map kdtree ***/

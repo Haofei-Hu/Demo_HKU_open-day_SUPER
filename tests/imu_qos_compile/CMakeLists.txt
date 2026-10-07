@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(imu_qos_check)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+add_executable(check check.cpp)
+ament_target_dependencies(check rclcpp sensor_msgs)
+target_compile_options(check PRIVATE -Wall -Wextra -Werror)

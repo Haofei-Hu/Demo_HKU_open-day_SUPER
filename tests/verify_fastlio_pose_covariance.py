@@ -22,6 +22,7 @@ PREAMBLE = r'''
 #include <memory>
 #include <string>
 #include <vector>
+#include <deque>
 
 using Matrix6 = Eigen::Matrix<double, 6, 6>;
 struct Vector3 { double x=0, y=0, z=0; };
@@ -70,6 +71,17 @@ nav_msgs::msg::Odometry odomAftMapped;
 Quaternion geoQuat;
 double lidar_end_time = 0;
 double get_ros_time(double value) { return value; }
+// Instrumentation dependencies only; the actual publisher below is unchanged.
+double omp_get_wtime() { return 100.0; }
+double fastlio_probe_now() { return lidar_end_time + .025; }
+double fastlio_probe_lrx = .110, fastlio_probe_irx = 0;
+double fastlio_probe_pre_ms = .4, fastlio_probe_proc_ms = 8;
+double last_timestamp_lidar = 0, last_timestamp_imu = 0;
+std::deque<double> lidar_buffer, imu_buffer, time_buffer;
+struct { double lidar_beg_time = 0; } Measures;
+namespace rclcpp { int get_logger(const char *) { return 0; } }
+template <typename... Args> void timing_info(Args...) {}
+#define RCLCPP_INFO(...) timing_info(__VA_ARGS__)
 '''
 
 
