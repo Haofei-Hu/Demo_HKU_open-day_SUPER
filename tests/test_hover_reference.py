@@ -44,13 +44,30 @@ class HoverReferenceTest(unittest.TestCase):
                 HoverReference(*args)
         for kwargs in ({'hover_fc_height': 2.1}, {'hover_fc_height': .05},
                        {'ground_fc_height': 0.}, {'peak_vertical_speed': 0.},
-                       {'peak_vertical_speed': .5}, {'hold_seconds': -1.}):
+                       {'peak_vertical_speed': .5}, {'hold_seconds': -1.},
+                       {'hold_seconds': 6.1}, {'hold_seconds': math.nan}):
             with self.assertRaises(ValueError):
                 HoverReference((0, 0, 0), 0., **kwargs)
         reference = HoverReference((0, 0, 0), 0.)
         for elapsed in (-1., math.nan, math.inf):
             with self.assertRaises(ValueError):
                 reference.at(elapsed)
+
+    def test_one_metre_six_second_profile(self):
+        reference = HoverReference((1.2, -.8, -.74), .6,
+                                   hover_fc_height=1., hold_seconds=6.)
+        self.assertAlmostEqual(reference.lift, .915)
+        self.assertAlmostEqual(reference.ramp_seconds, 8.578125)
+        for elapsed in (reference.ramp_seconds, reference.ramp_seconds + 5.999):
+            point, yaw, phase = reference.at(elapsed)
+            self.assertEqual(phase, 'HOLD_PREVIEW')
+            self.assertEqual(point[:2], (1.2, -.8))
+            self.assertAlmostEqual(point[2] - reference.ground[2] + .085, 1.)
+            self.assertEqual(yaw, .6)
+        step = .001
+        velocities = [(reference.at(t+step)[0][2]-reference.at(t)[0][2])/step
+                      for t in (i*step for i in range(math.ceil(reference.duration/step))) ]
+        self.assertLessEqual(max(abs(v) for v in velocities), .200001)
 
 
 if __name__ == '__main__':

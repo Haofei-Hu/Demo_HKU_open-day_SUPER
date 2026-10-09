@@ -16,7 +16,7 @@ class HoverReference:
         if len(self.ground) != 3 or not all(math.isfinite(v) for v in numbers):
             raise ValueError('Expected finite XYZ, yaw, heights, speed and hold duration')
         if not (0 < ground_fc_height < hover_fc_height <= 2
-                and 0 < peak_vertical_speed <= .2 and 0 <= hold_seconds <= 3):
+                and 0 < peak_vertical_speed <= .2 and 0 <= hold_seconds <= 6):
             raise ValueError('Invalid first-hover preview limits')
         self.yaw = float(yaw)
         self.lift = hover_fc_height - ground_fc_height

@@ -289,6 +289,8 @@ rviz2 -d ~/fastlio_ws/mid360_super.rviz
 
 ### 终端 11：定点、离地 0.5 m 悬停
 
+按用户更新的目标，终端 11 新增 `--hover-height 1.0 --hold-seconds 6.0`，对应飞控中心离实际起飞地面 1 m，保持 6 秒后 AUTO.LAND；默认仍为 0.5 m／2 秒。1 m 配置的上升参考约 8.58 秒，上升加保持约 14.58 秒，备用 OFFBOARD 时限为 17 秒，完整飞行还包括降落。参数只在落地、未解锁时通过新启动实例设置；机载物理效果尚未验证。完整启动命令见 [实际启动](docs/FIRST_HOVER_2026-10-09.md#实际启动完成上述机载检查之后)。
+
 `first_hover_terminal.py` 是自包含文件，获取命令见 [完整工作流](docs/FIRST_HOVER_2026-10-09.md#获取脚本不使用安装包)。停止旧的 `ground_setpoint_transport.py` 和其他控制发送器，保留终端 1–8 的定位会话。
 
 先只读检查：

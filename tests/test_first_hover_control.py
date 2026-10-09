@@ -124,14 +124,14 @@ def main():
         wait(future.done)
         return future.result()
 
-    def new(execute=True):
+    def new(execute=True, height=.5, hold=2.):
         nonlocal bridge
         if bridge:
             executor.remove_node(bridge)
             bridge.destroy_node()
             spin(.15)
         reset()
-        bridge = FirstHoverControl(execute=execute)
+        bridge = FirstHoverControl(execute=execute, hover_fc_height=height, hold_seconds=hold)
         executor.add_node(bridge)
         wait(lambda: bridge.phase == 'READY', seconds=9)
 
@@ -184,6 +184,33 @@ def main():
         assert commands == ['OFFBOARD', 'ARM', 'AUTO.LAND']
         assert not call(start).success
 
+        new(height=1., hold=6.)
+        assert abs(bridge.reference.lift - .915) < 1e-10
+        assert abs(bridge.reference.ramp_seconds - 8.578125) < 1e-10
+        assert bridge.offboard_budget == 17
+        fly()
+        bridge.armed_at -= 9  # The old eight-second limit must not truncate this profile.
+        wait(lambda: bridge.phase == 'HOLD')
+        spin(.2)
+        assert bridge.phase == 'HOLD' and commands == ['OFFBOARD', 'ARM']
+        for _, msg in targets:
+            p = msg.pose.position
+            assert p.x == ground[0] and p.y == ground[1]
+            assert ground[2] <= p.z <= ground[2]+.915+1e-10
+        assert abs(targets[-1][1].pose.position.z - (ground[2]+.915)) < 1e-10
+        bridge.hold_at -= 2.1  # The old two-second hold must not trigger landing.
+        spin(.2)
+        assert bridge.phase == 'HOLD' and commands == ['OFFBOARD', 'ARM']
+        bridge.hold_at -= 4
+        wait(lambda: bridge.phase == 'DONE')
+        assert commands == ['OFFBOARD', 'ARM', 'AUTO.LAND']
+
+        new(height=1., hold=6.)
+        fly()
+        bridge.armed_at -= 18
+        wait(lambda: bridge.phase == 'DONE')
+        assert commands == ['OFFBOARD', 'ARM', 'AUTO.LAND'], 'New flight budget did not request landing'
+
         for rejected in ('OFFBOARD', 'ARM'):
             new()
             settings['rejected'] = rejected
@@ -230,7 +257,8 @@ def main():
         wait(lambda: bridge.phase == 'DONE')
         assert 'DISARM' not in commands, 'Controller force-disarmed in flight'
         print('PASS: default diagnostics only, explicit one-shot start, 10 Hz localization / '
-              '20 Hz fixed XY/yaw setpoints, 0.415 m lift, mode/arm rejection, native landing '
+              '20 Hz fixed XY/yaw setpoints, 0.415/0.915 m lift, 2/6 s hold and 8/17 s budgets, '
+              'mode/arm rejection, native landing '
               'and confirmed disarm, stale vision/RC, invalid estimate, deviation, duplicate '
               'source, timer interruption, pilot takeover, no automatic restart or forced disarm.')
     finally:

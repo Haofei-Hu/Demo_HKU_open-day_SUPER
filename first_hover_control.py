@@ -32,9 +32,16 @@ PARAMETERS = dict(LIMITS, EKF2_EV_POS_X=0.0, EKF2_EV_POS_Y=0.0,
 
 
 class FirstHoverControl(Node):
-    def __init__(self, execute=False):
+    def __init__(self, execute=False, hover_fc_height=.5, hold_seconds=2.):
+        profile = HoverReference((0., 0., 0.), 0.,
+                                 hover_fc_height=hover_fc_height, hold_seconds=hold_seconds)
+        if hover_fc_height > 1.:
+            raise ValueError('First-hover controller supports FC heights up to 1 m')
         super().__init__('first_hover')
         self.execute = execute
+        self.hover_fc_height = float(hover_fc_height)
+        self.hold_seconds = profile.hold_seconds
+        self.offboard_budget = math.ceil(profile.ramp_seconds + profile.hold_seconds + 2.)
         self.phase = 'CHECKING'
         self.state = self.local = self.vision = self.estimator = self.extended = self.rc = None
         self.receipts = {}
@@ -77,7 +84,9 @@ class FirstHoverControl(Node):
         self.get_logger().info(
             ('EXECUTE ENABLED; awaiting explicit /first_hover/start. ' if execute else
              'CHECK ONLY; no native setpoints, mode or arming requests. ') +
-            'Floor FC=0.085 m, hover FC=0.5 m, fixed XY/yaw, then AUTO.LAND; one flight only.')
+            f'Floor FC=0.085 m, hover FC={self.hover_fc_height:g} m, '
+            f'hold={self.hold_seconds:g} s, fixed XY/yaw, then AUTO.LAND; '
+            f'OFFBOARD budget={self.offboard_budget:g} s; one flight only.')
 
     def store(self, field, msg):
         setattr(self, field, msg)
@@ -182,7 +191,7 @@ class FirstHoverControl(Node):
             g = self.reference.ground
             if math.hypot(xyz[0]-g[0], xyz[1]-g[1]) > .3:
                 raise ValueError('Horizontal departure exceeds 0.3 m')
-            if xyz[2] < g[2] - .1 or xyz[2] > g[2] + .65:
+            if xyz[2] < g[2] - .1 or xyz[2] > g[2] + self.reference.lift + .235:
                 raise ValueError('Height outside first-hover envelope')
             if abs(self.angle(yaw - self.reference.yaw)) > math.radians(15):
                 raise ValueError('Heading departure exceeds 15 degrees')
@@ -318,12 +327,14 @@ class FirstHoverControl(Node):
                 if self.candidate is None or math.dist(xyz, self.candidate[0]) > .025 or abs(self.angle(yaw-self.candidate[1])) > math.radians(2):
                     self.candidate, self.stable_since = (xyz, yaw), now
                 elif now - self.stable_since >= 3:
-                    self.reference = HoverReference(xyz, yaw)
+                    self.reference = HoverReference(xyz, yaw,
+                        hover_fc_height=self.hover_fc_height, hold_seconds=self.hold_seconds)
                     self.identities_locked = identities
                     self.change('READY')
                     self.get_logger().info(
-                        f'GROUND LOCK xyz={xyz}; fixed hover z={xyz[2]+.415:.3f}; '
-                        'FC height above floor=0.500 m. Awaiting explicit start; no motion yet.')
+                        f'GROUND LOCK xyz={xyz}; fixed hover z={xyz[2]+self.reference.lift:.3f}; '
+                        f'FC height above floor={self.hover_fc_height:.3f} m; '
+                        f'hold={self.hold_seconds:g} s. Awaiting explicit start; no motion yet.')
                 return
             target = list(self.reference.ground)
             if self.phase == 'READY':
@@ -363,10 +374,10 @@ class FirstHoverControl(Node):
                         self.change('HOLD')
                 elif abs(xyz[2]-target[2]) > .12:
                     raise ValueError('Hover altitude tracking error exceeds 0.12 m')
-                if self.phase == 'HOLD' and now - self.hold_at >= 2:
-                    self.land('Two-second hold finished')
-                elif elapsed > 8:
-                    self.land('Eight-second OFFBOARD flight budget reached')
+                if self.phase == 'HOLD' and now - self.hold_at >= self.hold_seconds:
+                    self.land(f'{self.hold_seconds:g}-second hold finished')
+                elif elapsed > self.offboard_budget:
+                    self.land(f'{self.offboard_budget:g}-second OFFBOARD flight budget reached')
             elif self.phase == 'LAND_REQUEST':
                 target = self.last_target or list(self.reference.ground)
                 if self.command_rejected() or now - self.phase_at > 2:
@@ -385,9 +396,21 @@ class FirstHoverControl(Node):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute', action='store_true', help='enable flight output; still awaits /first_hover/start')
+    parser.add_argument('--hover-height', type=float, default=.5,
+                        help='FC centre height above takeoff floor in metres, up to 1.0 (default: 0.5)')
+    parser.add_argument('--hold-seconds', type=float, default=2.,
+                        help='hold after reaching target height, 0 to 6 seconds (default: 2)')
     args, ros_args = parser.parse_known_args()
+    try:
+        HoverReference((0., 0., 0.), 0., hover_fc_height=args.hover_height,
+                       hold_seconds=args.hold_seconds)
+        if args.hover_height > 1.:
+            raise ValueError('First-hover controller supports FC heights up to 1 m')
+    except ValueError as exc:
+        parser.error(str(exc))
     rclpy.init(args=ros_args)
-    node = FirstHoverControl(execute=args.execute)
+    node = FirstHoverControl(execute=args.execute, hover_fc_height=args.hover_height,
+                            hold_seconds=args.hold_seconds)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
