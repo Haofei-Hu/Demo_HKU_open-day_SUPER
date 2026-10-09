@@ -2,7 +2,9 @@
 
 HKU Open Day 无人机演示部署记录：Livox MID360 → FAST_LIO → SUPER → MAVROS → PX4。
 
-**更新日期：2026-10-09（香港时间）**，部署记录截至 10 月 8 日。机载电脑已确认外部视觉 XYZ／yaw 地面融合、规划输出及地面位置指令接收；Position 模式未解锁检查已通过。首飞控制、实际失联降落和场地边界限制仍待完成。
+**更新日期：2026-10-09（香港时间）**。已恢复 10 Hz 外部视觉 XYZ／yaw 地面融合，Mac 的 NoMachine 桌面已可操作。终端 11 的固定位置、飞控中心离地 0.5 m 悬停程序已实现并通过隔离测试；尚未收到这段程序在真实飞机上的 READY、当前预检 OK 或实际起飞结果。
+
+直接按 [完整测试工作流：终端 1–11、重启恢复、起飞、降落和接管](docs/FIRST_HOVER_2026-10-09.md) 操作。终端 9／10 用于规划地面调试，定点悬停时停止；终端 11 沿用现有 10 Hz 定位，发送 20 Hz 位置／航向目标，等待显式起飞命令。
 
 ## 快速开始：电脑重启后恢复
 
@@ -12,13 +14,13 @@ HKU Open Day 无人机演示部署记录：Livox MID360 → FAST_LIO → SUPER �
 
 机载电脑上的 USB 线连接飞控，飞行时这条线仍留在飞机上。Mac／Windows 通过 Wi-Fi 操作机载桌面，ROS、QGC 和 RViz 都在机载电脑运行。
 
-10 月 8 日的网络记录：
+10 月 9 日最后确认的网络记录：
 
 | 用途 | 网卡／网络 | 地址 |
 | --- | --- | --- |
 | MID360 专用以太网 | `enp4s0`，`livox-mid360` | 电脑 `192.168.50.125/24`，雷达 `192.168.50.163` |
-| 远程操作无线网 | `wlx90de80cd9b4b`，`Mars_Office` | 电脑 `192.168.6.177/24` |
-| 原有外部有线网 | `enp5s0` | 当前 DOWN，旧地址不再用作远程入口 |
+| 远程操作无线网 | AX900，`wlx6c1ff7880bdf`，`Mars_Office 1` | 电脑 `192.168.6.146/24` |
+| 临时外部有线网 | `enp1s0` | 排查期间曾为 `192.168.1.101/24`，最后记录 unavailable |
 
 无线 IP 可能在重启后变化，先在 Ubuntu 查看：
 
@@ -29,23 +31,24 @@ ip -br addr
 
 两台电脑都安装 [NoMachine](https://www.nomachine.com/download)，连接同一个 Wi-Fi。在 Mac／Windows 创建**手动连接**，协议 `NX`、Host 填当前 Ubuntu 无线 IP、端口 `4000`，使用 Ubuntu 用户 `mars` 和其本机登录密码。
 
-**当前远程连接尚未成功。** 用户遇到 `no subscription found on this service`；可能进入了 NoMachine Network 云服务入口，尚未确认安装版本或具体原因。下一步检查手动 IP 连接及以下结果，先确认桌面可操作，再切换飞机供电：
+**NoMachine 已恢复可操作。** 原安装版本为 Personal Edition 10.2.3，报订阅缺失；改用 NoMachine 9.8.2 后服务已启用。无显示器画面问题已通过本机 DP-1／EDID 方案恢复；开机初始化与冷启动待验证部分见 [远程桌面和 AX900 恢复记录](docs/REMOTE_RECOVERY_2026-10-09.md)。重启后先检查无线地址和服务：
 
 ```bash
 # Ubuntu
 sudo /usr/NX/bin/nxserver --status
 sudo /usr/NX/bin/nxserver --version
 sudo ss -ltnp 'sport = :4000'
-sudo ufw status
+systemctl is-enabled ugreen-ax900.service
+ip -4 -br addr show dev wlx6c1ff7880bdf
 ```
 
 ```bash
 # Mac：将地址换成当前 Ubuntu 无线 IP
-ping -c 3 192.168.6.177
-nc -vz -G 3 192.168.6.177 4000
+ping -c 3 192.168.6.146
+nc -vz -G 3 192.168.6.146 4000
 ```
 
-SSH／tmux 的持续终端方案尚未配置。远程桌面连接、断开后的进程持续运行，以及换供电后的网络恢复仍需实际验证。
+已保存无线自动连接设置和 AX900 systemd 初始化服务；最终延迟切换方案尚未收到完整冷启动成功回传。SSH／tmux 尚未配置。飞机已移到地面，用户确认无外接线；实际起飞前仍需当前会话的定位／预检结果。
 
 ### 首次获取这次更新：安装脚本
 
@@ -76,7 +79,7 @@ done
 | 8 | QGroundControl；RViz 为可选独立窗口 |
 | 9 | SUPER 地面诊断规划器 |
 | 10 | 规划指令坐标预览，仅输出 debug topic |
-| 11 | 当前留空；地面指令传输或首悬停预览需要单独启动 |
+| 11 | `first_hover_terminal.py`：默认只读检查；`--execute` 后等待显式起飞请求 |
 
 ### 启动前检查
 
@@ -178,7 +181,7 @@ timeout 10s ros2 topic echo \
   geometry_msgs/msg/PoseWithCovarianceStamped --once
 ```
 
-第一份接受的飞控中心位姿作为固定零点。**零点不代表地面**；当前飞机在桌上，实际起飞地面位姿尚未记录。预览保留原时间戳，过期输入会报告 `fresh=False`，后续转发另有 0.25 秒门限。
+第一份接受的飞控中心位姿作为固定零点。**零点不代表地面**；用户目前已把飞机放到地上，终端 11 仍需捕获实际起飞地面位姿。预览保留原时间戳，过期输入会报告 `fresh=False`，后续转发另有 0.25 秒门限。
 
 ### 终端 7：恢复已验证的地面视觉定位融合
 
@@ -240,7 +243,7 @@ commander check
 
 ### 终端 9–10：另行恢复地面规划调试
 
-移动到起飞地面、建立悬停高度基准前，保持这两个调试进程停止。需要规划验证时，在终端 5 为缺失的诊断配置生成一个副本：
+本次固定点悬停时保持这两个调试进程停止。单独进行规划地面验证时，在终端 5 为缺失的诊断配置生成一个副本：
 
 ```bash
 if [ ! -f "$HOME/super_ws/src/SUPER/super_planner/config/mid360_ground_diagnostic_ros2.yaml" ]; then
@@ -284,7 +287,38 @@ rviz2 -d ~/fastlio_ws/mid360_super.rviz
 
 `world` 与 `camera_init` 的单位变换仅用于当前规划／显示约定；缺失该 TF 时应核对帧再添加。RViz 的 `2D Goal Pose` 使用 `/goal_pose`，目标高度受配置 `click_height` 覆盖，最终目标也可能被规划器调整。始终以 `Get goal at` 日志为准。
 
-终端 11 默认留空。单独做未解锁地面传输时才运行 `ground_setpoint_transport.py`，它在解锁／OFFBOARD 后锁止，不能用于试飞。
+### 终端 11：定点、离地 0.5 m 悬停
+
+`first_hover_terminal.py` 是自包含文件，获取命令见 [完整工作流](docs/FIRST_HOVER_2026-10-09.md#获取脚本不使用安装包)。停止旧的 `ground_setpoint_transport.py` 和其他控制发送器，保留终端 1–8 的定位会话。
+
+先只读检查：
+
+```bash
+source /opt/ros/humble/setup.zsh
+python3 ~/Downloads/first_hover_terminal.py
+```
+
+等待 READY 和 GROUND LOCK，确认地面 FC 高度 8.5 cm、本次目标离地 0.5 m。QGC Console 中，解锁开关保持 OFF，释放 Kill，在 POSCTL 下确认 `armed=false`、`kill=false`、`termination=false`，且 `commander check: OK`。
+
+终端 11 Ctrl+C 停止只读实例，再启动执行实例；此时仍不自动起飞：
+
+```bash
+python3 ~/Downloads/first_hover_terminal.py --execute
+```
+
+再次 READY 后，在终端 5 才执行起飞触发。**下面这条命令会自动请求 OFFBOARD、解锁并起飞**：
+
+```bash
+ros2 service call /first_hover/start std_srvs/srv/Trigger '{}'
+```
+
+固定 XY／yaw，上升 0.415 m 后保持约 2 秒，再请求 AUTO.LAND。实际总时长取决于飞控起飞与落地检测。主动提前降落：
+
+```bash
+ros2 service call /first_hover/land std_srvs/srv/Trigger '{}'
+```
+
+遥控器切 POSCTL 接管后，程序停止位置发送，不覆盖人工模式。Kill 会直接停电机，不是平稳降落指令。定位／来源／时序异常会锁止，不自动重新解锁；只能在落地、未解锁后检查并开启新会话。实现细节、门限和当前验证范围见完整工作流。
 
 ## 10 月 8 日完成到哪里
 
@@ -303,7 +337,7 @@ rviz2 -d ~/fastlio_ws/mid360_super.rviz
 | 首悬停预览 | 云端测试通过；debug 输出限定 | 尚未安装或运行于飞机 |
 | Mac／Windows 远程桌面 | USB Wi-Fi 已联网 | NoMachine 连接未成功 |
 
-历史 QGC 日志出现过 RC 解锁、位置失效转 Altitude 和起降检测；这些事件不能据此认定为已完成受控试飞。现在仍没有完整的飞行控制／任务状态机。
+历史 QGC 日志出现过 RC 解锁、位置失效转 Altitude 和起降检测；这些事件不能据此认定为已完成受控试飞。10 月 8 日尚无完整飞行控制状态机；10 月 9 日已实现本次单次悬停流程，仍待实际飞机验证。
 
 ## 参数记录与首悬停准备
 
@@ -332,7 +366,7 @@ python3 ~/Downloads/configure_first_hover.py
 
 ### 起飞地面与悬停预览
 
-飞控中心放在实际起飞地面时约高 **8.5 cm**。当前飞机在桌面，不能把本次视觉零点直接当成地面。
+飞控中心放在实际起飞地面时约高 **8.5 cm**。飞机已移到地面；仍不能把任意视觉零点直接当成实际地面。
 
 保持同一个定位会话移到地面，放稳后记录 FC 地面位置 `z_ground`。预览首悬停目标为离实际地面 **0.5 m**，所以目标 ENU 高度是 `z_ground + 0.415 m`，即使地面在桌面初始化坐标中为负值也一样。若换供电导致重启，先执行上面的恢复／新姿态配对。
 
@@ -345,7 +379,7 @@ source /opt/ros/humble/setup.zsh
 python3 ~/Downloads/first_hover_preview.py
 ```
 
-它只输出 debug topic。实际首飞仍需要控制桥、起飞／保持／落地状态、源丢失处理及遥控接管验证。
+它只输出 debug topic。10 月 9 日已新增完整单次悬停控制状态流程，见 `first_hover_control.py`／`first_hover_terminal.py`；控制实现通过隔离测试，机载启动与物理效果仍待回传。
 
 ## 代码和归档文件
 
@@ -359,6 +393,8 @@ python3 ~/Downloads/first_hover_preview.py
 | [ground_xy_fusion_transport.py](ground_xy_fusion_transport.py)、[ground_height_fusion_transport.py](ground_height_fusion_transport.py) | 10 月 8 日分步验证融合用的地面转发；观察到解锁后锁止 |
 | [create_ground_xy_fusion_transport.py](create_ground_xy_fusion_transport.py)、[create_ground_height_fusion_transport.py](create_ground_height_fusion_transport.py)、[enable_ground_vision_yaw.py](enable_ground_vision_yaw.py) | 严格匹配、备份式安装／更新辅助；旧目标不匹配时停止 |
 | [configure_first_hover.py](configure_first_hover.py)、[hover_reference.py](hover_reference.py)、[first_hover_preview.py](first_hover_preview.py) | 参数备份及低速参考／地面预览，尚未物理部署 |
+| [first_hover_control.py](first_hover_control.py)、[first_hover_terminal.py](first_hover_terminal.py) | 终端 11 单次固定位置悬停；默认只读，显式请求启动，AUTO.LAND／接管／异常锁止，已做隔离测试 |
+| [build_first_hover_terminal.py](build_first_hover_terminal.py) | 从主控制实现生成自包含版本；`--check` 验证没有分叉 |
 | [control_chain_age_check.py](control_chain_age_check.py)、[ground_pose_snapshot.py](ground_pose_snapshot.py) | 同时检查消息新鲜度／接收间隔及地面定位快照 |
 | [send_control_preview_goal.py](send_control_preview_goal.py) | 未解锁时发送沿规划 X 的小目标；不是沿机头的首飞指令 |
 | [create_super_ground_diagnostic.py](create_super_ground_diagnostic.py) | 生成独立地面诊断 YAML，保留原始参数文件 |
@@ -432,13 +468,13 @@ MAKEFLAGS="-j2" CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build \
 
 正式演示：**3 m 宽 × 6 m 长 × 3 m 高**，目标速度 **2 m/s**，FC 中心最高离地 **2 m**，不能碰到边界。飞机轴距 225 mm、5 寸桨；实际含桨外包尺寸和起飞点到各边距离待测。仅凭轴距不能确定所有姿态下的边界余量。
 
-下一步按顺序完成：远程桌面和飞机供电恢复 → 实际地面高度基准／地面悬停预览 → 完整控制桥和任务结束处理 → 遥控接管及源丢失响应 → 低速短时验证 → 正式场地约束和 2 m/s 分阶段验证。
+下一步完成当前地面 READY／POSCTL 预检 → 实际低速短时悬停 → 物理接管和定位／遥控失联降落验证 → 正式场地约束与规划控制接入 → 2 m/s 分阶段验证。软件流程已实现，实际飞行与场地边界约束仍待验证。
 
 ## 开发验证与历史记录
 
-发布前八个相关测试程序全部通过，其中纯参考曲线程序运行了三个 unittest；发现问题后的四个相关程序已重跑并通过。测试使用隔离的 ROS Humble Docker 环境、不同 ROS domain 和只读源码挂载。
+10 月 8 日发布前八个相关测试程序全部通过，其中纯参考曲线程序运行了三个 unittest；发现问题后的四个相关程序已重跑并通过。10 月 9 日新增单次悬停控制 DDS／服务测试，分别验证主实现与自包含版本。测试使用隔离的 ROS Humble Docker 环境、独立 ROS domain 和只读源码挂载；完整证据见当天工作流。
 
-ROS 测试会创建模拟 MAVROS 服务及话题，不能和实际飞机使用同一 ROS domain。已安装 ROS Humble、MAVROS State 及 SUPER PositionCommand 消息后，可在仓库根目录运行：
+ROS 测试会创建模拟 MAVROS 服务及话题，不能和实际飞机使用同一 ROS domain。已安装 ROS Humble、MAVROS 消息／服务（含 State、ExtendedState、EstimatorStatus、RCIn、SetMode、CommandBool）及 SUPER PositionCommand 消息后，可在仓库根目录运行：
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -454,11 +490,16 @@ python3 tests/test_flight_pose_cov_transport.py
 python3 tests/test_configure_first_hover.py
 python3 tests/test_first_hover_preview.py
 python3 tests/test_hover_reference.py
+python3 build_first_hover_terminal.py --check
+python3 tests/test_first_hover_control.py
+FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
 另保留以前的 ROS 传输、协方差和 C++ timing／IMU QoS 检查。当前模拟测试不验证实际飞行、停机或失联降落。
 
 - [10 月 8 日：融合、规划、地面指令、首悬停参数、远程桌面进度](docs/DEPLOYMENT_CHECKPOINT_2026-10-08.md)
+- [10 月 9 日：完整测试工作流与终端 11](docs/FIRST_HOVER_2026-10-09.md)
+- [10 月 9 日：AX900、NoMachine 与重启恢复](docs/REMOTE_RECOVERY_2026-10-09.md)
 - [10 月 7 日：时间问题及 QoS 修复](docs/DEPLOYMENT_CHECKPOINT_2026-10-07.md)
 - [10 月 7 日完整历史 README](https://github.com/Haofei-Hu/Demo_HKU_open-day_SUPER/blob/c312c13432d6d2712b100e796cd13e603175537b/README.md)
 

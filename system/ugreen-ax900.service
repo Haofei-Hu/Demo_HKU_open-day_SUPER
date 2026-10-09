@@ -1,0 +1,11 @@
+[Unit]
+Description=Initialize UGREEN AX900 USB Wi-Fi
+After=systemd-modules-load.service systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ugreen-ax900-start
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,32 @@
+#!/bin/bash
+# AX900/AIC8800D80 startup helper. Requires the installed kernel modules/firmware.
+set -euo pipefail
+modprobe aic_load_fw
+modprobe aic8800_fdrv
+deadline=$((SECONDS + 45))
+next_try=0
+attempts=0
+while (( SECONDS < deadline )); do
+    if [ -d /sys/class/net/wlx6c1ff7880bdf ]; then
+        echo 'AX900 Wi-Fi interface ready'
+        exit 0
+    fi
+    if (( SECONDS >= next_try && attempts < 3 )); then
+        for usb_device in /sys/bus/usb/devices/*; do
+            vendor=$(cat "$usb_device/idVendor" 2>/dev/null) || continue
+            product=$(cat "$usb_device/idProduct" 2>/dev/null) || continue
+            if [[ "$vendor:$product" == a69c:5723 ]]; then
+                attempts=$((attempts + 1))
+                echo "Switching AX900 installer mode, attempt $attempts"
+                # Give the installer-mode storage device time to finish probing.
+                sleep 10
+                timeout 20 /usr/sbin/usb_modeswitch -K -v 0xa69c -p 0x5723 || true
+                next_try=$((SECONDS + 5))
+                break
+            fi
+        done
+    fi
+    sleep 1
+done
+echo 'AX900 Wi-Fi interface did not appear within the waiting period' >&2
+exit 1

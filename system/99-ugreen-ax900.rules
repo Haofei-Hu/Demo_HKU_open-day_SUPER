@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="a69c", ATTR{idProduct}=="5723", TAG+="systemd", ENV{SYSTEMD_WANTS}+="ugreen-ax900.service"
