@@ -243,7 +243,7 @@ def export(args):
             cloud_count += 1
             total_points += len(points)
             if cloud_count % 100 == 0:
-                print(f"已导出 {cloud_count} 帧，{total_points:,} 个点", flush=True)
+                print(f"Exported {cloud_count} frames, {total_points:,} points", flush=True)
     with (out / "cloud_end.xyz").open("w") as end_file:
         for _, points in end_clouds:
             np.savetxt(end_file, points, fmt="%.6f")
@@ -275,29 +275,29 @@ def export(args):
                     "Record minus header time is meaningful only with compatible clocks.",
                     "Small return error alone does not establish correct extrinsics or flight readiness."])
     (out / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
-    print(f"\n输出目录：{out}")
-    print(f"点云：{cloud_count} 帧，{total_points:,} 个有限点；未做降采样或去毛刺")
+    print(f"\nOutput directory: {out}")
+    print(f"Cloud: {cloud_count} frames, {total_points:,} finite points; no downsampling or outlier removal")
     if trajectory.get("closure_available"):
         delta = trajectory["return_delta_xyz_m"]
-        print("回到门口的首尾均值差 XYZ：", [round(v, 4) for v in delta], "m")
-        print(f"三维误差：{trajectory['return_error_3d_m']:.4f} m；仅在同一标记姿态静止时有效")
-        print("首/尾静止窗口最大波动半径：",
+        print("Start/end mean position difference XYZ:", [round(v, 4) for v in delta], "m")
+        print(f"3D return error: {trajectory['return_error_3d_m']:.4f} m; valid only for stationary windows at the same marked pose")
+        print("Start/end stationary-window maximum radius:",
               round(trajectory["start_window_max_radius_m"], 4),
               round(trajectory["end_window_max_radius_m"], 4), "m")
     else:
-        print("首尾误差不可计算；详见 report.json")
+        print("Return error unavailable; see report.json")
     for topic in ("/livox/lidar", "/livox/imu", args.odom_topic, args.cloud_topic,
                   "/mavros/vision_pose/pose_cov"):
         if topic in timing:
             s = timing[topic]
-            print(f"{topic}: n={s.n}, 最大录包间隔={s.max_receive_gap:.3f}s, "
-                  f"最大消息时间戳间隔={s.max_stamp_gap:.3f}s, "
-                  f">{args.gap:g}s录包间隔次数={s.receive_gaps}, "
-                  f"末尾静默={topic_reports[topic]['trailing_no_message_s']}s")
+            print(f"{topic}: n={s.n}, max record gap={s.max_receive_gap:.3f}s, "
+                  f"max header gap={s.max_stamp_gap:.3f}s, "
+                  f">{args.gap:g}s record gaps={s.receive_gaps}, "
+                  f"trailing silence={topic_reports[topic]['trailing_no_message_s']}s")
     if not cloud_count or not rows:
         raise ValueError("No usable cloud or odometry messages; inspect the recording")
     if unavailable:
-        print("部分消息类型无法解析 header；其录包间隔仍已统计。请 source 对应工作空间。")
+        print("Some message headers could not be decoded; record gaps are still included. Source the corresponding workspace.")
 
 
 def main():

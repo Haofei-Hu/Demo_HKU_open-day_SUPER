@@ -1,14 +1,14 @@
-# 文档索引
+# Documentation index
 
-| 内容 | 入口 |
+| Topic | Document |
 | --- | --- |
-| 当前进度、结果证据、OFFBOARD 时序 | [2026-10-10](PROGRESS_2026-10-10.md) |
-| 接下来需要完成的工作 | [待办](NEXT_STEPS.md) |
-| 重启后的终端 1–11、悬停与降落 | [完整测试工作流](FIRST_HOVER_2026-10-09.md) |
-| 简化三终端录包、XYZ 与返回误差 | [数据分析流程](BAG_XYZ_2026-10-09.md) |
-| AX900、NoMachine、无显示器恢复 | [远程操作记录](REMOTE_RECOVERY_2026-10-09.md) |
-| 代码分类与机载复制 | [代码索引](../scripts/README.md) |
-| 地面融合、规划、参数的历史证据 | [2026-10-08](DEPLOYMENT_CHECKPOINT_2026-10-08.md) |
-| 时间、协方差与 IMU QoS 修复 | [2026-10-07](DEPLOYMENT_CHECKPOINT_2026-10-07.md) |
+| Current progress and successful flight milestone | [October 10 progress](PROGRESS_2026-10-10.md) |
+| Next development and validation stage | [Next steps](NEXT_STEPS.md) |
+| Reboot recovery, terminals 1–11, takeoff and landing | [Complete flight workflow](FIRST_HOVER_2026-10-09.md) |
+| Three-terminal loop recording and XYZ inspection | [Bag/XYZ workflow](BAG_XYZ_2026-10-09.md) |
+| AX900, NoMachine, and headless desktop | [Remote recovery](REMOTE_RECOVERY_2026-10-09.md) |
+| Source organization and deployment | [Script index](../scripts/README.md) |
+| Fusion, planning, and parameter integration history | [October 8 checkpoint](DEPLOYMENT_CHECKPOINT_2026-10-08.md) |
+| Timing, covariance, and IMU QoS fixes | [October 7 checkpoint](DEPLOYMENT_CHECKPOINT_2026-10-07.md) |
 
-历史记录保留当时结论；当前部署按最新进度和完整工作流核对。云端测试、地面回传和用户反馈分别注明，不能互相替代。
+Historical checkpoints describe the state on their respective dates. Current status is maintained in the progress page and the flight runbook.

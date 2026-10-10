@@ -1,6 +1,6 @@
 # Deployment checkpoint — 2026-10-07
 
-This records work observed on the aircraft's Ubuntu machine. Cloud tests use synthetic ROS data and do not establish flight readiness. The aircraft remained disarmed; external vision fusion remained disabled (`EKF2_EV_CTRL=0`).
+This historical checkpoint records the October 7 localization stage. Subsequent automatic takeoff, hover, and landing succeeded; see [current progress](PROGRESS_2026-10-10.md). Measurements below describe the aircraft's Ubuntu deployment on this date. Cloud tests use synthetic ROS data and do not establish flight readiness. The aircraft remained disarmed; external vision fusion remained disabled (`EKF2_EV_CTRL=0`).
 
 ## Completed code and machine checks
 
@@ -8,7 +8,7 @@ This records work observed on the aircraft's Ubuntu machine. Cloud tests use syn
 - The covariance repair was built successfully on the machine (initial build 1 min 22 s; incremental build succeeded). `/Odometry` from the installed workspace had symmetric, populated covariance and approximately 10 Hz output.
 - Added the timing probe in [apply_fastlio_timing_probe.py](../scripts/maintenance/apply_fastlio_timing_probe.py) and [its patch](../patches/fastlio_timing_probe.patch).
 - Changed **only IMU subscription reliability** from default Reliable to Best Effort with `KEEP_LAST(10)` in [apply_fastlio_imu_qos.py](../scripts/maintenance/apply_fastlio_imu_qos.py) and [its patch](../patches/fastlio_imu_best_effort.patch). Rebuilt and restarted the machine's FAST_LIO executable.
-- Archived the attitude pairing, aligned ground preview, aligned ground transport and stationary-position checks. The standalone aligned relay avoids dependence on the previously failed text-conversion command.
+- Archived the attitude pairing, aligned ground preview, aligned ground transport and stationary-position checks. The standalone aligned relay avoids dependence on older source-conversion helpers.
 
 ## Timing investigation and result
 
@@ -39,13 +39,13 @@ Original measurement timestamps and the relay's freshness limits were retained. 
 
 The active machine reads the installed `mid360.yaml`. Reported values were `point_filter_num=3`, `filter_size_surf=0.5`, `filter_size_map=0.5`, `max_iteration=3`, `common.time_sync_en=false` and `common.time_offset_lidar_to_imu=0.0`; these were not changed to solve the delay. ROS publication flags in Quick Start are startup overrides, not edits to the underlying YAML.
 
-The real SUPER configuration was read at `~/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml`: `click_goal_en=true`, `click_goal_topic="/goal_pose"`, `click_height=-0.05`, `virtual_ground_height=-1.0`. The −0.05 value is a planning test Z coordinate, not the venue's above-floor flight height. The complete aircraft YAML/RViz files have not been copied into this repository; only values supplied in the session are recorded.
+The real SUPER configuration was read at `~/super_ws/src/SUPER/super_planner/config/mid360_real_ros2.yaml`: `click_goal_en=true`, `click_goal_topic="/goal_pose"`, `click_height=-0.05`, `virtual_ground_height=-1.0`. The −0.05 value is a planning test Z coordinate, not the venue's above-floor flight height. The complete aircraft YAML/RViz files have not been copied into this repository; only the inspected configuration values are recorded here.
 
 ## Motion and alignment observations
 
 An earlier approximately 30 cm physical movement gave an implausible approximately 1.85 m preview displacement. A subsequent measurement also found large raw odometry variation, with a constant inferred preview origin (145 matched stamps, inferred variation zero). This localized that discrepancy upstream of the preview's origin subtraction.
 
-After a localization reset, a stationary 15-second raw check reported position ranges **[0.0077, 0.0092, 0.0163] m**, mean/max age **0.025 / 0.029 s**. A later manual translation was corrected by the operator to **approximately 20 cm**; raw odometry displacement magnitude was **0.215 m**. That is coarse agreement, not a precision scale calibration.
+After a localization reset, a stationary 15-second raw check reported position ranges **[0.0077, 0.0092, 0.0163] m**, mean/max age **0.025 / 0.029 s**. A later manual translation was **approximately 20 cm**; raw odometry displacement magnitude was **0.215 m**. That is coarse agreement, not a precision scale calibration.
 
 The final attitude survey after the final FAST_LIO rebuild/restart produced:
 
@@ -83,7 +83,7 @@ This verifies ROS transport, **not PX4 receipt or fusion**. Parameter reads: `EK
 | 9 | `aligned_pose_cov_transport.py`; use for builds only after stopping relay |
 | 10 | QGroundControl when continuing the next check |
 
-See the README's first Quick Start for restart commands. The currently tested localization profile does not supply SUPER's registered-cloud input. Before planning, restore world scan output, validate load and perform a new session alignment after any FAST_LIO restart.
+Use the [current flight runbook](FIRST_HOVER_2026-10-09.md) for the updated terminal numbering and restart commands. The currently tested localization profile does not supply SUPER's registered-cloud input. Before planning, restore world scan output, validate load and perform a new session alignment after any FAST_LIO restart.
 
 ## Next session: actual PX4 receipt
 
@@ -108,7 +108,7 @@ The following sequence was prepared but **not performed** by the end of the sess
    listener vehicle_visual_odometry 5
    ```
 
-Verify actual firmware and fresh visual-odometry reception before designing a fusion-capable bridge. No parameter changes, arming, Offboard entry or flight have been completed.
+Verify actual firmware and fresh visual-odometry reception before designing a fusion-capable bridge. At this checkpoint, arming, OFFBOARD flight, and external-vision fusion had not yet been completed. Later milestones are recorded in the current progress page.
 
 ## Venue requirements clarified today
 
