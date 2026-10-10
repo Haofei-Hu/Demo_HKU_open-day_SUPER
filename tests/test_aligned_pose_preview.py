@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 def main():
-    path = Path(__file__).resolve().parents[1] / 'aligned_pose_preview.py'
+    path = Path(__file__).resolve().parents[1] / 'scripts/localization/aligned_pose_preview.py'
     spec = importlib.util.spec_from_file_location('preview', path)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)

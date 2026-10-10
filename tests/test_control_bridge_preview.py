@@ -20,7 +20,7 @@ def main():
     with tempfile.TemporaryDirectory() as directory:
         alignment = Path(directory) / 'alignment.py'
         # Reuse the real mounting/rotation/lever mathematics, with an analytic fixture.
-        original = (Path(__file__).resolve().parents[1] / 'aligned_pose_preview.py').read_text()
+        original = (Path(__file__).resolve().parents[1] / 'scripts/localization/aligned_pose_preview.py').read_text()
         alignment.write_text(original +
             '\nQ_WC = np.array([0.,0.,2**-.5,2**-.5])\n'
             'R_WC = rotation(Q_WC)\n'

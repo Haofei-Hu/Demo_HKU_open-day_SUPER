@@ -1,12 +1,14 @@
 # 完整测试工作流：重启恢复与固定位置、离地 0.5／1 m 悬停
 
+最新结果及下一步见 [10 月 10 日进度](PROGRESS_2026-10-10.md) 和 [后续待办](NEXT_STEPS.md)。用户反馈“成功了”，目前未明确是配置成功还是完整飞行成功，未收到本次实测日志。
+
 本流程使用现有 10 Hz FAST_LIO／视觉定位，不修改雷达频率，不启动 SUPER 规划。10 月 9 日已看到 PX4 `vehicle_visual_odometry` 接收及水平／垂直位置、速度状态有效。该地面结果不等于已验证实际飞行。
 
 当天用户回传的恢复证据：`/Odometry` 时间年龄 min／avg／max 为 `0.010/0.024/0.032 s`；原生视觉话题平均约 `10.006 Hz`、相邻消息 `0.088–0.116 s`；PX4 视觉消息 sample 比发布时间早 `31,619 µs`，水平相对位置和水平／垂直速度标志已为 true。这些是地面窗口数据，不是空中性能统计。
 
 `first_hover_control.py` 默认只检查并输出 debug 目标。`--execute` 启用原生位置发送器，仍须单独调用 `/first_hover/start` 才开始一次自动飞行。控制程序尚需在机载电脑检查；隔离测试使用模拟遥测与命令服务，不能验证推力、实际定位精度、遥控失联或降落效果。
 
-`first_hover_terminal.py` 是同一控制流程的自包含版本：普通启动只检查，`--execute` 后仍等待显式起飞命令。它不依赖同目录的其他 Python 脚本，适合终端 11 直接使用。之前聊天中的 `python3 - --execute <<'PY'` 只运行内存中的程序；本次把代码保存到仓库，重启后可以重新执行文件。
+`first_hover_terminal.py` 是同一控制流程的自包含版本：普通启动只检查，`--execute` 后仍等待显式起飞命令。它不依赖同目录的其他 Python 脚本，适合终端 11 直接使用。之前聊天中的 `python3 - --execute <<'PY'` 只运行内存中的程序，不自动保存。更新命令明确写入 `~/Downloads/first_hover_terminal.py` 后才能重启复用；“更新完成”表示文件更新，不会改变旧的运行实例。1 m／6 秒需要新实例带相应 CLI 参数启动。
 
 ## 终端与数据流
 
@@ -425,15 +427,15 @@ ros2 node info /first_hover
 
 ```bash
 source /opt/ros/humble/setup.bash
-export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$PWD:$PWD/scripts/localization:$PWD/scripts/flight:$PWD/scripts/planning:$PWD/scripts/analysis:$PWD/scripts/maintenance${PYTHONPATH:+:$PYTHONPATH}"
 export ROS_LOCALHOST_ONLY=1
 export ROS_DOMAIN_ID=194
-python3 build_first_hover_terminal.py --check
+python3 scripts/maintenance/build_first_hover_terminal.py --check
 python3 tests/test_hover_reference.py
 python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-截至本次上传，没有收到真实首飞的 READY、当前预检 OK、RISE／HOLD／DONE 或物理悬停结果。正式 3×6 m 场地围栏、2 m/s 轨迹飞行和实际定位／遥控失联降落验证仍未完成。
+用户随后反馈“成功了”，具体完成范围尚待明确；尚未收到本次 READY、RISE／HOLD／DONE、高度或落地日志，不能补写实测结论。正式 3×6 m 场地围栏、2 m/s 轨迹飞行和实际定位／遥控失联降落验证仍未完成。
 
 发布检查还验证了自包含文件与生成器一致、三份主要文档中 67 个 Bash 命令块的语法和本地链接、AX900 脚本语法，以及把归档 helper 安放在临时根目录后的 systemd unit 解析。系统配置检查没有启动驱动／网络服务，不能替代机载冷启动验证。

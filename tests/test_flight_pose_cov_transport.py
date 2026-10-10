@@ -25,7 +25,7 @@ def main():
     rclpy.init()
     directory = Path(tempfile.mkdtemp(prefix='session_vision_test_'))
     path = directory / 'alignment.py'
-    source = Path(__file__).resolve().parents[1] / 'aligned_pose_preview.py'
+    source = Path(__file__).resolve().parents[1] / 'scripts/localization/aligned_pose_preview.py'
     shutil.copy2(source, path)
     convert = load_converter(path)
     probe = Node('session_vision_probe')

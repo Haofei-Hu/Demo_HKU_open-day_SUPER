@@ -2,7 +2,7 @@
 
 HKU Open Day 无人机演示部署记录：Livox MID360 → FAST_LIO → SUPER → MAVROS → PX4。
 
-**更新日期：2026-10-09（香港时间）**。已恢复 10 Hz 外部视觉 XYZ／yaw 地面融合，Mac 的 NoMachine 桌面已可操作。终端 11 的固定位置、飞控中心离地 0.5 m 悬停程序已实现并通过隔离测试；尚未收到这段程序在真实飞机上的 READY、当前预检 OK 或实际起飞结果。
+**更新日期：2026-10-10（北京时间）**。已恢复 10 Hz 外部视觉 XYZ／yaw 地面融合和 Mac NoMachine 桌面。终端 11 已支持飞控中心离地 **1 m、保持 6 秒后降落**，软件检查通过；用户反馈“成功了”，尚未明确是程序配置还是完整飞行成功，未收到这次实测日志。当前证据见 [进度记录](docs/PROGRESS_2026-10-10.md)，后续工作见 [待办](docs/NEXT_STEPS.md)。
 
 直接按 [完整测试工作流：终端 1–11、重启恢复、起飞、降落和接管](docs/FIRST_HOVER_2026-10-09.md) 操作。终端 9／10 用于规划地面调试，定点悬停时停止；终端 11 沿用现有 10 Hz 定位，发送 20 Hz 位置／航向目标，等待显式起飞命令。
 
@@ -52,18 +52,19 @@ nc -vz -G 3 192.168.6.146 4000
 
 ### 首次获取这次更新：安装脚本
 
-已有完整 ROS 工作区时，在本仓库根目录执行下面的复制步骤。**先停止终端 6／7 和 9–11 中的预览、转发进程**，再更新文件；复制会覆盖历史会话四元数，因此随后必须重新做姿态配对。
+已有完整 ROS 工作区时，在本仓库根目录运行分类部署工具。默认只补缺失文件，保留机载已有的对齐值和脚本：
 
 ```bash
-mkdir -p ~/Downloads
-scripts_backup_dir=$(mktemp -d ~/Downloads/super_scripts_backup_XXXXXX)
-for script in *.py; do
-  if [ -f "$HOME/Downloads/$script" ]; then
-    cp "$HOME/Downloads/$script" "$scripts_backup_dir/"
-  fi
-  cp "$script" "$HOME/Downloads/"
-done
+python3 scripts/maintenance/install_scripts.py
 ```
+
+需要更新已有文件时，飞机先落地、未解锁，停止受影响的终端 6／7 和 9–11，再执行显式覆盖；改变过的旧文件会备份。若定位／对齐源码被替换，随后重新测量本次会话四元数：
+
+```bash
+python3 scripts/maintenance/install_scripts.py --overwrite
+```
+
+单独更新终端 11 可直接下载自包含文件，见 [悬停工作流](docs/FIRST_HOVER_2026-10-09.md#获取脚本不使用安装包)。分类后的源码、机载文件名及部署规则见 [代码索引](scripts/README.md)。
 
 这一步只复制文件。完整的 Livox／FAST_LIO／SUPER 工作区及依赖仍使用机载电脑现有安装，未随本仓库打包。下面的 1–8 恢复地面定位，9–10 是另行开启的规划调试。
 
@@ -287,7 +288,7 @@ rviz2 -d ~/fastlio_ws/mid360_super.rviz
 
 `world` 与 `camera_init` 的单位变换仅用于当前规划／显示约定；缺失该 TF 时应核对帧再添加。RViz 的 `2D Goal Pose` 使用 `/goal_pose`，目标高度受配置 `click_height` 覆盖，最终目标也可能被规划器调整。始终以 `Get goal at` 日志为准。
 
-### 终端 11：定点、离地 0.5 m 悬停
+### 终端 11：定点、离地 1 m，悬停 6 秒
 
 按用户更新的目标，终端 11 新增 `--hover-height 1.0 --hold-seconds 6.0`，对应飞控中心离实际起飞地面 1 m，保持 6 秒后 AUTO.LAND；默认仍为 0.5 m／2 秒。1 m 配置的上升参考约 8.58 秒，上升加保持约 14.58 秒，备用 OFFBOARD 时限为 17 秒，完整飞行还包括降落。参数只在落地、未解锁时通过新启动实例设置；机载物理效果尚未验证。完整启动命令见 [实际启动](docs/FIRST_HOVER_2026-10-09.md#实际启动完成上述机载检查之后)。
 
@@ -297,15 +298,15 @@ rviz2 -d ~/fastlio_ws/mid360_super.rviz
 
 ```bash
 source /opt/ros/humble/setup.zsh
-python3 ~/Downloads/first_hover_terminal.py
+python3 ~/Downloads/first_hover_terminal.py --hover-height 1.0 --hold-seconds 6.0
 ```
 
-等待 READY 和 GROUND LOCK，确认地面 FC 高度 8.5 cm、本次目标离地 0.5 m。QGC Console 中，解锁开关保持 OFF，释放 Kill，在 POSCTL 下确认 `armed=false`、`kill=false`、`termination=false`，且 `commander check: OK`。
+等待 READY 和 GROUND LOCK，确认地面 FC 高度 8.5 cm、本次目标离地 1 m。QGC Console 中，解锁开关保持 OFF，释放 Kill，在 POSCTL 下确认 `armed=false`、`kill=false`、`termination=false`，且 `commander check: OK`。
 
 终端 11 Ctrl+C 停止只读实例，再启动执行实例；此时仍不自动起飞：
 
 ```bash
-python3 ~/Downloads/first_hover_terminal.py --execute
+python3 ~/Downloads/first_hover_terminal.py --execute --hover-height 1.0 --hold-seconds 6.0
 ```
 
 再次 READY 后，在终端 5 才执行起飞触发。**下面这条命令会自动请求 OFFBOARD、解锁并起飞**：
@@ -314,7 +315,7 @@ python3 ~/Downloads/first_hover_terminal.py --execute
 ros2 service call /first_hover/start std_srvs/srv/Trigger '{}'
 ```
 
-固定 XY／yaw，上升 0.415 m 后保持约 2 秒，再请求 AUTO.LAND。实际总时长取决于飞控起飞与落地检测。主动提前降落：
+固定 XY／yaw，上升参考 0.915 m；实际高度进入目标范围后保持 6 秒，再请求 AUTO.LAND。起飞触发后先预发送约 2 秒，确认 OFFBOARD 后才请求解锁；模式时序见 [进度记录](docs/PROGRESS_2026-10-10.md#悬停配置与启动顺序)。实际总时长取决于飞控起飞与落地检测。主动提前降落：
 
 ```bash
 ros2 service call /first_hover/land std_srvs/srv/Trigger '{}'
@@ -385,29 +386,48 @@ python3 ~/Downloads/first_hover_preview.py
 
 ## 代码和归档文件
 
+实现代码已按功能归类，机载 Downloads 的文件名保持原样。根目录三个 Python 文件为独立下载入口，均为真实可运行源码。
+
+```text
+scripts/
+  localization/  定位、姿态配对、视觉转发
+  flight/        悬停、地面指令、参数辅助
+  planning/      SUPER 指令预览和目标
+  analysis/      消息年龄、录包转 XYZ
+  maintenance/   补丁、生成器、部署工具
+  layout.json    源文件与机载文件名映射
+docs/            进度、工作流、历史记录
+configs/         实际配置归档
+patches/         FAST_LIO 补丁
+tests/           隔离验证
+data/            数据存放说明；实采 bag 留在本机
+```
+
+[代码分类／部署索引](scripts/README.md) · [文档索引](docs/README.md) · [绕圈录包转 XYZ](docs/BAG_XYZ_2026-10-09.md)
+
 | 文件 | 用途 |
 | --- | --- |
-| [flight_pose_cov_transport.py](flight_pose_cov_transport.py) | 本次会话定位转发，默认 debug；原时间戳／协方差，显式启用 MAVROS |
-| [create_flight_pose_transport.py](create_flight_pose_transport.py) | 可读的纯文本安装器；校验源内容并备份旧文件 |
-| [control_bridge_preview.py](control_bridge_preview.py) | 规划世界到 FC ENU 的未解锁坐标预览，AST 加载几何以避免重复 ROS 初始化 |
-| [repair_control_preview_loader.py](repair_control_preview_loader.py) | 修复旧版预览的导入问题 |
-| [ground_setpoint_transport.py](ground_setpoint_transport.py) | 未解锁 POSCTL／AUTO.LOITER 地面指令传输；20 Hz，解锁／OFFBOARD 锁止 |
-| [ground_xy_fusion_transport.py](ground_xy_fusion_transport.py)、[ground_height_fusion_transport.py](ground_height_fusion_transport.py) | 10 月 8 日分步验证融合用的地面转发；观察到解锁后锁止 |
-| [create_ground_xy_fusion_transport.py](create_ground_xy_fusion_transport.py)、[create_ground_height_fusion_transport.py](create_ground_height_fusion_transport.py)、[enable_ground_vision_yaw.py](enable_ground_vision_yaw.py) | 严格匹配、备份式安装／更新辅助；旧目标不匹配时停止 |
-| [configure_first_hover.py](configure_first_hover.py)、[hover_reference.py](hover_reference.py)、[first_hover_preview.py](first_hover_preview.py) | 参数备份及低速参考／地面预览，尚未物理部署 |
-| [first_hover_control.py](first_hover_control.py)、[first_hover_terminal.py](first_hover_terminal.py) | 终端 11 单次固定位置悬停；默认只读，显式请求启动，AUTO.LAND／接管／异常锁止，已做隔离测试 |
-| [build_first_hover_terminal.py](build_first_hover_terminal.py) | 从主控制实现生成自包含版本；`--check` 验证没有分叉 |
-| [control_chain_age_check.py](control_chain_age_check.py)、[ground_pose_snapshot.py](ground_pose_snapshot.py) | 同时检查消息新鲜度／接收间隔及地面定位快照 |
-| [send_control_preview_goal.py](send_control_preview_goal.py) | 未解锁时发送沿规划 X 的小目标；不是沿机头的首飞指令 |
-| [create_super_ground_diagnostic.py](create_super_ground_diagnostic.py) | 生成独立地面诊断 YAML，保留原始参数文件 |
+| [flight_pose_cov_transport.py](scripts/localization/flight_pose_cov_transport.py) | 本次会话定位转发，默认 debug；原时间戳／协方差，显式启用 MAVROS |
+| [create_flight_pose_transport.py](scripts/maintenance/create_flight_pose_transport.py) | 可读的纯文本安装器；校验源内容并备份旧文件 |
+| [control_bridge_preview.py](scripts/planning/control_bridge_preview.py) | 规划世界到 FC ENU 的未解锁坐标预览，AST 加载几何以避免重复 ROS 初始化 |
+| [repair_control_preview_loader.py](scripts/maintenance/repair_control_preview_loader.py) | 修复旧版预览的导入问题 |
+| [ground_setpoint_transport.py](scripts/flight/ground_setpoint_transport.py) | 未解锁 POSCTL／AUTO.LOITER 地面指令传输；20 Hz，解锁／OFFBOARD 锁止 |
+| [ground_xy_fusion_transport.py](scripts/localization/ground_xy_fusion_transport.py)、[ground_height_fusion_transport.py](scripts/localization/ground_height_fusion_transport.py) | 10 月 8 日分步验证融合用的地面转发；观察到解锁后锁止 |
+| [create_ground_xy_fusion_transport.py](scripts/maintenance/create_ground_xy_fusion_transport.py)、[create_ground_height_fusion_transport.py](scripts/maintenance/create_ground_height_fusion_transport.py)、[enable_ground_vision_yaw.py](scripts/maintenance/enable_ground_vision_yaw.py) | 严格匹配、备份式安装／更新辅助；旧目标不匹配时停止 |
+| [configure_first_hover.py](scripts/flight/configure_first_hover.py)、[hover_reference.py](scripts/flight/hover_reference.py)、[first_hover_preview.py](scripts/flight/first_hover_preview.py) | 参数备份及低速参考／地面预览，尚未物理部署 |
+| [first_hover_control.py](scripts/flight/first_hover_control.py)、[first_hover_terminal.py](first_hover_terminal.py) | 终端 11 单次固定位置悬停；默认只读，显式请求启动，AUTO.LAND／接管／异常锁止，已做隔离测试 |
+| [build_first_hover_terminal.py](scripts/maintenance/build_first_hover_terminal.py) | 从主控制实现生成自包含版本；`--check` 验证没有分叉 |
+| [control_chain_age_check.py](scripts/analysis/control_chain_age_check.py)、[ground_pose_snapshot.py](scripts/analysis/ground_pose_snapshot.py) | 同时检查消息新鲜度／接收间隔及地面定位快照 |
+| [send_control_preview_goal.py](scripts/planning/send_control_preview_goal.py) | 未解锁时发送沿规划 X 的小目标；不是沿机头的首飞指令 |
+| [create_super_ground_diagnostic.py](scripts/maintenance/create_super_ground_diagnostic.py) | 生成独立地面诊断 YAML，保留原始参数文件 |
 | [当天提供的 SUPER YAML](configs/observed_2026-10-08/mid360_real_ros2.yaml) | 用户实际粘贴的配置归档；不会自动覆盖机载配置 |
-| [fastlio_body_debug.py](fastlio_body_debug.py)、[frame_alignment_check.py](frame_alignment_check.py)、[update_preview_alignment.py](update_preview_alignment.py) | 名义安装变换、时间配对姿态测量、新会话四元数更新 |
-| [aligned_pose_preview.py](aligned_pose_preview.py) | 名义杆臂／旋转／完整协方差变换，固定初始零点 |
-| [odom_age_check.py](odom_age_check.py)、[stationary_position_check.py](stationary_position_check.py) | 深度 1 新鲜度及静止／原点一致性检查 |
-| [raw_pose_cov_transport.py](raw_pose_cov_transport.py)、[aligned_pose_cov_transport.py](aligned_pose_cov_transport.py) | 早期仅 `EV_CTRL=0` 的传输实验，保留用于历史复现 |
+| [fastlio_body_debug.py](scripts/localization/fastlio_body_debug.py)、[frame_alignment_check.py](scripts/localization/frame_alignment_check.py)、[update_preview_alignment.py](update_preview_alignment.py) | 名义安装变换、时间配对姿态测量、新会话四元数更新 |
+| [aligned_pose_preview.py](scripts/localization/aligned_pose_preview.py) | 名义杆臂／旋转／完整协方差变换，固定初始零点 |
+| [odom_age_check.py](odom_age_check.py)、[stationary_position_check.py](scripts/localization/stationary_position_check.py) | 深度 1 新鲜度及静止／原点一致性检查 |
+| [raw_pose_cov_transport.py](scripts/localization/raw_pose_cov_transport.py)、[aligned_pose_cov_transport.py](scripts/localization/aligned_pose_cov_transport.py) | 早期仅 `EV_CTRL=0` 的传输实验，保留用于历史复现 |
 | [patches/](patches/) 和 `apply_fastlio_*.py` | FAST_LIO 协方差、回调诊断及 IMU QoS 修复 |
 
-旧式生成脚本可能依赖特定旧源块；获取仓库后优先复制独立的最新脚本。纯文本安装方式替代了之前粘贴受损的压缩 payload，不需要在聊天中重新复制 base64 数据。
+旧式生成脚本可能依赖特定旧源块；获取仓库后优先使用分类部署工具复制独立脚本。纯文本安装方式替代了之前粘贴受损的压缩 payload，不需要在聊天中重新复制 base64 数据。
 
 发布前代码检查补齐了地面转发／控制预览的状态时间戳检查，并让参数辅助在等待服务时继续处理状态、写入前再次确认未解锁。这些最新修订及对应回归测试在云端通过，尚未替换飞机上的运行进程。
 
@@ -432,9 +452,9 @@ SUPER 的 `world` 在当前上游代码数值上沿用 LIO 世界。轨迹 flag 
 仅在新源安装或尚未包含修复时，停止相关进程、保留工作区备份，再从仓库根目录运行：
 
 ```bash
-python3 apply_fastlio_covariance_fix.py
-python3 apply_fastlio_timing_probe.py
-python3 apply_fastlio_imu_qos.py
+python3 scripts/maintenance/apply_fastlio_covariance_fix.py
+python3 scripts/maintenance/apply_fastlio_timing_probe.py
+python3 scripts/maintenance/apply_fastlio_imu_qos.py
 source /opt/ros/humble/setup.zsh
 source ~/ws_livox/install/setup.zsh
 cd ~/fastlio_ws
@@ -457,12 +477,12 @@ MAKEFLAGS="-j2" CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build \
 | `Context.init() must only be called once` | 旧预览在模块顶层初始化 ROS；新 loader 用 AST 只载入几何，保留运行中的定位节点 |
 | `/planning/pos_cmd` 没有消息 | 先看是否收到目标和轨迹是否成功；INIT 等待目标时没有指令正常 |
 | `MINCO ... line search ... failed` | 规划未生成成功；地面传输缺目标是后果。保留原 YAML 和日志，使用独立诊断配置复查 |
-| 地面转发解锁后停止 | ground 脚本的锁止设计；用于连续定位的是终端 7 session relay，实际控制尚未实现 |
+| 地面转发解锁后停止 | ground 脚本的锁止设计；用于连续定位的是终端 7 session relay；终端 11 已实现单次悬停，规划轨迹飞行接入仍待完成 |
 | `No valid position estimate` | 查看当前源新鲜度、融合参数及 FC 有效性；早期 ground relay 在解锁后停发也会造成定位丢失，历史日志不能单独定因 |
 | QGC Kill／termination 报错 | 同时看 `manual_control_switches` 和 `actuator_armed`；本次释放 Kill 后 POSCTL 检查通过 |
 | `timeout` 结束时 context／wait-set 错误 | 若之前已有连续正常数据，通常是 CLI 退出过程；另行检查实际节点是否仍运行 |
 | `Input stamp age ... rejected` | 定位已过期，查看 timing probe；不能把长期 1 秒以上延迟视为短飞无影响 |
-| NoMachine subscription 报错 | 原因尚待确认；先核对局域网手动 IP 入口、版本和服务状态 |
+| NoMachine subscription 报错 | Personal Edition 10.2.3 报订阅缺失；本机改用 NoMachine 9.8.2 后服务与桌面已恢复，见远程恢复记录 |
 
 ## 场地和剩余工作
 
@@ -470,7 +490,7 @@ MAKEFLAGS="-j2" CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build \
 
 正式演示：**3 m 宽 × 6 m 长 × 3 m 高**，目标速度 **2 m/s**，FC 中心最高离地 **2 m**，不能碰到边界。飞机轴距 225 mm、5 寸桨；实际含桨外包尺寸和起飞点到各边距离待测。仅凭轴距不能确定所有姿态下的边界余量。
 
-下一步完成当前地面 READY／POSCTL 预检 → 实际低速短时悬停 → 物理接管和定位／遥控失联降落验证 → 正式场地约束与规划控制接入 → 2 m/s 分阶段验证。软件流程已实现，实际飞行与场地边界约束仍待验证。
+下一步补充本次“成功”的具体结果及日志，完成门口绕圈 bag／XYZ 检查、遥控接管与失联响应验证，再逐步接入规划飞行和场地限制。详细任务与验收依据见 [后续待办](docs/NEXT_STEPS.md)。
 
 ## 开发验证与历史记录
 
@@ -481,7 +501,7 @@ ROS 测试会创建模拟 MAVROS 服务及话题，不能和实际飞机使用�
 ```bash
 source /opt/ros/humble/setup.zsh
 source ~/super_ws/install/setup.zsh
-export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$PWD:$PWD/scripts/localization:$PWD/scripts/flight:$PWD/scripts/planning:$PWD/scripts/analysis:$PWD/scripts/maintenance${PYTHONPATH:+:$PYTHONPATH}"
 export ROS_DOMAIN_ID=180
 export ROS_LOCALHOST_ONLY=1
 python3 tests/test_ground_xy_fusion_transport.py
@@ -492,13 +512,18 @@ python3 tests/test_flight_pose_cov_transport.py
 python3 tests/test_configure_first_hover.py
 python3 tests/test_first_hover_preview.py
 python3 tests/test_hover_reference.py
-python3 build_first_hover_terminal.py --check
+python3 tests/test_repository_layout.py
+python3 tests/test_bag_to_xyz.py
+python3 scripts/maintenance/build_first_hover_terminal.py --check
 python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
 另保留以前的 ROS 传输、协方差和 C++ timing／IMU QoS 检查。当前模拟测试不验证实际飞行、停机或失联降落。
 
+- [10 月 10 日：当前进度、OFFBOARD 时序与结果证据](docs/PROGRESS_2026-10-10.md)
+- [后续待办](docs/NEXT_STEPS.md)
+- [10 月 9 日：绕圈录包与 XYZ 分析](docs/BAG_XYZ_2026-10-09.md)
 - [10 月 8 日：融合、规划、地面指令、首悬停参数、远程桌面进度](docs/DEPLOYMENT_CHECKPOINT_2026-10-08.md)
 - [10 月 9 日：完整测试工作流与终端 11](docs/FIRST_HOVER_2026-10-09.md)
 - [10 月 9 日：AX900、NoMachine 与重启恢复](docs/REMOTE_RECOVERY_2026-10-09.md)

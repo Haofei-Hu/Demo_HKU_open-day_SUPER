@@ -6,8 +6,8 @@ This records work observed on the aircraft's Ubuntu machine. Cloud tests use syn
 
 - FAST_LIO upstream source: `a4743b095409588842a5b30ddfa27e29d2f99164`. Existing MID360 YAML and RViz edits were retained.
 - The covariance repair was built successfully on the machine (initial build 1 min 22 s; incremental build succeeded). `/Odometry` from the installed workspace had symmetric, populated covariance and approximately 10 Hz output.
-- Added the timing probe in [apply_fastlio_timing_probe.py](../apply_fastlio_timing_probe.py) and [its patch](../patches/fastlio_timing_probe.patch).
-- Changed **only IMU subscription reliability** from default Reliable to Best Effort with `KEEP_LAST(10)` in [apply_fastlio_imu_qos.py](../apply_fastlio_imu_qos.py) and [its patch](../patches/fastlio_imu_best_effort.patch). Rebuilt and restarted the machine's FAST_LIO executable.
+- Added the timing probe in [apply_fastlio_timing_probe.py](../scripts/maintenance/apply_fastlio_timing_probe.py) and [its patch](../patches/fastlio_timing_probe.patch).
+- Changed **only IMU subscription reliability** from default Reliable to Best Effort with `KEEP_LAST(10)` in [apply_fastlio_imu_qos.py](../scripts/maintenance/apply_fastlio_imu_qos.py) and [its patch](../patches/fastlio_imu_best_effort.patch). Rebuilt and restarted the machine's FAST_LIO executable.
 - Archived the attitude pairing, aligned ground preview, aligned ground transport and stationary-position checks. The standalone aligned relay avoids dependence on the previously failed text-conversion command.
 
 ## Timing investigation and result

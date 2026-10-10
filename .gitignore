@@ -1,2 +1,13 @@
 __pycache__/
 *.py[cod]
+
+# 实采数据、飞行日志和部署备份留在本机
+*.db3
+*.db3-wal
+*.db3-shm
+*.mcap
+*.xyz
+lio_bags/
+hover_logs/
+super_scripts_backup_*/
+preview_alignment_backup_*/
