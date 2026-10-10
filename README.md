@@ -4,6 +4,223 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 **Status — October 10, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Planner-driven trajectory flight and obstacle avoidance are the next integration stage.
 
+## Quick Start: restore the aircraft after reboot
+
+Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
+
+Keep the aircraft on its actual takeoff floor, stationary and disarmed, with RC connected and the arm switch OFF. Start terminals **1–4**, perform the session pairing in **5**, start **6–8**, and then use **11** for hover. Terminals **9/10** are optional ground planning tools and stay stopped during the hover test.
+
+### Before opening the ROS terminals
+
+Check the current Wi-Fi address and remote-desktop service:
+
+```bash
+nmcli device status
+ip -4 -br addr show dev wlx6c1ff7880bdf
+sudo /usr/NX/bin/nxserver --status
+```
+
+Connect NoMachine to the current IP using NX, port 4000. The last recorded address is `192.168.6.146`; DHCP may change it. See [remote recovery](docs/REMOTE_RECOVERY_2026-10-09.md) if the interface or desktop is unavailable.
+
+### Terminal 1: MID360
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+ros2 launch livox_ros_driver2 msg_MID360_launch.py
+```
+
+### Terminal 2: FAST_LIO
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/ws_livox/install/setup.zsh
+source ~/fastlio_ws/install/setup.zsh
+ros2 run fast_lio fastlio_mapping --ros-args \
+  --params-file "$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml" \
+  -p use_sim_time:=false \
+  -p publish.map_en:=false \
+  -p publish.path_en:=false \
+  -p publish.scan_publish_en:=true \
+  -p publish.scan_bodyframe_pub_en:=false
+```
+
+Wait for map initialization. The recent healthy baseline was approximately 20–35 ms odometry age, `irx≈0`, and `lidar_q=0`.
+
+### Terminal 3: MAVROS
+
+```bash
+source /opt/ros/humble/setup.zsh
+ros2 launch mavros px4.launch \
+  fcu_url:="serial:///dev/serial/by-id/usb-Matek_HKUST_UAV_NxtPX4_0-if00:2000000" \
+  gcs_url:="udp://127.0.0.1:14555@127.0.0.1:14550"
+```
+
+Verify the serial path with `ls -l /dev/serial/by-id/` if the FC is not connected. MAVROS owns the onboard USB connection; QGC uses UDP forwarding.
+
+### Terminal 4: FC-centre attitude diagnostics
+
+```bash
+source /opt/ros/humble/setup.zsh
+python3 ~/Downloads/fastlio_body_debug.py
+```
+
+### Terminal 5: parameter pull and fresh session alignment
+
+Keep terminals 6/7/11 stopped while measuring a new alignment. Confirm `connected: true` and `armed: false` before changing fusion parameters:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+ros2 service call /mavros/param/pull \
+  mavros_msgs/srv/ParamPull '{force_pull: true}'
+timeout 10s ros2 topic echo /mavros/state --once
+```
+
+Then, while disarmed:
+
+```bash
+ros2 param set /mavros/param EKF2_EV_CTRL 0
+ros2 param get /mavros/param EKF2_EV_CTRL
+ros2 param get /mavros/param EKF2_HGT_REF
+python3 ~/Downloads/odom_age_check.py
+python3 ~/Downloads/frame_alignment_check.py
+```
+
+Keep the aircraft stationary for the 15-second pairing. Replace the four placeholders below with this run's `Candidate rotation quaternion xyzw`:
+
+```text
+python3 ~/Downloads/update_preview_alignment.py QX QY QZ QW
+```
+
+Remeasure after each FAST_LIO initialization. Do not reuse a historical quaternion or change the alignment during a locked flight session. Missing helper files can be obtained through the [installation instructions](docs/FIRST_HOVER_2026-10-09.md#download-and-install).
+
+### Terminal 6: aligned pose preview
+
+```bash
+source /opt/ros/humble/setup.zsh
+python3 ~/Downloads/aligned_pose_preview.py
+```
+
+Wait for fresh preview output. Its zero is a session origin; terminal 11 captures the actual takeoff-floor pose separately.
+
+### Terminal 7: continuous external-vision relay
+
+With the aircraft still disarmed, restore the recorded fusion configuration in terminal 5:
+
+```bash
+ros2 param set /mavros/param EKF2_HGT_REF 3
+ros2 param set /mavros/param EKF2_EV_POS_X 0.0
+ros2 param set /mavros/param EKF2_EV_POS_Y 0.0
+ros2 param set /mavros/param EKF2_EV_POS_Z 0.0
+ros2 param set /mavros/param EKF2_EV_QMIN 0
+ros2 param set /mavros/param EKF2_EV_CTRL 11
+```
+
+Start terminal 7:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+python3 ~/Downloads/flight_pose_cov_transport.py \
+  --ros-args -p publish_to_mavros:=true
+```
+
+Keep this relay running throughout flight. Wait for `Session locked; first pose forwarded with original stamp/covariance`, then check in terminal 5:
+
+```bash
+ros2 topic info /mavros/vision_pose/pose_cov
+timeout 10s ros2 topic hz /mavros/vision_pose/pose_cov
+timeout 10s ros2 topic echo /mavros/estimator_status --once
+```
+
+Expect one vision publisher, a MAVROS subscriber, approximately 10 Hz, and valid local position/velocity. Stop historical ground/raw vision relays before running this one.
+
+### Terminal 8: QGroundControl and preflight
+
+```bash
+~/Downloads/QGroundControl-x86_64.AppImage
+```
+
+In **Application Settings → Comm Links**, disable Pixhawk auto-connect and enable UDP. Select POSCTL with RC, keep the arm switch OFF, and release Kill for the disarmed preflight check. In the MAVLink Console:
+
+```text
+listener vehicle_visual_odometry 1
+listener actuator_armed 1
+commander check
+```
+
+Confirm fresh visual odometry, `armed: False`, `kill: False`, `termination: False`, and `Preflight check: OK` in POSCTL.
+
+### Terminals 9/10: optional ground planning
+
+For hover, leave both stopped. For a separate disarmed SUPER check, prepare the diagnostic configuration in terminal 5:
+
+```bash
+if [ ! -f "$HOME/super_ws/src/SUPER/super_planner/config/mid360_ground_diagnostic_ros2.yaml" ]; then
+  python3 ~/Downloads/create_super_ground_diagnostic.py
+fi
+mkdir -p ~/super_ws/src/SUPER/super_planner/log
+```
+
+Terminal 9:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+ros2 run super_planner fsm_node --ros-args \
+  -p use_sim_time:=false \
+  -p config_name:=mid360_ground_diagnostic_ros2.yaml
+```
+
+Terminal 10:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+python3 ~/Downloads/control_bridge_preview.py
+```
+
+The preview waits for a planner command. A small disarmed planning goal can be generated from terminal 5 using `python3 ~/Downloads/send_control_preview_goal.py`. This is separate from flight execution. Stop both processes before continuing with terminal 11.
+
+### Terminal 11: 1 m hover, 6-second hold, automatic landing
+
+Keep terminals 1–4 and 6–8 running. Stop other setpoint senders, including `ground_setpoint_transport.py`. In terminal 5, check the retained speed and OFFBOARD-loss settings:
+
+```bash
+for ros_param_name in MPC_XY_VEL_ALL MPC_Z_VEL_ALL MPC_XY_VEL_MAX MPC_Z_VEL_MAX_UP MPC_Z_VEL_MAX_DN COM_OF_LOSS_T COM_OBL_RC_ACT; do
+  printf '%s: ' "$ros_param_name"
+  ros2 param get /mavros/param "$ros_param_name"
+done
+```
+
+Expected values: `-1.0, -1.0, 0.5, 0.5, 0.5, 0.5, 4`. Keep the aircraft on the takeoff floor with no external display/power tether. Start terminal 11:
+
+```bash
+source /opt/ros/humble/setup.zsh
+python3 ~/Downloads/first_hover_terminal.py --execute --hover-height 1.0 --hold-seconds 6.0
+```
+
+Wait for `Phase: READY` and `GROUND LOCK`; confirm the startup profile shows `hover FC=1 m, hold=6 s`. Starting this process alone does not arm or take off.
+
+**Start flight — terminal 5**, after the current preflight checks pass and the flight area is clear:
+
+```bash
+ros2 service call /first_hover/start std_srvs/srv/Trigger '{}'
+```
+
+This starts one automatic flight: approximately 2 seconds of ground setpoint streaming → confirmed OFFBOARD → arming → takeoff → fixed XY/yaw hover → AUTO.LAND. The 1 m floor-relative FC target is `z_ground + 0.915 m`, accounting for the 8.5 cm ground clearance.
+
+**Early landing — terminal 5:**
+
+```bash
+ros2 service call /first_hover/land std_srvs/srv/Trigger '{}'
+```
+
+RC mode takeover has priority. Kill stops motors directly rather than commanding descent. After landing and disarming, restart only terminal 11 for another hover in the same healthy localization session; keep FAST_LIO and the vision chain running. A FAST_LIO restart requires a new alignment and relay session.
+
+For detailed guards, phase timing, check-only mode, and troubleshooting, see the [complete flight workflow](docs/FIRST_HOVER_2026-10-09.md).
+
 ## Project progress
 
 | Component | Status | Result |
@@ -88,41 +305,6 @@ python3 scripts/maintenance/install_scripts.py --overwrite
 Changed files are backed up before replacement. Localization or alignment updates require a fresh stationary pairing before restoring the vision relay. The deployment helper does not start nodes or change PX4 parameters.
 
 Aircraft commands retain the flat `~/Downloads/script_name.py` paths even though repository sources are categorized. The standalone hover controller can also be downloaded separately using the [flight runbook](docs/FIRST_HOVER_2026-10-09.md#download-and-install).
-
-## Reboot recovery and flight entry point
-
-Compiled FAST_LIO fixes persist across a normal reboot. Restore the processes and measure a new session alignment; recompilation is only needed when changing the installed source.
-
-| Terminal | Role | During fixed-position flight |
-| --- | --- | --- |
-| 1 | MID360 driver | Running |
-| 2 | FAST_LIO | Running |
-| 3 | MAVROS: USB and QGC UDP forwarding | Running |
-| 4 | FC-centre attitude diagnostics | Running |
-| 5 | Parameters, alignment, start/land services | Command window |
-| 6 | Aligned pose preview | Running |
-| 7 | Continuous external-vision relay | Running, including after arming |
-| 8 | QGroundControl | Running |
-| 9 | SUPER ground diagnostic planner | Stopped for hover test |
-| 10 | Ground planner-command preview | Stopped for hover test |
-| 11 | Standalone hover controller | Running |
-
-The [complete flight workflow](docs/FIRST_HOVER_2026-10-09.md) includes every startup command, fusion checks, RC/Position preflight, and recovery steps. After these checks, terminal 11 uses the tested profile:
-
-```bash
-source /opt/ros/humble/setup.zsh
-python3 ~/Downloads/first_hover_terminal.py --execute --hover-height 1.0 --hold-seconds 6.0
-```
-
-The process waits for READY and an explicit start request. In terminal 5:
-
-```bash
-ros2 service call /first_hover/start std_srvs/srv/Trigger '{}'
-```
-
-This request starts one automatic flight. The controller first streams ground-position setpoints for approximately 2 seconds, confirms OFFBOARD, then requests arming. XY and yaw remain fixed. After the height target is reached and the hold completes, PX4 performs AUTO.LAND. A new flight requires a new controller instance after landing and disarming.
-
-The FC centre is approximately 8.5 cm above the floor at rest. A 1 m floor-relative target therefore uses `z_ground + 0.915 m`. Early landing is available through `/first_hover/land`; manual mode takeover takes priority over controller mode requests.
 
 ## Configuration and coordinate conventions
 
