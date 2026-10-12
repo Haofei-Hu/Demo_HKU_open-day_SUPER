@@ -41,7 +41,7 @@ Begin with ground switch/state checks, then use planned tests with flight logs a
 
 ## 5. Repeat cold-boot recovery
 
-Verify automatic AX900 initialization, saved Wi-Fi connection, headless desktop, and the dedicated MID360 Ethernet link across multiple cold boots. The compact tmux manager is implemented and isolated-tested; validate its first aircraft startup using the [session runbook](SESSION_STARTUP.md). Full-stack ROS autostart and SSH access remain optional follow-up work.
+Verify automatic AX900 initialization, saved Wi-Fi connection, headless desktop, and the dedicated MID360 Ethernet link across multiple cold boots. The compact tmux manager has restored aircraft localization and passed a disarmed ground planning check; use the [session runbook](SESSION_STARTUP.md) for subsequent recovery. Full-stack ROS autostart and SSH access remain optional follow-up work.
 
 Initialization must remain a grounded, disarmed operation. Process restoration must never automatically arm or start a flight.
 
