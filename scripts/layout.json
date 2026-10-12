@@ -5,6 +5,7 @@
   "apply_fastlio_imu_qos.py": "scripts/maintenance/apply_fastlio_imu_qos.py",
   "apply_fastlio_timing_probe.py": "scripts/maintenance/apply_fastlio_timing_probe.py",
   "bag_to_xyz.py": "scripts/analysis/bag_to_xyz.py",
+  "bounded_reference_preview.py": "scripts/planning/bounded_reference_preview.py",
   "build_first_hover_terminal.py": "scripts/maintenance/build_first_hover_terminal.py",
   "configure_first_hover.py": "scripts/flight/configure_first_hover.py",
   "control_bridge_preview.py": "scripts/planning/control_bridge_preview.py",

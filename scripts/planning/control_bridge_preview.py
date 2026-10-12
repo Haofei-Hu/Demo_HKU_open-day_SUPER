@@ -146,7 +146,7 @@ def load_converter(path):
     return convert
 
 
-def node_type():
+def node_type(*, node_name='control_bridge_preview', output_topic='/super_debug/control_target'):
     from rclpy.node import Node
     from rclpy.qos import qos_profile_sensor_data
     from nav_msgs.msg import Odometry
@@ -156,7 +156,7 @@ def node_type():
 
     class ControlPreview(Node):
         def __init__(self):
-            super().__init__('control_bridge_preview')
+            super().__init__(node_name)
             self.declare_parameter('alignment_path', str(Path.home() / 'Downloads/aligned_pose_preview.py'))
             self.declare_parameter('command_topic', '/planning/pos_cmd')
             self.declare_parameter('max_age_seconds', .25)
@@ -172,7 +172,7 @@ def node_type():
             self.connected_disarmed = False
             self.last_command = None
             self.last_warning = -math.inf
-            self.publisher = self.create_publisher(PoseStamped, '/super_debug/control_target', 10)
+            self.publisher = self.create_publisher(PoseStamped, output_topic, 10)
             self.inputs = [
                 self.create_subscription(Odometry, '/Odometry', self.raw_received, qos_profile_sensor_data),
                 self.create_subscription(PoseWithCovarianceStamped, '/super_debug/aligned_pose_cov',
@@ -181,7 +181,7 @@ def node_type():
                 self.create_subscription(PositionCommand, self.get_parameter('command_topic').value,
                                          self.command_received, qos_profile_sensor_data)]
             self.timer = self.create_timer(1.0, self.report)
-            self.get_logger().info('DISARMED CONTROL PREVIEW: output /super_debug/control_target')
+            self.get_logger().info('DISARMED CONTROL PREVIEW: output '+output_topic)
 
         @staticmethod
         def stamp(msg):

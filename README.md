@@ -16,14 +16,14 @@ python3 ~/Downloads/super_session.py align
 Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. For disarmed ground planning after fusion is valid:
 
 ```bash
-python3 ~/Downloads/super_session.py planner
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserved
 # After a nonempty occupancy map and coordinate-preview readiness:
 python3 ~/Downloads/super_session.py goal
 # Stop planning only; localization and vision remain running:
 python3 ~/Downloads/super_session.py planner-stop
 ```
 
-These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed-reserved` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
+These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed-reserved` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. The separate [bounded ground reference preview](docs/BOUNDED_REFERENCE_PREVIEW.md) adds fixed forward/floor coordinates, point-envelope checks and committed-trajectory endpoint holding. Its aircraft validation remains pending. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
 
 Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
 
@@ -359,6 +359,7 @@ export ROS_LOCALHOST_ONLY=1
 python3 tests/test_repository_layout.py
 python3 tests/test_super_session.py
 python3 tests/test_super_motion_profiles.py
+python3 tests/test_bounded_reference.py
 python3 tests/test_control_chain_metrics.py
 python3 tests/test_control_chain_metrics_ros.py
 python3 tests/test_hover_reference.py
@@ -371,7 +372,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The deployment, reference, bag-export, motion-profile, session-lifecycle, and control-chain metric suites contain 35 unit tests. Motion-profile, session-lifecycle, deployment, and control-chain metric checks passed for this update; reference and bag-export checks are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The deployment, reference, bag-export, motion-profile, session-lifecycle, control-chain metric and bounded-reference suites contain 44 unit tests. Bounded-reference, session-lifecycle and deployment checks passed for this update; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

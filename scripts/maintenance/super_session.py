@@ -311,7 +311,7 @@ class Session:
         return target
 
     def stop_planning(self, gate):
-        for name in ('cmd_preview', 'planner'):
+        for name in ('reference_preview', 'cmd_preview', 'planner'):
             if name in self.windows():
                 gate.check()
                 self.interrupt(name)
@@ -361,14 +361,28 @@ class Session:
                 gate.wait(lambda: gate.pose_ready('vision') and gate.receipts['vision'] >= vision_started,
                           'fresh native vision')
                 print('Vision session started. Check current estimator status and POSCTL preflight.')
-            elif action in ('planner', 'goal', 'planner-check'):
+            elif action in ('planner', 'goal', 'planner-check', 'reference-preview'):
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed localization/vision session running')
                 if 'hover' in windows:
                     raise RuntimeError('Hover window exists; keep planning and hover tasks separate')
                 gate.wait(gate.localization_ready, 'fresh valid local/vision/estimator state')
                 gate.check()
-                if action in ('goal', 'planner-check'):
+                if action == 'reference-preview':
+                    if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
+                        raise RuntimeError('Start the ground planner and command preview first')
+                    if 'reference_preview' in windows or gate.node.count_publishers('/super_debug/bounded_control_target'):
+                        raise RuntimeError('A bounded reference preview already exists; no duplicate/restart')
+                    from mars_quadrotor_msgs.msg import PolynomialTrajectory
+                    PolynomialTrajectory()
+                    helper = self.scripts/'bounded_reference_preview.py'
+                    if not helper.is_file():
+                        raise RuntimeError('Missing ground helper: '+str(helper))
+                    gate.check()
+                    self.launch('reference_preview',shell_command(['python3','-u',helper,
+                        '--ros-args','-p','alignment_path:='+str(self.scripts/'aligned_pose_preview.py')]))
+                    print('Bounded ground reference preview launched. Wait for GROUND FRAME LOCKED before one goal. No native output.')
+                elif action in ('goal', 'planner-check'):
                     if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
                         raise RuntimeError('Start the ground planner and command preview first')
                     helper = self.scripts/('send_control_preview_goal.py' if action == 'goal' else 'control_chain_age_check.py')
@@ -404,7 +418,7 @@ class Session:
             elif action == 'planner-stop':
                 self.stop_planning(gate)
             elif action == 'hover':
-                if any(name in windows for name in ('planner', 'cmd_preview')):
+                if any(name in windows for name in ('planner', 'cmd_preview', 'reference_preview')):
                     raise RuntimeError('Stop ground planning with planner-stop before starting hover')
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed preview and vision relay running')
@@ -427,7 +441,7 @@ class Session:
                 gate.check()
                 # Stop publishers first; keep MAVROS last so ground-state gates
                 # can be checked throughout cooperative Ctrl+C shutdown.
-                for name in ('hover', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
+                for name in ('hover', 'reference_preview', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
                     if name in windows:
                         gate.check()
                         self.interrupt(name)
@@ -443,7 +457,8 @@ def unmanaged_processes():
     binaries = {'fastlio_mapping', 'mavros_node', 'livox_ros_driver2_node', 'livox_lidar_publisher', 'fsm_node'}
     scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py'}
     scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
-                'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py'}
+                'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py',
+                'bounded_reference_preview.py'}
     found = []
     for path in Path('/proc').glob('[0-9]*/cmdline'):
         try:
@@ -459,7 +474,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -496,7 +511,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)

@@ -178,6 +178,27 @@ class Tests(unittest.TestCase):
             self.assertEqual(s.started,[])
         self.assertEqual(FakeGate.writes,[])
 
+    def test_reference_preview_is_ground_only_and_stops_before_planner(self):
+        import types
+        messages=types.ModuleType('mars_quadrotor_msgs.msg')
+        messages.PolynomialTrajectory=lambda:object()
+        with tempfile.TemporaryDirectory() as directory:
+            helper=Path(directory)/'bounded_reference_preview.py';helper.write_text('# fixture')
+            s=self.manager(['reference-preview','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            with patch.object(m,'GroundGate',FakeGate),patch.dict('sys.modules',{'mars_quadrotor_msgs.msg':messages}):
+                s.mutate('reference-preview')
+                self.assertEqual([name for name,_ in s.started],['reference_preview'])
+                self.assertNotIn('--execute',s.started[-1][1])
+                with self.assertRaises(RuntimeError):s.mutate('reference-preview')
+                s.args=m.arguments(['hover'])
+                with self.assertRaises(RuntimeError):s.mutate('hover')
+                s.mutate('planner-stop')
+            names=[op[1] for op in s.operations if op[0]=='interrupt']
+            self.assertEqual(names,['reference_preview','cmd_preview','planner'])
+            self.assertEqual(s.window_state['vision'],'0')
+            self.assertEqual(FakeGate.writes,[])
+
     def test_planner_profile_preserves_existing_configuration_and_validates_topics(self):
         import yaml
         data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())

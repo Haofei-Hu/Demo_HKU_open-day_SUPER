@@ -48,6 +48,7 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
 '''
     (binpath/'ros2').write_text(dummy);(binpath/'ros2').chmod(0o755)
     for name in m.SCRIPTS: (scripts/name).write_text(dummy)
+    (scripts/'bounded_reference_preview.py').write_text(dummy)
     setups=[]
     for index in range(4):
         setup=folder/f'setup{index}.bash'
@@ -73,6 +74,7 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
             wait(lambda:len(ledger.read_text().splitlines())==7)
             package=types.ModuleType('mars_quadrotor_msgs')
             messages=types.ModuleType('mars_quadrotor_msgs.msg');messages.PositionCommand=lambda:object()
+            messages.PolynomialTrajectory=lambda:object()
             session.args.planner_profile='low-speed-reserved'
             with patch.object(m,'GroundGate',Ground), patch.dict('sys.modules',
                     {'mars_quadrotor_msgs':package,'mars_quadrotor_msgs.msg':messages}), \
@@ -82,6 +84,9 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
                 planner=next(json.loads(line) for line in ledger.read_text().splitlines() if 'fsm_node' in line)
                 assert 'config_name:=mid360_low_speed_reserved_ros2.yaml' in planner
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision','planner','cmd_preview'),'0')
+                session.mutate('reference-preview')
+                wait(lambda:len(ledger.read_text().splitlines())==10)
+                assert session.windows()['reference_preview']=='0'
                 session.mutate('planner-stop')
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision'),'0'),'planning stop interrupted localization'
                 session.mutate('stop')
