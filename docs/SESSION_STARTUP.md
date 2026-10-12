@@ -198,9 +198,11 @@ python3 ~/Downloads/super_session.py planner-stop
 python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserved
 ```
 
-The manager generates the candidate if missing using the updated `create_super_motion_profiles.py`. Internal limits are 0.25 m/s and 0.45 m/s²; sampled acceptance remains strictly 0.3 m/s and 0.5 m/s². Previous candidates, localization, active alignment and PX4 parameters are preserved. After a nonempty occupancy map is available, run `goal` and `planner-check`. This additional optimizer margin still requires physical validation.
+The manager generates the candidate if missing using the updated `create_super_motion_profiles.py`. Internal limits are 0.25 m/s and 0.45 m/s²; sampled acceptance remains strictly 0.3 m/s and 0.5 m/s². Previous candidates, localization, active alignment and PX4 parameters are preserved. After a nonempty occupancy map is available, run `goal` and `planner-check`. A subsequent 10-second physical ground sample passed strict advertised-derivative, freshness and disarmed-state acceptance, with speed/acceleration maxima of 0.289609 m/s and 0.310397 m/s². Continuous bounds and executed tracking remain unvalidated.
 
 The same sample recorded a 0.424264 m reference step from `[0.35, -0.05, 0.15]` to `[0.05, -0.05, -0.15]` over approximately 20 ms, with a stable cached single-publisher identity. The new reference was near the stationary raw robot position, consistent with the pinned FSM restarting from the robot state after the previous trajectory ended. The advertised derivatives do not describe the finite difference across this restart. A passing derivative check therefore cannot approve direct flight execution; reference continuity and endpoint hold remain separate bridge requirements.
+
+The successful reserved-profile sample still contained a 0.424264 m step over 20.310 ms, from `[0.25, -0.05, 0.15]` to `[-0.05, -0.05, -0.15]`. Nearby raw odometry was `[-0.007629, -0.0947, -0.14885]`. Source age maxima were 32/9/17/16 ms for odometry/planner/debug target/FC local pose, respectively, and all receive gap maxima were at most 46 ms. This closes the sampled freshness and derivative-limit check; reference continuity and endpoint hold remain the next integration work.
 
 ## Live RViz2 view
 
