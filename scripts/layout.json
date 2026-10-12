@@ -31,5 +31,6 @@
   "repair_control_preview_loader.py": "scripts/maintenance/repair_control_preview_loader.py",
   "send_control_preview_goal.py": "scripts/planning/send_control_preview_goal.py",
   "stationary_position_check.py": "scripts/localization/stationary_position_check.py",
+  "super_session.py": "scripts/maintenance/super_session.py",
   "update_preview_alignment.py": "update_preview_alignment.py"
 }

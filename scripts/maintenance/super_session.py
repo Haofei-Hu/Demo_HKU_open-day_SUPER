@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""Manage the proven aircraft stack in a private tmux session.
+
+start -> align -> vision QX QY QZ QW -> hover [--execute].
+No automatic flight initiation, arming, mode changes, or node restart.
+Mutable actions require fresh connected/disarmed/on-ground FC telemetry.
+"""
+import argparse
+from datetime import datetime
+import json
+import math
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+import time
+
+SOCKET = 'super-aircraft'
+DEFAULT_FCU = 'serial:///dev/serial/by-id/usb-Matek_HKUST_UAV_NxtPX4_0-if00:2000000'
+SETUPS = ('/opt/ros/humble/setup.bash', '~/ws_livox/install/setup.bash',
+          '~/fastlio_ws/install/setup.bash', '~/super_ws/install/setup.bash')
+CORE = ('lidar', 'lio', 'mavros', 'body')
+SCRIPTS = ('fastlio_body_debug.py', 'odom_age_check.py', 'frame_alignment_check.py',
+           'update_preview_alignment.py', 'aligned_pose_preview.py',
+           'flight_pose_cov_transport.py', 'first_hover_terminal.py',
+           'control_bridge_preview.py')
+
+
+def ros_environment():
+    return {name: os.environ.get(name, default) for name, default in
+            (('ROS_DOMAIN_ID', '0'), ('ROS_LOCALHOST_ONLY', '0'), ('RMW_IMPLEMENTATION', ''))}
+
+
+def shell_command(argv):
+    return shlex.join([str(value) for value in argv])
+
+
+def source_prefix():
+    return 'set -e; ' + '; '.join('source ' + shlex.quote(str(Path(p).expanduser())) for p in SETUPS) + '; '
+
+
+def run(argv, **kwargs):
+    return subprocess.run([str(v) for v in argv], check=True, **kwargs)
+
+
+class GroundGate:
+    """Read-only telemetry plus bounded parameter calls; no mode/arming client."""
+    def __init__(self):
+        import rclpy
+        from rclpy.qos import qos_profile_sensor_data
+        from mavros_msgs.msg import State, ExtendedState
+        from geometry_msgs.msg import PoseWithCovarianceStamped
+        from rcl_interfaces.srv import GetParameters, SetParameters
+        from mavros_msgs.srv import ParamPull
+        self.ros = rclpy
+        self.GetParameters, self.SetParameters, self.ParamPull = GetParameters, SetParameters, ParamPull
+        self.ON_GROUND = ExtendedState.LANDED_STATE_ON_GROUND
+        rclpy.init()
+        self.node = rclpy.create_node('super_session_check')
+        self.messages, self.receipts = {}, {}
+        for name, kind, topic in (
+            ('state', State, '/mavros/state'), ('ground', ExtendedState, '/mavros/extended_state'),
+            ('preview', PoseWithCovarianceStamped, '/super_debug/aligned_pose_cov'),
+            ('vision', PoseWithCovarianceStamped, '/mavros/vision_pose/pose_cov')):
+            self.node.create_subscription(kind, topic, lambda m, key=name: self.store(key, m),
+                                          qos_profile_sensor_data)
+        try:
+            self.wait(self.grounded, 'fresh connected/disarmed/on-ground FC state')
+        except Exception:
+            self.close()
+            raise
+
+    def store(self, name, msg):
+        self.messages[name], self.receipts[name] = msg, time.monotonic()
+
+    def fresh(self, name, limit=2.):
+        if name not in self.messages or time.monotonic()-self.receipts[name] > limit:
+            return False
+        stamp = self.messages[name].header.stamp
+        ns = stamp.sec * 1_000_000_000 + stamp.nanosec
+        age = (self.node.get_clock().now().nanoseconds-ns)/1e9
+        return ns > 0 and -.05 <= age <= limit
+
+    def grounded(self):
+        if not self.fresh('state') or not self.fresh('ground'):
+            return False
+        state = self.messages['state']
+        return state.connected and not state.armed and self.messages['ground'].landed_state == self.ON_GROUND
+
+    def wait(self, predicate, description, timeout=12.):
+        end = time.monotonic()+timeout
+        while not predicate():
+            if time.monotonic() >= end:
+                raise RuntimeError('Timed out waiting for '+description)
+            self.ros.spin_once(self.node, timeout_sec=.05)
+
+    def check(self):
+        self.ros.spin_once(self.node, timeout_sec=0)
+        if not self.grounded():
+            raise RuntimeError('FC state is stale, disconnected, armed, or not on ground; action blocked')
+
+    def call(self, kind, topic, request):
+        client = self.node.create_client(kind, topic)
+        try:
+            self.wait(client.service_is_ready, topic)
+            self.check()
+            future = client.call_async(request)
+            self.wait(future.done, topic+' response')
+            self.check()
+            result = future.result()
+            if result is None:
+                raise RuntimeError('Empty service response: '+topic)
+            return result
+        finally:
+            self.node.destroy_client(client)
+
+    def pull(self):
+        if not self.call(self.ParamPull, '/mavros/param/pull',
+                         self.ParamPull.Request(force_pull=True)).success:
+            raise RuntimeError('MAVROS parameter pull failed')
+
+    def parameters(self, names):
+        from rclpy.parameter import Parameter
+        from rcl_interfaces.msg import Parameter as ParameterMsg
+        values = self.call(self.GetParameters, '/mavros/param/get_parameters',
+                           self.GetParameters.Request(names=names)).values
+        if len(values) != len(names):
+            raise RuntimeError('Incomplete parameter response')
+        return {name: Parameter.from_parameter_msg(ParameterMsg(name=name, value=value)).value for name, value in zip(names, values)}
+
+    def set_ctrl(self, value):
+        from rclpy.parameter import Parameter
+        response = self.call(self.SetParameters, '/mavros/param/set_parameters',
+            self.SetParameters.Request(parameters=[Parameter('EKF2_EV_CTRL', value=value).to_parameter_msg()]))
+        if len(response.results) != 1 or not response.results[0].successful:
+            raise RuntimeError('EV_CTRL write rejected')
+        if self.parameters(['EKF2_EV_CTRL'])['EKF2_EV_CTRL'] != value:
+            raise RuntimeError('EV_CTRL readback mismatch')
+
+    def pose_ready(self, name):
+        if not self.fresh(name, .25):
+            return False
+        return self.messages[name].header.frame_id == 'px4_enu_preview'
+
+    def close(self):
+        self.node.destroy_node()
+        self.ros.shutdown()
+
+
+class Session:
+    def __init__(self, args):
+        self.args = args
+        self.name = args.session
+        self.folder = Path.home()/'.local/state/super-session'/self.name
+        self.metadata = self.folder/'session.json'
+        self.scripts = args.scripts_dir.expanduser().resolve()
+        self.config = None
+
+    def tmux(self, *args, capture=False):
+        return run(['tmux', '-L', SOCKET, *args], text=True,
+                   stdout=subprocess.PIPE if capture else None,
+                   stderr=subprocess.PIPE if capture else None)
+
+    def exists(self):
+        return subprocess.run(['tmux', '-L', SOCKET, 'has-session', '-t', self.name],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+    def load(self):
+        if not self.exists() or not self.metadata.is_file():
+            raise RuntimeError('No managed session. Run start first.')
+        self.config = json.loads(self.metadata.read_text())
+        if self.config['environment'] != ros_environment() or self.config['scripts'] != str(self.scripts):
+            raise RuntimeError('Session ROS environment/script directory differs; do not split the ROS graph')
+
+    def windows(self):
+        output = self.tmux('list-panes', '-s', '-t', self.name, '-F', '#{window_name}:#{pane_dead}', capture=True).stdout
+        return dict(line.rsplit(':', 1) for line in output.splitlines())
+
+    def require_core(self):
+        windows = self.windows()
+        for name in CORE:
+            if windows.get(name) != '0':
+                raise RuntimeError(f'{name} is not running. Inspect logs; nodes are never auto-restarted.')
+
+    def save(self):
+        self.folder.mkdir(parents=True, exist_ok=True)
+        self.metadata.write_text(json.dumps(self.config, indent=2)+'\n')
+
+    def launch(self, name, command, first=False):
+        if not first and name in self.windows():
+            raise RuntimeError(f'Window {name} already exists; no duplicate/restart')
+        if first:
+            pane = self.tmux('new-session', '-d', '-s', self.name, '-n', name,
+                             '-P', '-F', '#{pane_id}', 'bash --noprofile --norc', capture=True).stdout.strip()
+            self.tmux('set-window-option', '-g', 'remain-on-exit', 'on')
+        else:
+            pane = self.tmux('new-window', '-t', self.name, '-n', name,
+                             '-P', '-F', '#{pane_id}', 'bash --noprofile --norc', capture=True).stdout.strip()
+        logfile = Path(self.config['logs'])/(name+'.log')
+        self.tmux('pipe-pane', '-o', '-t', pane, 'cat >> '+shlex.quote(str(logfile)))
+        environment = self.config['environment']
+        export = '; '.join('export '+key+'='+shlex.quote(value) for key, value in environment.items() if value)
+        body = source_prefix()+export+'; exec '+command
+        self.tmux('send-keys', '-t', pane, '-l', shell_command(['exec', 'bash', '--noprofile', '--norc', '-c', body]))
+        self.tmux('send-keys', '-t', pane, 'Enter')
+        print(f'{name}: {logfile}')
+
+    def core_commands(self):
+        return {
+            'lidar': shell_command(['ros2', 'launch', 'livox_ros_driver2', 'msg_MID360_launch.py']),
+            'lio': 'ros2 run fast_lio fastlio_mapping --ros-args --params-file '
+                   '"$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml" '
+                   '-p use_sim_time:=false -p publish.map_en:=false -p publish.path_en:=false '
+                   '-p publish.scan_publish_en:=true -p publish.scan_bodyframe_pub_en:=false',
+            'mavros': shell_command(['ros2', 'launch', 'mavros', 'px4.launch',
+                       'fcu_url:='+self.args.fcu_url, 'gcs_url:=udp://127.0.0.1:14555@127.0.0.1:14550']),
+            'body': shell_command(['python3', '-u', self.scripts/'fastlio_body_debug.py']),
+        }
+
+    def start(self):
+        if self.exists():
+            self.load()
+            self.status()
+            return
+        for path in [Path(p).expanduser() for p in SETUPS]+[self.scripts/name for name in SCRIPTS]:
+            if not path.is_file():
+                raise RuntimeError('Missing prerequisite: '+str(path))
+        existing = unmanaged_processes()
+        if existing:
+            raise RuntimeError('Existing stack processes detected: '+', '.join(existing)+
+                               '. Stop manual nodes only after landing/disarming; no duplicate launch.')
+        logdir = self.scripts/'super_session_logs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        logdir.mkdir(parents=True)
+        self.config = dict(environment=ros_environment(), scripts=str(self.scripts), logs=str(logdir), hover_execute=False)
+        self.save()
+        for index, (name, command) in enumerate(self.core_commands().items()):
+            self.launch(name, command, first=index == 0)
+        print('Core started. Keep stationary; run align in the command terminal. No vision/control was started.')
+
+    def status(self):
+        self.load()
+        for name, dead in self.windows().items():
+            print(f'{name}: '+('EXITED; inspect log' if dead == '1' else 'process active'))
+        print('Logs:', self.config['logs'])
+        print('A process-active status does not establish ROS/FC readiness.')
+
+    def interrupt(self, name):
+        if self.windows().get(name) == '1':
+            return
+        self.tmux('send-keys', '-t', self.name+':'+name, 'C-c')
+        deadline = time.monotonic()+10
+        while self.windows().get(name) != '1':
+            if time.monotonic() >= deadline:
+                raise RuntimeError(name+' did not stop after Ctrl+C; inspect logs')
+            time.sleep(.05)
+
+    def mutate(self, action):
+        self.load()
+        if action != 'stop':
+            self.require_core()
+        windows = self.windows()
+        gate = GroundGate()
+        try:
+            if action == 'align':
+                if any(name in windows for name in ('preview', 'vision', 'hover')):
+                    raise RuntimeError('Alignment requires a fresh core-only session; do not rebase a running relay')
+                gate.pull()
+                gate.set_ctrl(0)
+                run(['python3', '-u', self.scripts/'odom_age_check.py'])
+                run(['python3', '-u', self.scripts/'frame_alignment_check.py'])
+                print('Use this survey: super_session.py vision QX QY QZ QW. No quaternion was auto-saved.')
+            elif action == 'vision':
+                if any(name in windows for name in ('preview', 'vision', 'hover')):
+                    raise RuntimeError('Preview/vision/control already exists; no session restart')
+                names = ['EKF2_EV_CTRL', 'EKF2_HGT_REF', 'EKF2_EV_POS_X', 'EKF2_EV_POS_Y', 'EKF2_EV_POS_Z', 'EKF2_EV_QMIN']
+                expected = [0, 3, 0., 0., 0., 0]
+                values = gate.parameters(names)
+                if any(type(values[name]) is not type(value) or values[name] != value for name, value in zip(names, expected)):
+                    raise RuntimeError('Need EV_CTRL=0, HGT_REF=3, EV_POS=0, QMIN=0 before session initialization')
+                if any(gate.node.count_publishers(topic) for topic in
+                       ('/mavros/vision_pose/pose_cov', '/super_debug/aligned_pose_cov')):
+                    raise RuntimeError('Another aligned/native vision publisher is present')
+                gate.check()
+                run(['python3', self.scripts/'update_preview_alignment.py',
+                     *[str(v) for v in self.args.quaternion], '--preview', self.scripts/'aligned_pose_preview.py'])
+                gate.wait(gate.grounded, 'fresh ground state after alignment update')
+                preview_started = time.monotonic()
+                self.launch('preview', shell_command(['python3', '-u', self.scripts/'aligned_pose_preview.py']))
+                gate.wait(lambda: gate.pose_ready('preview') and gate.receipts['preview'] >= preview_started,
+                          'fresh aligned preview')
+                gate.set_ctrl(11)
+                vision_started = time.monotonic()
+                self.launch('vision', shell_command(['python3', '-u', self.scripts/'flight_pose_cov_transport.py',
+                                                    '--ros-args', '-p', 'publish_to_mavros:=true',
+                                                    '-p', 'alignment_path:='+str(self.scripts/'aligned_pose_preview.py')]))
+                gate.wait(lambda: gate.pose_ready('vision') and gate.receipts['vision'] >= vision_started,
+                          'fresh native vision')
+                print('Vision session started. Check current estimator status and POSCTL preflight.')
+            elif action == 'hover':
+                if windows.get('preview') != '0' or windows.get('vision') != '0':
+                    raise RuntimeError('Need the managed preview and vision relay running')
+                if 'hover' in windows:
+                    if not self.args.restart and (self.config['hover_execute'] or not self.args.execute):
+                        raise RuntimeError('Hover window already exists; use --restart only after landing/disarming')
+                    gate.check()
+                    self.interrupt('hover')
+                    self.tmux('kill-window', '-t', self.name+':hover')
+                gate.check()
+                command = ['python3', '-u', self.scripts/'first_hover_terminal.py',
+                           '--hover-height', str(self.args.hover_height), '--hold-seconds', str(self.args.hold_seconds)]
+                if self.args.execute:
+                    command.append('--execute')
+                self.config['hover_execute'] = self.args.execute
+                self.save()
+                self.launch('hover', shell_command(command))
+                print('Hover process launched; inspect READY/GROUND LOCK. Flight still requires /first_hover/start.')
+            elif action == 'stop':
+                gate.check()
+                # Stop publishers first; keep MAVROS last so ground-state gates
+                # can be checked throughout cooperative Ctrl+C shutdown.
+                for name in ('hover', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
+                    if name in windows:
+                        gate.check()
+                        self.interrupt(name)
+                        if name != 'mavros':
+                            gate.wait(gate.grounded, 'fresh ground state during shutdown')
+                self.tmux('kill-session', '-t', self.name)
+                print('Managed session stopped while grounded/disarmed. QGC was not closed.')
+        finally:
+            gate.close()
+
+
+def unmanaged_processes():
+    binaries = {'fastlio_mapping', 'mavros_node', 'livox_ros_driver2_node', 'livox_lidar_publisher'}
+    scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py', 'control_bridge_preview.py'}
+    scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
+                'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py'}
+    found = []
+    for path in Path('/proc').glob('[0-9]*/cmdline'):
+        try:
+            words = path.read_bytes().split(b'\0')
+            names = {Path(word.decode()).name for word in words if word}
+        except (OSError, UnicodeError):
+            continue
+        matched = names & (binaries | scripts | {'msg_MID360_launch.py'})
+        if matched:
+            found.append(path.parent.name+':'+','.join(sorted(matched)))
+    return found
+
+
+def arguments(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('quaternion', nargs='*', type=float)
+    parser.add_argument('--session', default='super-flight')
+    parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
+    parser.add_argument('--fcu-url', default=DEFAULT_FCU)
+    parser.add_argument('--execute', action='store_true')
+    parser.add_argument('--restart', action='store_true', help='replace only the hover window after a fresh ground-state check')
+    parser.add_argument('--hover-height', type=float, default=1.)
+    parser.add_argument('--hold-seconds', type=float, default=6.)
+    parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+    if not args.session or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for c in args.session):
+        parser.error('Use letters, digits, underscore or hyphen for session names')
+    if args.action == 'vision':
+        q = args.quaternion
+        if len(q) != 4 or not all(math.isfinite(v) for v in q) or abs(math.sqrt(sum(v*v for v in q))-1) > .02:
+            parser.error('vision requires four finite, approximately unit xyzw quaternion values')
+    elif args.quaternion:
+        parser.error('Quaternion arguments are only valid for vision')
+    if args.restart and args.action != 'hover':
+        parser.error('--restart is only valid for hover')
+    if args.execute and args.action != 'hover':
+        parser.error('--execute is only valid for hover')
+    if not (.085 < args.hover_height <= 1. and math.isfinite(args.hover_height)
+            and 0 <= args.hold_seconds <= 6 and math.isfinite(args.hold_seconds)):
+        parser.error('Hover height must be (.085, 1] m and hold [0, 6] seconds')
+    return args
+
+
+def main():
+    args = arguments()
+    if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
+        raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
+    if args.action in ('align', 'vision', 'hover', 'stop') and not args.ros_env:
+        body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
+        raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
+    session = Session(args)
+    if args.action == 'start':
+        session.start()
+    elif args.action == 'status':
+        session.status()
+    elif args.action == 'logs':
+        session.load()
+        session.tmux('attach-session', '-t', session.name)
+    else:
+        session.mutate(args.action)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(str(exc))

@@ -1,5 +1,11 @@
 # AX900, NoMachine, and headless recovery
 
+## Current display arrangement — October 12
+
+The aircraft now uses a physical HDMI display emulator. `HDMI-A-1` was detected as connected. The software DP-1 override and initramfs hook were backed up and removed, and the rebooted kernel command line no longer contains the EDID/forced-output parameters. NoMachine remains the desktop access method. Remote resolution can be adjusted through Ubuntu Displays and client scaling.
+
+The EDID procedure below is the historical software setup, retained for reference rather than required for the current HDMI emulator.
+
 ## Deployed environment
 
 | Component | Recorded state |
@@ -110,7 +116,7 @@ For a first connection without saved credentials:
 nmcli --ask device wifi connect 'Mars_Office' ifname wlx6c1ff7880bdf
 ```
 
-## Headless desktop
+## Historical software headless desktop
 
 The onboard GNOME/Wayland desktop initially showed mismatched sessions, applications opening on another display, and freezing/blank screens after monitor removal. The recorded physical-display EDID override and forced DP-1 output restored usable headless operation.
 

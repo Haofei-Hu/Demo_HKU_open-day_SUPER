@@ -8,6 +8,8 @@
 | [analysis/](analysis/) | Bag-to-XYZ export, timing, and pose snapshots | Recorded-data assessment |
 | [maintenance/](maintenance/) | FAST_LIO patches, historical converters, generator, deployment | Workspace maintenance |
 
+`maintenance/super_session.py` manages compact tmux startup; see the [session runbook](../docs/SESSION_STARTUP.md).
+
 The root retains three complete standalone download entry points: `first_hover_terminal.py`, `odom_age_check.py`, and `update_preview_alignment.py`. [layout.json](layout.json) maps aircraft filenames to categorized sources.
 
 ## Deploy into Downloads

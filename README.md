@@ -2,9 +2,18 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 10, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Planner-driven trajectory flight and obstacle avoidance are the next integration stage.
+**Status — October 12, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. Planner-driven trajectory flight and obstacle avoidance are the next integration stage.
 
 ## Quick Start: restore the aircraft after reboot
+
+For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
+
+```bash
+python3 ~/Downloads/super_session.py start
+python3 ~/Downloads/super_session.py align
+```
+
+Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. The numbered commands below remain available for manual recovery.
 
 Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
 
@@ -338,6 +347,7 @@ export PYTHONPATH="$PWD:$PWD/scripts/localization:$PWD/scripts/flight:$PWD/scrip
 export ROS_DOMAIN_ID=180
 export ROS_LOCALHOST_ONLY=1
 python3 tests/test_repository_layout.py
+python3 tests/test_super_session.py
 python3 tests/test_hover_reference.py
 python3 tests/test_bag_to_xyz.py
 python3 scripts/maintenance/build_first_hover_terminal.py --check
@@ -348,7 +358,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The directory/deployment, reference, and bag suites contain 13 passing unit tests. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The directory/deployment, reference, bag, and session-lifecycle suites contain 21 passing unit tests. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

@@ -4,6 +4,7 @@
 | --- | --- |
 | Current progress and successful flight milestone | [October 10 progress](PROGRESS_2026-10-10.md) |
 | Next development and validation stage | [Next steps](NEXT_STEPS.md) |
+| One/two-terminal tmux startup and persistent logs | [Compact startup](SESSION_STARTUP.md) |
 | Reboot recovery, terminals 1–11, takeoff and landing | [Complete flight workflow](FIRST_HOVER_2026-10-09.md) |
 | Three-terminal loop recording and XYZ inspection | [Bag/XYZ workflow](BAG_XYZ_2026-10-09.md) |
 | AX900, NoMachine, and headless desktop | [Remote recovery](REMOTE_RECOVERY_2026-10-09.md) |

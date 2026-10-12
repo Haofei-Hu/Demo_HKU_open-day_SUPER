@@ -17,7 +17,9 @@ python3 ~/Downloads/first_hover_terminal.py --execute --hover-height 1.0 --hold-
 
 The process still waits for READY and `/first_hover/start`. Keep the complete localization chain running during flight.
 
-## 2. Record a return-to-marker loop
+## 2. Deferred: return-to-marker loop
+
+Loop recording is deferred during the current planner integration stage. Repeated hover testing is complete; remaining hover work focuses on the approximately 10 cm lateral motion and controller/estimation diagnosis.
 
 Use the [three-terminal bag workflow](BAG_XYZ_2026-10-09.md) for a disarmed handheld loop. Compare source/header gaps, registered-cloud artifacts, return XYZ/yaw error, and the final stationary windows. Preserve raw sensor messages for later diagnosis.
 
@@ -39,7 +41,7 @@ Begin with ground switch/state checks, then use planned tests with flight logs a
 
 ## 5. Repeat cold-boot recovery
 
-Verify automatic AX900 initialization, saved Wi-Fi connection, headless desktop, and the dedicated MID360 Ethernet link across multiple cold boots. The current ROS runbook restores processes manually; full-stack ROS autostart and SSH/tmux persistence remain optional follow-up work.
+Verify automatic AX900 initialization, saved Wi-Fi connection, headless desktop, and the dedicated MID360 Ethernet link across multiple cold boots. The compact tmux manager is implemented and isolated-tested; validate its first aircraft startup using the [session runbook](SESSION_STARTUP.md). Full-stack ROS autostart and SSH access remain optional follow-up work.
 
 Initialization must remain a grounded, disarmed operation. Process restoration must never automatically arm or start a flight.
 
