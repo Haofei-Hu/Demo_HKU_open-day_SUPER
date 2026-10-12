@@ -236,6 +236,35 @@ class Tests(unittest.TestCase):
                 target.write_text(yaml.safe_dump(data))
                 with self.assertRaisesRegex(RuntimeError,'max_acc=0.45'):s.planner_profile()
 
+    def test_reserved_profile_preserves_old_candidates_and_checks_both_limits(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);folder=home/'super_ws/src/SUPER/super_planner/config';folder.mkdir(parents=True)
+            diagnostic=folder/'mid360_ground_diagnostic_ros2.yaml'
+            diagnostic.write_bytes((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_bytes())
+            scripts=home/'Downloads';scripts.mkdir()
+            (scripts/'create_super_motion_profiles.py').write_bytes(
+                (ROOT/'scripts/maintenance/create_super_motion_profiles.py').read_bytes())
+            import subprocess
+            subprocess.run(['python3',str(scripts/'create_super_motion_profiles.py'),'--source',str(diagnostic)],check=True)
+            target=folder/'mid360_low_speed_reserved_ros2.yaml'
+            target.unlink()  # Simulate an installation with only the previous candidates.
+            preserved={p:p.read_bytes() for p in folder.glob('*.yaml') if p != target}
+            s=self.manager(['planner','--planner-profile','low-speed-reserved','--scripts-dir',str(scripts)])
+            with patch.object(m.Path,'home',return_value=home):
+                self.assertEqual(s.planner_profile(),target)
+            with patch.object(m.Path,'home',return_value=home),patch.object(m,'run') as run:
+                self.assertEqual(s.planner_profile(),target)
+                run.assert_not_called()
+                for name, bad_value in (('max_vel',.3),('max_acc',.5)):
+                    data=yaml.safe_load(target.read_text())
+                    data['traj_opt']['boundary'].update(max_vel=.25,max_acc=.45)
+                    data['traj_opt']['boundary'][name]=bad_value
+                    target.write_text(yaml.safe_dump(data))
+                    with self.assertRaisesRegex(RuntimeError,'max_vel=0.25 and max_acc=0.45'):
+                        s.planner_profile()
+                self.assertEqual(preserved,{p:p.read_bytes() for p in preserved})
+
     def test_low_speed_profile_is_separate_and_rejects_unexpected_limits(self):
         import yaml
         data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())

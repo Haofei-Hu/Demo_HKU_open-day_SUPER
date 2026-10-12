@@ -18,6 +18,7 @@ import yaml
 PROFILES = {
     'mid360_low_speed_preview_ros2.yaml': (0.3, 0.5),
     'mid360_low_speed_margin_ros2.yaml': (0.3, 0.45),
+    'mid360_low_speed_reserved_ros2.yaml': (0.25, 0.45),
     'mid360_demo_candidate_ros2.yaml': (2.0, 1.0),
 }
 

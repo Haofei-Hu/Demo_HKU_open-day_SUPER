@@ -126,12 +126,13 @@ Generate separate motion candidates from the actual diagnostic configuration:
 python3 ~/Downloads/create_super_motion_profiles.py
 ```
 
-The helper preserves the diagnostic source and its comments, backs up the source, and writes separate configurations for baseline low-speed preview, reserved-acceleration preview, and the final demonstration candidate. An existing different candidate is refused before any candidate is written. Repeating generation with an unchanged source is idempotent.
+The helper preserves the diagnostic source and its comments, backs up the source, and writes separate configurations for baseline low-speed preview, reserved-acceleration preview, reserved velocity/acceleration preview, and the final demonstration candidate. An existing different candidate is refused before any candidate is written. Repeating generation with an unchanged source is idempotent.
 
 | Candidate | Planner velocity limit | Planner acceleration limit | Use |
 | --- | --- | --- | --- |
 | `mid360_low_speed_preview_ros2.yaml` | 0.3 m/s | 0.5 m/s² | Original low-speed ground test |
 | `mid360_low_speed_margin_ros2.yaml` | 0.3 m/s | 0.45 m/s² | Reserved acceleration target; strict sampled acceptance stays 0.3 / 0.5 |
+| `mid360_low_speed_reserved_ros2.yaml` | 0.25 m/s | 0.45 m/s² | Reserved velocity and acceleration targets; strict sampled acceptance stays 0.3 / 0.5 |
 | `mid360_demo_candidate_ros2.yaml` | 2.0 m/s | 1.0 m/s² | Final motion target, pending flight integration |
 
 Only `traj_opt.boundary.max_vel` and `max_acc` change. Height, yaw, jerk, nominal collision radius, map settings, and topic names are preserved. Planner optimizer limits do not establish measured tracking limits or a hard flight boundary. In particular, `click_height=-0.05`, accepted planner Z, and the virtual ground/ceiling are not floor-referenced laboratory limits.
@@ -185,6 +186,21 @@ python3 ~/Downloads/super_session.py planner --planner-profile low-speed-margin
 After a nonempty map is received, send the diagnostic `goal` and rerun `planner-check`. The internal planner acceleration target becomes 0.45 m/s²; the checker remains at 0.5 m/s², with no extra tolerance. This headroom is a candidate correction requiring another physical sample, not a guarantee of a continuous bound. The final 2 m/s / 1 m/s² demonstration candidate remains unchanged.
 
 The first sample also recorded a 0.223607 m reference step across 0.030030 seconds. The pinned FSM restarts planning from the current robot state after trajectory time ends while the stationary aircraft remains away from its goal. The report now includes before/after reference positions, nearby raw odometry, and cached single-publisher identity comparison to help correlate the step; it does not automatically classify it as a restart or repair the reference. A flight bridge must handle discontinuities and endpoint hold before native execution.
+
+### Reserve velocity margin after the 50 Hz trial
+
+The MID360 driver publication setting was changed at startup from 10 Hz to 50 Hz. Native MAVROS vision publication measured approximately 50 Hz, with valid relative horizontal position and horizontal/vertical velocity telemetry. A subsequent 10-second ground control-chain sample passed freshness checks: source age maxima were 24 ms for odometry, 8 ms for planner commands, 14 ms for converted targets, and 17 ms for FC local pose. The earlier approximately 0.34-second gap was not observed in this sample; this does not establish that it cannot recur or isolate its cause.
+
+Advertised speed reached 0.317892 m/s despite the 0.3 m/s optimizer target, while acceleration reached 0.373977 m/s² and stayed below the 0.5 m/s² acceptance limit. Use the separate reserved candidate for the next sample:
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserved
+```
+
+The manager generates the candidate if missing using the updated `create_super_motion_profiles.py`. Internal limits are 0.25 m/s and 0.45 m/s²; sampled acceptance remains strictly 0.3 m/s and 0.5 m/s². Previous candidates, localization, active alignment and PX4 parameters are preserved. After a nonempty occupancy map is available, run `goal` and `planner-check`. This additional optimizer margin still requires physical validation.
+
+The same sample recorded a 0.424264 m reference step from `[0.35, -0.05, 0.15]` to `[0.05, -0.05, -0.15]` over approximately 20 ms, with a stable cached single-publisher identity. The new reference was near the stationary raw robot position, consistent with the pinned FSM restarting from the robot state after the previous trajectory ended. The advertised derivatives do not describe the finite difference across this restart. A passing derivative check therefore cannot approve direct flight execution; reference continuity and endpoint hold remain separate bridge requirements.
 
 ## Live RViz2 view
 
@@ -292,7 +308,7 @@ python3 tests/test_super_session_ros.py
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Fourteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Fifteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
 
 Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.
 
