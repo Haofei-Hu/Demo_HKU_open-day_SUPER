@@ -52,8 +52,10 @@ Initialization must remain a grounded, disarmed operation. Process restoration m
 | Laboratory envelope | Implement approximately 0–5 m forward, ±2 m lateral, and FC-centre height ≤2 m using measured axes and origin |
 | Formal venue | Survey the 3×6×3 m space, takeoff position, vehicle envelope, and clearance margins |
 | Planner-to-flight bridge | Consistent coordinates/lever arm, valid targets, endpoint hold, planner-stop behavior, limits, takeover, and landing |
-| Target speed | Increase from low-speed short-distance tests toward 2 m/s in stages |
+| Target speed | Final candidate: 2 m/s with 1 m/s² translational acceleration; begin with 0.3 m/s and 0.5 m/s² previews, then staged flight validation |
 
 The 225 mm wheelbase and 5-inch propellers do not by themselves define the collision envelope. The recorded SUPER YAML includes a 5 m/s planner limit and is a historical configuration, not the final demonstration profile.
 
 `control_bridge_preview.py` and `ground_setpoint_transport.py` are ground tools; their arming/OFFBOARD latches must not be mistaken for a flight bridge. SUPER can relocate goals out of inflated occupied cells, so validate the accepted goal rather than only the clicked point.
+
+Separate low-speed and demonstration candidates are generated from the active diagnostic YAML. The compact manager can start the low-speed ground preview after `planner-stop`, preserving localization. PX4 limits and flight geometry remain unchanged until the flight-capable bridge and current-state validation are complete.

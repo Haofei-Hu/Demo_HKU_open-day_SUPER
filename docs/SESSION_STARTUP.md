@@ -118,6 +118,34 @@ python3 ~/Downloads/super_session.py planner-stop
 
 The existing localization and vision session remains running. Updating the manager or missing planning helpers does not require a new alignment; preserve the active `aligned_pose_preview.py` and do not repeat `start`, `align`, or `vision` in an initialized session.
 
+### Low-speed preview and demonstration candidate
+
+Generate separate motion candidates from the actual diagnostic configuration:
+
+```bash
+python3 ~/Downloads/create_super_motion_profiles.py
+```
+
+The helper preserves the diagnostic source and its comments, backs up the source, and writes two separate configurations. An existing different candidate is refused before any candidate is written. Repeating generation with an unchanged source is idempotent.
+
+| Candidate | Planner velocity limit | Planner acceleration limit | Use |
+| --- | --- | --- | --- |
+| `mid360_low_speed_preview_ros2.yaml` | 0.3 m/s | 0.5 m/s² | Next disarmed planning test |
+| `mid360_demo_candidate_ros2.yaml` | 2.0 m/s | 1.0 m/s² | Final motion target, pending flight integration |
+
+Only `traj_opt.boundary.max_vel` and `max_acc` change. Height, yaw, jerk, nominal collision radius, map settings, and topic names are preserved. Planner optimizer limits do not establish measured tracking limits or a hard flight boundary. In particular, `click_height=-0.05`, accepted planner Z, and the virtual ground/ceiling are not floor-referenced laboratory limits.
+
+Switch only the ground planning windows:
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed
+```
+
+Localization and vision remain running. After map/preview readiness, use the same `goal` diagnostic and inspect the accepted target and optimizer output. The manager validates the low-speed limits before launch. It does not offer the 2 m/s candidate as a startup profile and does not change PX4 parameters.
+
+For ideal constant-acceleration straight-line motion, 2 m/s at 1 m/s² requires approximately 2 seconds and 2 metres to accelerate, with another 2 metres to brake. Real trajectories, clearance, latency, and tracking error require additional margin. Flight execution still needs the fixed takeoff-floor/forward reference, transformed goals, envelope enforcement, endpoint hold, and takeover/loss handling.
+
 ## Hover and explicit flight initiation
 
 Optional check-only hover process:
@@ -176,10 +204,13 @@ Stopping requires fresh FC ground state. It interrupts hover/planning/vision fir
 
 ```bash
 python3 tests/test_super_session.py
+python3 tests/test_super_motion_profiles.py
 python3 tests/test_super_session_tmux.py
 python3 tests/test_super_session_ros.py
 ```
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Eleven lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic profile preservation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Twelve lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+
+Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.

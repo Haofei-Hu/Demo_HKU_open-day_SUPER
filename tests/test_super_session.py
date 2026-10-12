@@ -67,7 +67,8 @@ class Tests(unittest.TestCase):
 
     def test_invalid_quaternions_and_execution_action(self):
         for argv in (['vision'],['vision','0','0','0','nan'],['vision','0','0','0','2'],
-                     ['start','--execute'],['start','--session','bad;touch'],['hover','--hover-height','2']):
+                     ['start','--execute'],['start','--session','bad;touch'],['hover','--hover-height','2'],
+                     ['hover','--planner-profile','low-speed']):
             with self.assertRaises(SystemExit): m.arguments(argv)
         self.assertEqual(m.arguments(['vision','0','0','0','1']).quaternion,[0.,0.,0.,1.])
 
@@ -200,6 +201,34 @@ class Tests(unittest.TestCase):
         self.assertEqual(body[-1],'/tmp/path with spaces/$(touch BAD)/fastlio_body_debug.py')
         self.assertIn('publish.scan_publish_en:=true',commands['lio'])
         self.assertFalse(any('first_hover' in command for command in commands.values()))
+
+    def test_low_speed_profile_is_separate_and_rejects_unexpected_limits(self):
+        import yaml
+        data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);folder=home/'super_ws/src/SUPER/super_planner/config';folder.mkdir(parents=True)
+            diagnostic=folder/'mid360_ground_diagnostic_ros2.yaml'
+            diagnostic.write_text(yaml.safe_dump(data));before=diagnostic.read_bytes()
+            target=folder/'mid360_low_speed_preview_ros2.yaml'
+            scripts=home/'Downloads';scripts.mkdir()
+            (scripts/'create_super_motion_profiles.py').write_bytes(
+                (ROOT/'scripts/maintenance/create_super_motion_profiles.py').read_bytes())
+            s=self.manager(['planner','--planner-profile','low-speed','--scripts-dir',str(scripts)])
+            with patch.object(m.Path,'home',return_value=home):
+                self.assertEqual(s.planner_profile(),target)
+                self.assertEqual(diagnostic.read_bytes(),before)
+                demo=yaml.safe_load((folder/'mid360_demo_candidate_ros2.yaml').read_text())
+                self.assertEqual(demo['traj_opt']['boundary']['max_vel'],2.)
+                self.assertEqual(demo['traj_opt']['boundary']['max_acc'],1.)
+            with patch.object(m.Path,'home',return_value=home),patch.object(m,'run') as run:
+                self.assertEqual(s.planner_profile(),target)
+                run.assert_not_called()
+                self.assertEqual(diagnostic.read_bytes(),before)
+                data=yaml.safe_load(target.read_text())
+                data['traj_opt']['boundary']['max_vel']=2.
+                target.write_text(yaml.safe_dump(data))
+                with self.assertRaisesRegex(RuntimeError,'Low-speed preview'):
+                    s.planner_profile()
 
 
 if __name__=='__main__': unittest.main()

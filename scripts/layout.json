@@ -14,6 +14,7 @@
   "create_ground_height_fusion_transport.py": "scripts/maintenance/create_ground_height_fusion_transport.py",
   "create_ground_xy_fusion_transport.py": "scripts/maintenance/create_ground_xy_fusion_transport.py",
   "create_super_ground_diagnostic.py": "scripts/maintenance/create_super_ground_diagnostic.py",
+  "create_super_motion_profiles.py": "scripts/maintenance/create_super_motion_profiles.py",
   "enable_ground_vision_yaw.py": "scripts/maintenance/enable_ground_vision_yaw.py",
   "fastlio_body_debug.py": "scripts/localization/fastlio_body_debug.py",
   "first_hover_control.py": "scripts/flight/first_hover_control.py",

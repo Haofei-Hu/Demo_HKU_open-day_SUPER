@@ -73,11 +73,14 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
             wait(lambda:len(ledger.read_text().splitlines())==7)
             package=types.ModuleType('mars_quadrotor_msgs')
             messages=types.ModuleType('mars_quadrotor_msgs.msg');messages.PositionCommand=lambda:object()
+            session.args.planner_profile='low-speed'
             with patch.object(m,'GroundGate',Ground), patch.dict('sys.modules',
                     {'mars_quadrotor_msgs':package,'mars_quadrotor_msgs.msg':messages}), \
-                    patch.object(session,'planner_profile',return_value=Path('/tmp/mid360_ground_diagnostic_ros2.yaml')):
+                    patch.object(session,'planner_profile',return_value=Path('/tmp/mid360_low_speed_preview_ros2.yaml')):
                 session.mutate('planner')
                 wait(lambda:len(ledger.read_text().splitlines())==9)
+                planner=next(json.loads(line) for line in ledger.read_text().splitlines() if 'fsm_node' in line)
+                assert 'config_name:=mid360_low_speed_preview_ros2.yaml' in planner
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision','planner','cmd_preview'),'0')
                 session.mutate('planner-stop')
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision'),'0'),'planning stop interrupted localization'

@@ -271,12 +271,20 @@ class Session:
     def planner_profile(self):
         import yaml
         folder = Path.home()/'super_ws/src/SUPER/super_planner/config'
-        target = folder/'mid360_ground_diagnostic_ros2.yaml'
-        if not target.is_file():
+        diagnostic = folder/'mid360_ground_diagnostic_ros2.yaml'
+        if not diagnostic.is_file():
             helper = self.scripts/'create_super_ground_diagnostic.py'
             if not helper.is_file():
                 raise RuntimeError('Missing helper: '+str(helper))
             run(['python3', helper])
+        target = diagnostic
+        if self.args.planner_profile == 'low-speed':
+            target = folder/'mid360_low_speed_preview_ros2.yaml'
+            if not target.is_file():
+                helper = self.scripts/'create_super_motion_profiles.py'
+                if not helper.is_file():
+                    raise RuntimeError('Missing helper: '+str(helper))
+                run(['python3', helper, '--source', diagnostic])
         data = yaml.safe_load(target.read_text())
         if not isinstance(data, dict):
             raise RuntimeError('Invalid diagnostic YAML')
@@ -288,6 +296,10 @@ class Session:
             raise RuntimeError('Unexpected diagnostic goal/command/map configuration')
         if inputs.get('cloud_topic') != '/cloud_registered' or inputs.get('odom_topic') != '/Odometry':
             raise RuntimeError('Diagnostic configuration does not use the active LIO topics')
+        if self.args.planner_profile == 'low-speed':
+            limits = data.get('traj_opt', {}).get('boundary', {})
+            if limits.get('max_vel') != .3 or limits.get('max_acc') != .5:
+                raise RuntimeError('Low-speed preview requires max_vel=0.3 and max_acc=0.5')
         (folder.parent/'log').mkdir(parents=True, exist_ok=True)
         return target
 
@@ -370,6 +382,7 @@ class Session:
                     PositionCommand()  # Verify generated message support before launching.
                     config = self.planner_profile()
                     gate.check()
+                    print('Ground planner profile:', config)
                     self.launch('planner', shell_command(['ros2', 'run', 'super_planner', 'fsm_node',
                         '--ros-args', '-p', 'use_sim_time:=false', '-p', 'config_name:='+config.name]))
                     gate.check()
@@ -442,6 +455,8 @@ def arguments(argv=None):
     parser.add_argument('--fcu-url', default=DEFAULT_FCU)
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--restart', action='store_true', help='replace only the hover window after a fresh ground-state check')
+    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed'), default='diagnostic',
+                        help='ground planner configuration; low-speed uses 0.3 m/s and 0.5 m/s^2')
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
@@ -458,6 +473,8 @@ def arguments(argv=None):
         parser.error('--restart is only valid for hover')
     if args.execute and args.action != 'hover':
         parser.error('--execute is only valid for hover')
+    if args.planner_profile != 'diagnostic' and args.action != 'planner':
+        parser.error('--planner-profile is only valid for planner')
     if not (.085 < args.hover_height <= 1. and math.isfinite(args.hover_height)
             and 0 <= args.hold_seconds <= 6 and math.isfinite(args.hold_seconds)):
         parser.error('Hover height must be (.085, 1] m and hold [0, 6] seconds')
