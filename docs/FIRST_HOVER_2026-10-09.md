@@ -271,6 +271,8 @@ python3 ~/Downloads/control_bridge_preview.py
 A planner waiting for a goal produces no `/planning/pos_cmd`. To run a small ground preview target:
 
 ```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
 python3 ~/Downloads/send_control_preview_goal.py
 timeout 10s ros2 topic echo /rog_map/occ \
   sensor_msgs/msg/PointCloud2 --once --field width

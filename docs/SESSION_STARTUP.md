@@ -100,10 +100,13 @@ Send one small diagnostic goal and inspect its output:
 ```bash
 python3 ~/Downloads/super_session.py goal
 source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
 timeout 10s ros2 topic hz /planning/pos_cmd
 timeout 10s ros2 topic echo /super_debug/control_target geometry_msgs/msg/PoseStamped \
   --qos-reliability best_effort --once
 ```
+
+The command terminal must source the SUPER overlay to resolve `mars_quadrotor_msgs/msg/PositionCommand`; the manager sources its child processes independently. A message-type error in the CLI does not by itself establish planner failure.
 
 The goal is +0.30 m along planner-world X, with heading retained. This axis is not necessarily aircraft forward. Goal height follows SUPER's `click_height`; the planner may relocate the goal to free space. Inspect `Get goal at` and the transformed preview before drawing conclusions about direction or displacement. The preview publishes only `/super_debug/control_target`. These actions send no MAVROS flight setpoints, mode requests, arming requests, or flight-start requests. Replanning is expected while the stationary aircraft does not follow the target.
 
