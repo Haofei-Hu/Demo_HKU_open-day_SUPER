@@ -94,7 +94,7 @@ Visualization Manager:
     Selectable: false
     Size (Pixels): 2
     Size (m): 0.1
-    Style: Boxes
+    Style: Points
     Topic:
       Depth: 5
       Durability Policy: Volatile
