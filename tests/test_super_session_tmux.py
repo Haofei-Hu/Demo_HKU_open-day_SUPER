@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import argparse
+import types
 import time
 from unittest.mock import patch
 
@@ -20,6 +22,8 @@ def wait(predicate):
 
 
 class Ground:
+    def __init__(self): self.node=argparse.Namespace(count_publishers=lambda topic:0)
+    def localization_ready(self): return True
     def check(self): pass
     def grounded(self): return True
     def wait(self,predicate,description): assert predicate(),description
@@ -64,9 +68,22 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
             calls=[json.loads(line) for line in before.splitlines()]
             lio=next(call for call in calls if 'fastlio_mapping' in call)
             assert lio[lio.index('--params-file')+1]==str(prefix)+'/share/fast_lio/config/mid360.yaml'
-            with patch.object(m,'GroundGate',Ground): session.mutate('stop')
+            session.launch('preview',m.shell_command(['python3','-u',scripts/'aligned_pose_preview.py']))
+            session.launch('vision',m.shell_command(['python3','-u',scripts/'flight_pose_cov_transport.py']))
+            wait(lambda:len(ledger.read_text().splitlines())==7)
+            package=types.ModuleType('mars_quadrotor_msgs')
+            messages=types.ModuleType('mars_quadrotor_msgs.msg');messages.PositionCommand=lambda:object()
+            with patch.object(m,'GroundGate',Ground), patch.dict('sys.modules',
+                    {'mars_quadrotor_msgs':package,'mars_quadrotor_msgs.msg':messages}), \
+                    patch.object(session,'planner_profile',return_value=Path('/tmp/mid360_ground_diagnostic_ros2.yaml')):
+                session.mutate('planner')
+                wait(lambda:len(ledger.read_text().splitlines())==9)
+                assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision','planner','cmd_preview'),'0')
+                session.mutate('planner-stop')
+                assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision'),'0'),'planning stop interrupted localization'
+                session.mutate('stop')
             assert not session.exists()
             assert not m.unmanaged_processes(),'dummy node leaked after cooperative stop'
-            print('PASS: real tmux core windows, shell/path quoting, startup logs, idempotent start, cooperative shutdown, no leaked nodes.')
+            print('PASS: real tmux core windows, shell/path quoting, startup logs, idempotent start, ground planning windows/local stop, cooperative shutdown, no leaked nodes.')
         finally:
             if session.exists(): session.tmux('kill-session','-t',session.name)

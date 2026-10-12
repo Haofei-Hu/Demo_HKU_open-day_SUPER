@@ -1,8 +1,8 @@
 # Compact aircraft startup
 
-`super_session.py` groups the proven localization and hover processes in a private tmux session. One onboard command terminal is enough; a second terminal can show logs. QGC remains a separate application. The original numbered runbook is still available for diagnosis.
+`super_session.py` groups the localization, ground planning, and hover processes in a private tmux session. One onboard command terminal is enough; a second terminal can show logs. QGC remains a separate application. The original numbered runbook is still available for diagnosis.
 
-This manager has software/isolated-fixture verification. Its first aircraft startup must confirm current telemetry, alignment, native vision, and hover READY before any flight request. It does not implement the planned SUPER trajectory bridge.
+This manager has software/isolated-fixture verification. Aircraft localization startup has been checked with current telemetry, fresh alignment, native vision, and valid local position/velocity. Ground planning and hover readiness still require their own checks before use. It does not implement the planned SUPER trajectory bridge.
 
 ## Install once
 
@@ -35,7 +35,7 @@ Existing integration scripts/workspaces remain prerequisites. The manager source
 
 On the ground and disarmed, stop manually running stack nodes with Ctrl+C before the first managed start. The manager rejects detected existing stack processes rather than duplicating or terminating them. Do not migrate a running flight into tmux.
 
-Keep RC connected, the arm switch OFF, and the aircraft stationary on its takeoff floor. Start the core:
+Keep the aircraft disarmed and stationary on its takeoff floor. Flight preparation also requires RC connected with the arm switch OFF; disarmed ground planning can be checked remotely. Start the core:
 
 ```bash
 python3 ~/Downloads/super_session.py start
@@ -64,11 +64,56 @@ Check actual fusion and open QGC:
 ```bash
 source /opt/ros/humble/setup.zsh
 timeout 10s ros2 topic hz /mavros/vision_pose/pose_cov
-timeout 10s ros2 topic echo /mavros/estimator_status --once
+timeout 10s ros2 topic echo /mavros/estimator_status mavros_msgs/msg/EstimatorStatus \
+  --qos-reliability best_effort --qos-durability volatile --once
 ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
 Use POSCTL and the current QGC preflight check as described in the [flight runbook](FIRST_HOVER_2026-10-09.md). QGC still uses MAVROS UDP rather than opening USB directly.
+
+## Ground planning in the same session
+
+After localization is valid, start SUPER and its coordinate preview:
+
+```bash
+python3 ~/Downloads/super_session.py planner
+python3 ~/Downloads/super_session.py status
+```
+
+This requires the managed core, preview, and vision windows, fresh connected/disarmed/on-ground FC state, and valid local position/velocity telemetry. A disarmed AUTO.LOITER state is sufficient for this ground test; RC input and POSCTL are requirements of the flight workflow. A hover window or an existing native setpoint sender blocks planning startup.
+
+The manager starts two windows: `planner` and `cmd_preview`. It creates the existing ground diagnostic YAML only if absent, validates its input/goal/command topics, and preserves an existing profile. This profile changes optimizer convergence tolerance and logging only; its motion limits are not a flight configuration. Required helpers are `create_super_ground_diagnostic.py`, `send_control_preview_goal.py`, and `control_bridge_preview.py` in the active scripts directory. They can be installed from a checkout using the deployment helper.
+
+Inspect the occupancy map before sending a goal:
+
+```bash
+source /opt/ros/humble/setup.zsh
+timeout 10s ros2 topic echo /rog_map/occ sensor_msgs/msg/PointCloud2 \
+  --qos-reliability best_effort --once --field width
+python3 ~/Downloads/super_session.py logs
+```
+
+Select `planner` and `cmd_preview` with Ctrl+B, then W. Before a goal, the planner may remain in INIT, while the coordinate preview reports `READY coordinates; WAIT: fresh /planning/pos_cmd`. Confirm a nonempty occupancy map and fresh inputs. Detach with Ctrl+B, then D.
+
+Send one small diagnostic goal and inspect its output:
+
+```bash
+python3 ~/Downloads/super_session.py goal
+source /opt/ros/humble/setup.zsh
+timeout 10s ros2 topic hz /planning/pos_cmd
+timeout 10s ros2 topic echo /super_debug/control_target geometry_msgs/msg/PoseStamped \
+  --qos-reliability best_effort --once
+```
+
+The goal is +0.30 m along planner-world X, with heading retained. This axis is not necessarily aircraft forward. Goal height follows SUPER's `click_height`; the planner may relocate the goal to free space. Inspect `Get goal at` and the transformed preview before drawing conclusions about direction or displacement. The preview publishes only `/super_debug/control_target`. These actions send no MAVROS flight setpoints, mode requests, arming requests, or flight-start requests. Replanning is expected while the stationary aircraft does not follow the target.
+
+Stop just these two windows before returning to hover preparation:
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+```
+
+The existing localization and vision session remains running. Updating the manager or missing planning helpers does not require a new alignment; preserve the active `aligned_pose_preview.py` and do not repeat `start`, `align`, or `vision` in an initialized session.
 
 ## Hover and explicit flight initiation
 
@@ -122,7 +167,7 @@ To stop the managed stack after landing/disarming:
 python3 ~/Downloads/super_session.py stop
 ```
 
-Stopping requires fresh FC ground state. It interrupts hover/vision first, then the remaining nodes, with MAVROS last; QGC is not closed. If telemetry is unavailable, restore the FC connection and inspect the logs rather than force-stopping an unverified flight session.
+Stopping requires fresh FC ground state. It interrupts hover/planning/vision first, then the remaining nodes, with MAVROS last; QGC is not closed. If telemetry is unavailable, restore the FC connection and inspect the logs rather than force-stopping an unverified flight session.
 
 ## Verification
 
@@ -134,4 +179,4 @@ python3 tests/test_super_session_ros.py
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Eight lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, and cooperative stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, and armed/disconnected/stale-state rejection.
+Eleven lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic profile preservation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.

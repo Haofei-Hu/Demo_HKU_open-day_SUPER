@@ -13,7 +13,17 @@ python3 ~/Downloads/super_session.py start
 python3 ~/Downloads/super_session.py align
 ```
 
-Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. The numbered commands below remain available for manual recovery.
+Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. For disarmed ground planning after fusion is valid:
+
+```bash
+python3 ~/Downloads/super_session.py planner
+# After a nonempty occupancy map and coordinate-preview readiness:
+python3 ~/Downloads/super_session.py goal
+# Stop planning only; localization and vision remain running:
+python3 ~/Downloads/super_session.py planner-stop
+```
+
+These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. The numbered commands below remain available for manual recovery.
 
 Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
 
@@ -358,7 +368,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The directory/deployment, reference, bag, and session-lifecycle suites contain 21 passing unit tests. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The directory/deployment, reference, bag, and session-lifecycle suites contain 24 passing unit tests. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

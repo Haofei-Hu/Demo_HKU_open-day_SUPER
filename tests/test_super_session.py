@@ -15,6 +15,7 @@ spec.loader.exec_module(m)
 class FakeGate:
     blocked = False
     stale_preview = False
+    bad_localization = False
     values = dict(EKF2_EV_CTRL=0, EKF2_HGT_REF=3, EKF2_EV_POS_X=0., EKF2_EV_POS_Y=0., EKF2_EV_POS_Z=0., EKF2_EV_QMIN=0)
     writes = []
     def __init__(self):
@@ -32,6 +33,7 @@ class FakeGate:
     def pose_ready(self, name): return not (self.stale_preview and name=='preview')
     def wait(self, predicate, description):
         if not predicate(): raise RuntimeError(description)
+    def localization_ready(self): return not self.bad_localization
     def close(self): pass
 
 
@@ -52,12 +54,12 @@ class MemorySession(m.Session):
         self.window_state[name]='1'
     def tmux(self, *args, **kwargs):
         self.operations.append(args)
-        if args[0]=='kill-window': self.window_state.pop('hover')
+        if args[0]=='kill-window': self.window_state.pop(args[2].split(':')[-1])
 
 
 class Tests(unittest.TestCase):
     def setUp(self):
-        FakeGate.blocked=FakeGate.stale_preview=False
+        FakeGate.blocked=FakeGate.stale_preview=FakeGate.bad_localization=False
         FakeGate.values.update(EKF2_EV_CTRL=0,EKF2_HGT_REF=3)
         FakeGate.writes=[]
 
@@ -71,7 +73,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','hover','stop'):
+        for action in ('align','vision','planner','goal','planner-stop','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -137,6 +139,58 @@ class Tests(unittest.TestCase):
         names=[op[1] for op in s.operations if op[0]=='interrupt']
         self.assertEqual(names,['hover','vision','preview','body','lio','lidar','mavros'])
         self.assertEqual(s.operations[-1],('kill-session','-t','super-flight'))
+
+    def test_ground_planner_has_no_flight_actions_and_excludes_hover(self):
+        import types
+        package=types.ModuleType('mars_quadrotor_msgs')
+        messages=types.ModuleType('mars_quadrotor_msgs.msg')
+        messages.PositionCommand=lambda:object()
+        s=self.manager(['planner']);s.window_state.update(preview='0',vision='0')
+        with patch.object(m,'GroundGate',FakeGate), patch.dict('sys.modules',
+                {'mars_quadrotor_msgs':package,'mars_quadrotor_msgs.msg':messages}), \
+                patch.object(s,'planner_profile',return_value=Path('/tmp/mid360_ground_diagnostic_ros2.yaml')):
+            s.mutate('planner')
+            self.assertEqual([name for name,_ in s.started],['planner','cmd_preview'])
+            self.assertNotIn('--execute',str(s.started))
+            with self.assertRaises(RuntimeError):s.mutate('planner')
+            s.args=m.arguments(['hover','--execute'])
+            with self.assertRaises(RuntimeError):s.mutate('hover')
+            s.mutate('planner-stop')
+        self.assertEqual(FakeGate.writes,[])
+        self.assertEqual(s.window_state['vision'],'0')
+        self.assertEqual(s.window_state['preview'],'0')
+        self.assertFalse(any('kill-session'==op[0] for op in s.operations))
+
+    def test_planning_requires_fused_localization_and_goal_is_readonly(self):
+        s=self.manager(['planner']);s.window_state.update(preview='0',vision='0')
+        FakeGate.bad_localization=True
+        with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('planner')
+        self.assertEqual(s.started,[])
+        FakeGate.bad_localization=False
+        with tempfile.TemporaryDirectory() as directory:
+            s=self.manager(['goal','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            helper=Path(directory)/'send_control_preview_goal.py';helper.write_text('# fixture')
+            with patch.object(m,'GroundGate',FakeGate),patch.object(m,'run') as run:
+                s.mutate('goal')
+                self.assertEqual(run.call_args.args[0],['python3','-u',helper])
+            self.assertEqual(s.started,[])
+        self.assertEqual(FakeGate.writes,[])
+
+    def test_planner_profile_preserves_existing_configuration_and_validates_topics(self):
+        import yaml
+        data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);folder=home/'super_ws/src/SUPER/super_planner/config';folder.mkdir(parents=True)
+            target=folder/'mid360_ground_diagnostic_ros2.yaml';target.write_text(yaml.safe_dump(data))
+            before=target.read_bytes();s=self.manager(['planner'])
+            with patch.object(m.Path,'home',return_value=home),patch.object(m,'run') as run:
+                self.assertEqual(s.planner_profile(),target)
+                run.assert_not_called()
+                self.assertEqual(target.read_bytes(),before)
+                data['rog_map']['ros_callback']['cloud_topic']='/wrong'
+                target.write_text(yaml.safe_dump(data))
+                with self.assertRaises(RuntimeError):s.planner_profile()
 
     def test_commands_keep_argument_boundaries(self):
         args=m.arguments(['start','--scripts-dir',"/tmp/path with spaces/$(touch BAD)"])

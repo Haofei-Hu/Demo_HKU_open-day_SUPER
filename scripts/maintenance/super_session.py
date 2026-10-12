@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Manage the proven aircraft stack in a private tmux session.
 
-start -> align -> vision QX QY QZ QW -> hover [--execute].
+start -> align -> vision QX QY QZ QW -> planner / hover [--execute].
 No automatic flight initiation, arming, mode changes, or node restart.
 Mutable actions require fresh connected/disarmed/on-ground FC telemetry.
 """
@@ -49,8 +49,8 @@ class GroundGate:
     def __init__(self):
         import rclpy
         from rclpy.qos import qos_profile_sensor_data
-        from mavros_msgs.msg import State, ExtendedState
-        from geometry_msgs.msg import PoseWithCovarianceStamped
+        from mavros_msgs.msg import State, ExtendedState, EstimatorStatus
+        from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
         from rcl_interfaces.srv import GetParameters, SetParameters
         from mavros_msgs.srv import ParamPull
         self.ros = rclpy
@@ -61,6 +61,8 @@ class GroundGate:
         self.messages, self.receipts = {}, {}
         for name, kind, topic in (
             ('state', State, '/mavros/state'), ('ground', ExtendedState, '/mavros/extended_state'),
+            ('local', PoseStamped, '/mavros/local_position/pose'),
+            ('estimator', EstimatorStatus, '/mavros/estimator_status'),
             ('preview', PoseWithCovarianceStamped, '/super_debug/aligned_pose_cov'),
             ('vision', PoseWithCovarianceStamped, '/mavros/vision_pose/pose_cov')):
             self.node.create_subscription(kind, topic, lambda m, key=name: self.store(key, m),
@@ -142,6 +144,17 @@ class GroundGate:
         if not self.fresh(name, .25):
             return False
         return self.messages[name].header.frame_id == 'px4_enu_preview'
+
+    def localization_ready(self):
+        if not all(self.fresh(name, limit) for name, limit in
+                   (('local', .25), ('preview', .25), ('vision', .25), ('estimator', 2.))):
+            return False
+        status = self.messages['estimator']
+        valid = (status.attitude_status_flag and status.velocity_horiz_status_flag
+                 and status.velocity_vert_status_flag and status.pos_horiz_rel_status_flag
+                 and status.pos_vert_abs_status_flag and not status.accel_error_status_flag)
+        return (valid and self.messages['local'].header.frame_id == 'map'
+                and self.pose_ready('preview') and self.pose_ready('vision'))
 
     def close(self):
         self.node.destroy_node()
@@ -255,9 +268,41 @@ class Session:
                 raise RuntimeError(name+' did not stop after Ctrl+C; inspect logs')
             time.sleep(.05)
 
+    def planner_profile(self):
+        import yaml
+        folder = Path.home()/'super_ws/src/SUPER/super_planner/config'
+        target = folder/'mid360_ground_diagnostic_ros2.yaml'
+        if not target.is_file():
+            helper = self.scripts/'create_super_ground_diagnostic.py'
+            if not helper.is_file():
+                raise RuntimeError('Missing helper: '+str(helper))
+            run(['python3', helper])
+        data = yaml.safe_load(target.read_text())
+        if not isinstance(data, dict):
+            raise RuntimeError('Invalid diagnostic YAML')
+        fsm = data.get('fsm', {})
+        inputs = data.get('rog_map', {}).get('ros_callback', {})
+        required = {'click_goal_en':True, 'click_goal_topic':'/goal_pose',
+                    'cmd_topic':'/planning/pos_cmd', 'timer_en':True}
+        if any(fsm.get(name) != value for name, value in required.items()) or not inputs.get('enable'):
+            raise RuntimeError('Unexpected diagnostic goal/command/map configuration')
+        if inputs.get('cloud_topic') != '/cloud_registered' or inputs.get('odom_topic') != '/Odometry':
+            raise RuntimeError('Diagnostic configuration does not use the active LIO topics')
+        (folder.parent/'log').mkdir(parents=True, exist_ok=True)
+        return target
+
+    def stop_planning(self, gate):
+        for name in ('cmd_preview', 'planner'):
+            if name in self.windows():
+                gate.check()
+                self.interrupt(name)
+                gate.wait(gate.grounded, 'fresh ground state during planning shutdown')
+                self.tmux('kill-window', '-t', self.name+':'+name)
+        print('Ground planning stopped; localization and vision remain running.')
+
     def mutate(self, action):
         self.load()
-        if action != 'stop':
+        if action not in ('stop', 'planner-stop'):
             self.require_core()
         windows = self.windows()
         gate = GroundGate()
@@ -297,7 +342,46 @@ class Session:
                 gate.wait(lambda: gate.pose_ready('vision') and gate.receipts['vision'] >= vision_started,
                           'fresh native vision')
                 print('Vision session started. Check current estimator status and POSCTL preflight.')
+            elif action in ('planner', 'goal'):
+                if windows.get('preview') != '0' or windows.get('vision') != '0':
+                    raise RuntimeError('Need the managed localization/vision session running')
+                if 'hover' in windows:
+                    raise RuntimeError('Hover window exists; keep planning and hover tasks separate')
+                gate.wait(gate.localization_ready, 'fresh valid local/vision/estimator state')
+                gate.check()
+                if action == 'goal':
+                    if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
+                        raise RuntimeError('Start the ground planner and command preview first')
+                    helper = self.scripts/'send_control_preview_goal.py'
+                    if not helper.is_file():
+                        raise RuntimeError('Missing goal helper: '+str(helper))
+                    run(['python3', '-u', helper])
+                    print('Ground goal sent along planner X. Inspect accepted goal and preview; no flight setpoints.')
+                else:
+                    if any(name in windows for name in ('planner', 'cmd_preview')):
+                        raise RuntimeError('Planning windows already exist; no duplicate/restart')
+                    if any(gate.node.count_publishers(topic) for topic in
+                           ('/planning/pos_cmd', '/super_debug/control_target')):
+                        raise RuntimeError('Another planner/command-preview publisher is present')
+                    if any(gate.node.count_publishers(topic) for topic in
+                           ('/mavros/setpoint_position/local', '/mavros/setpoint_raw/local')):
+                        raise RuntimeError('An existing native setpoint sender is present')
+                    from mars_quadrotor_msgs.msg import PositionCommand
+                    PositionCommand()  # Verify generated message support before launching.
+                    config = self.planner_profile()
+                    gate.check()
+                    self.launch('planner', shell_command(['ros2', 'run', 'super_planner', 'fsm_node',
+                        '--ros-args', '-p', 'use_sim_time:=false', '-p', 'config_name:='+config.name]))
+                    gate.check()
+                    self.launch('cmd_preview', shell_command(['python3', '-u', self.scripts/'control_bridge_preview.py',
+                        '--ros-args', '-p', 'alignment_path:='+str(self.scripts/'aligned_pose_preview.py')]))
+                    print('Ground planner and coordinate preview launched. No native setpoints, mode or arming requests.')
+                    print('Wait for map/preview readiness, then use goal for a disarmed diagnostic target.')
+            elif action == 'planner-stop':
+                self.stop_planning(gate)
             elif action == 'hover':
+                if any(name in windows for name in ('planner', 'cmd_preview')):
+                    raise RuntimeError('Stop ground planning with planner-stop before starting hover')
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed preview and vision relay running')
                 if 'hover' in windows:
@@ -319,7 +403,7 @@ class Session:
                 gate.check()
                 # Stop publishers first; keep MAVROS last so ground-state gates
                 # can be checked throughout cooperative Ctrl+C shutdown.
-                for name in ('hover', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
+                for name in ('hover', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
                     if name in windows:
                         gate.check()
                         self.interrupt(name)
@@ -332,8 +416,8 @@ class Session:
 
 
 def unmanaged_processes():
-    binaries = {'fastlio_mapping', 'mavros_node', 'livox_ros_driver2_node', 'livox_lidar_publisher'}
-    scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py', 'control_bridge_preview.py'}
+    binaries = {'fastlio_mapping', 'mavros_node', 'livox_ros_driver2_node', 'livox_lidar_publisher', 'fsm_node'}
+    scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py'}
     scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
                 'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py'}
     found = []
@@ -351,7 +435,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -384,7 +468,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)
