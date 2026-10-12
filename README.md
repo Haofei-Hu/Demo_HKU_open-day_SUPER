@@ -23,7 +23,7 @@ python3 ~/Downloads/super_session.py goal
 python3 ~/Downloads/super_session.py planner-stop
 ```
 
-These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
+These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
 
 Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
 
@@ -359,6 +359,8 @@ export ROS_LOCALHOST_ONLY=1
 python3 tests/test_repository_layout.py
 python3 tests/test_super_session.py
 python3 tests/test_super_motion_profiles.py
+python3 tests/test_control_chain_metrics.py
+python3 tests/test_control_chain_metrics_ros.py
 python3 tests/test_hover_reference.py
 python3 tests/test_bag_to_xyz.py
 python3 scripts/maintenance/build_first_hover_terminal.py --check
@@ -369,7 +371,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The directory/deployment, reference, bag, and session-lifecycle suites contain 28 unit tests. Motion-profile, session-lifecycle, deployment, and reference checks passed for this update; bag-export checks are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The directory/deployment, reference, bag, and session-lifecycle suites contain 33 unit tests. Motion-profile, session-lifecycle, deployment, and reference checks passed for this update; bag-export checks are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

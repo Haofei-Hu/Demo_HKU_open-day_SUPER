@@ -146,6 +146,29 @@ Localization and vision remain running. After map/preview readiness, use the sam
 
 For ideal constant-acceleration straight-line motion, 2 m/s at 1 m/s² requires approximately 2 seconds and 2 metres to accelerate, with another 2 metres to brake. Real trajectories, clearance, latency, and tracking error require additional margin. Flight execution still needs the fixed takeoff-floor/forward reference, transformed goals, envelope enforcement, endpoint hold, and takeover/loss handling.
 
+### Sample planner motion and freshness
+
+With the grounded low-speed planner actively publishing after a diagnostic goal:
+
+```bash
+python3 ~/Downloads/super_session.py planner-check
+```
+
+This sources the session environment and runs the read-only `control_chain_age_check.py` for 10 seconds. It checks the managed planning/localization prerequisites, then reports source age, receive gaps, nonincreasing/invalid stamps, and unexpected frames for raw odometry, planner commands, transformed debug targets, and FC local pose. Planner vectors are checked using full three-dimensional norms against 0.3 m/s and 0.5 m/s². Frames and active regular/backup flags must match the pinned integration; nonfinite position/derivative values are rejected. The freshness check requires at least 20 samples per stream, ages/receive gaps/latest receipt within 0.25 seconds, and no stamps more than 0.05 seconds in the future. It also requires fresh connected/disarmed FC state and no arming observed during sampling. Floating-point comparison tolerance is 1e-9.
+
+Without the manager, the same check can be run directly:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+python3 ~/Downloads/control_chain_age_check.py --check-motion \
+  --max-speed 0.3 --max-acceleration 0.5
+```
+
+The advertised derivatives are planner-reference values, not measured aircraft speed/acceleration. `Acc` in the optimizer's printed cost report is a penalty value, not the reference acceleration maximum. The report also records the largest adjacent planner position step and its stamp interval. A stationary aircraft can trigger trajectory restarts/replanning; these steps need separate review before endpoint-hold/flight behavior is implemented.
+
+Exit status 2 means the sampled freshness, requested motion limits, or disarmed-state checks did not pass. The report is still printed; the manager may then show the helper's nonzero exit status. Inspect the values before changing a limit. This command publishes no planner goal, native setpoint, mode request, or arming request, and it changes no PX4 parameter. Passing sampled checks does not establish tracking accuracy, mechanical calibration, endpoint hold, envelope enforcement, or flight readiness.
+
 ## Live RViz2 view
 
 The pinned SUPER planner's `rviz/real_svc.rviz` uses ROS 1 plugin identifiers. The simulator's `rviz2/benchmark.rviz` is a ROS 2 configuration, but its camera targets `perfect_drone` and includes simulation topics. The repository provides [super_ground_ros2.rviz](../configs/rviz/super_ground_ros2.rviz), derived from that ROS 2 configuration with the real planning topics, a `world` view, visible docks, and no goal-publishing tool.
@@ -244,12 +267,16 @@ Stopping requires fresh FC ground state. It interrupts hover/planning/vision fir
 ```bash
 python3 tests/test_super_session.py
 python3 tests/test_super_motion_profiles.py
+python3 tests/test_control_chain_metrics.py
+python3 tests/test_control_chain_metrics_ros.py
 python3 tests/test_super_session_tmux.py
 python3 tests/test_super_session_ros.py
 ```
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Twelve lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Thirteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
 
 Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.
+
+Four offline metric tests verify combined-axis limits, nonfinite/inactive/wrong-frame rejection, timestamp order and reference-step reporting, and missing/stale/future/gapped data. An isolated DDS fixture exercises live sampling with excessive speed/acceleration, armed state, stale data, inactive flags, and wrong pose frames.

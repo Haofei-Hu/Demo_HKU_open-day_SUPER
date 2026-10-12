@@ -59,3 +59,5 @@ The 225 mm wheelbase and 5-inch propellers do not by themselves define the colli
 `control_bridge_preview.py` and `ground_setpoint_transport.py` are ground tools; their arming/OFFBOARD latches must not be mistaken for a flight bridge. SUPER can relocate goals out of inflated occupied cells, so validate the accepted goal rather than only the clicked point.
 
 Separate low-speed and demonstration candidates are generated from the active diagnostic YAML. The compact manager can start the low-speed ground preview after `planner-stop`, preserving localization. PX4 limits and flight geometry remain unchanged until the flight-capable bridge and current-state validation are complete.
+
+The low-speed profile has generated and replanned trajectories on the aircraft. Next, sample advertised reference velocity/acceleration and freshness with `super_session.py planner-check`, inspect stationary replan discontinuities, and then implement a fixed takeoff/forward reference and bounded control interface. The working RViz2 ground view is a visualization, not a controller.

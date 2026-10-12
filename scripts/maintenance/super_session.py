@@ -354,21 +354,25 @@ class Session:
                 gate.wait(lambda: gate.pose_ready('vision') and gate.receipts['vision'] >= vision_started,
                           'fresh native vision')
                 print('Vision session started. Check current estimator status and POSCTL preflight.')
-            elif action in ('planner', 'goal'):
+            elif action in ('planner', 'goal', 'planner-check'):
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed localization/vision session running')
                 if 'hover' in windows:
                     raise RuntimeError('Hover window exists; keep planning and hover tasks separate')
                 gate.wait(gate.localization_ready, 'fresh valid local/vision/estimator state')
                 gate.check()
-                if action == 'goal':
+                if action in ('goal', 'planner-check'):
                     if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
                         raise RuntimeError('Start the ground planner and command preview first')
-                    helper = self.scripts/'send_control_preview_goal.py'
+                    helper = self.scripts/('send_control_preview_goal.py' if action == 'goal' else 'control_chain_age_check.py')
                     if not helper.is_file():
-                        raise RuntimeError('Missing goal helper: '+str(helper))
-                    run(['python3', '-u', helper])
-                    print('Ground goal sent along planner X. Inspect accepted goal and preview; no flight setpoints.')
+                        raise RuntimeError('Missing ground helper: '+str(helper))
+                    command = ['python3', '-u', helper]
+                    if action == 'planner-check':
+                        command += ['--check-motion', '--max-speed', '0.3', '--max-acceleration', '0.5']
+                    run(command)
+                    if action == 'goal':
+                        print('Ground goal sent along planner X. Inspect accepted goal and preview; no flight setpoints.')
                 else:
                     if any(name in windows for name in ('planner', 'cmd_preview')):
                         raise RuntimeError('Planning windows already exist; no duplicate/restart')
@@ -448,7 +452,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -485,7 +489,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)

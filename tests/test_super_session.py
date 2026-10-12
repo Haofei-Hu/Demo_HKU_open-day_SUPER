@@ -74,7 +74,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','planner','goal','planner-stop','hover','stop'):
+        for action in ('align','vision','planner','goal','planner-check','planner-stop','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -192,6 +192,22 @@ class Tests(unittest.TestCase):
                 data['rog_map']['ros_callback']['cloud_topic']='/wrong'
                 target.write_text(yaml.safe_dump(data))
                 with self.assertRaises(RuntimeError):s.planner_profile()
+
+    def test_planner_check_is_readonly_and_requires_managed_planning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            s=self.manager(['planner-check','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0')
+            helper=Path(directory)/'control_chain_age_check.py';helper.write_text('# fixture')
+            with patch.object(m,'GroundGate',FakeGate),patch.object(m,'run') as run:
+                with self.assertRaises(RuntimeError):s.mutate('planner-check')
+                run.assert_not_called()
+                s.window_state.update(planner='0',cmd_preview='0')
+                s.mutate('planner-check')
+                self.assertEqual(run.call_args.args[0],['python3','-u',helper,'--check-motion',
+                    '--max-speed','0.3','--max-acceleration','0.5'])
+            self.assertEqual(s.started,[])
+            self.assertEqual(s.operations,[])
+            self.assertEqual(FakeGate.writes,[])
 
     def test_commands_keep_argument_boundaries(self):
         args=m.arguments(['start','--scripts-dir',"/tmp/path with spaces/$(touch BAD)"])
