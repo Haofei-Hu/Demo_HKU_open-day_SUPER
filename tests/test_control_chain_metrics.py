@@ -13,7 +13,7 @@ class Tests(unittest.TestCase):
     def motion(self, velocity=(.18,.24,0.), acceleration=(.3,.4,0.)):
         result=m.Motion()
         for i in range(20):
-            result.add(1_000_000_000+i*10_000_000,'world',1,(0.,0.,0.),velocity,acceleration)
+            result.add(1_000_000_000+i*10_000_000,'world',1,(0.,0.,0.),velocity,acceleration,source=b'fixture')
         return result
 
     def test_norms_detect_combined_axis_limit_exceedance(self):
@@ -38,9 +38,12 @@ class Tests(unittest.TestCase):
 
     def test_reference_step_is_reported_and_reordered_commands_fail(self):
         metric=self.motion()
-        metric.add(1_200_000_000,'world',1,(.3,0.,0.),(0.,0.,0.),(0.,0.,0.))
+        metric.add(1_200_000_000,'world',1,(.3,0.,0.),(0.,0.,0.),(0.,0.,0.),source=b'fixture')
         self.assertAlmostEqual(metric.step,.3)
         self.assertAlmostEqual(metric.step_dt,.01)
+        self.assertEqual(metric.step_detail['before'][1],(0.,0.,0.))
+        self.assertEqual(metric.step_detail['after'][1],(.3,0.,0.))
+        self.assertTrue(metric.step_detail['same_source'])
         self.assertTrue(metric.within(.3,.5))  # Steps are separate ground-replan diagnostics.
         metric.add(1_200_000_000,'world',1,(0.,0.,0.),(0.,0.,0.),(0.,0.,0.))
         self.assertFalse(metric.within(.3,.5))
@@ -48,6 +51,7 @@ class Tests(unittest.TestCase):
     def test_series_rejects_stale_future_missing_and_nonmonotonic_input(self):
         def series():
             result=m.Series()
+            result.sources.add(b'fixture')
             for i in range(20):result.add(i*.01,1_000_000_000+i*10_000_000,.02)
             return result
         self.assertTrue(series().fresh(.2))
@@ -60,6 +64,8 @@ class Tests(unittest.TestCase):
         metric=series();metric.add(.5,2_000_000_000,.02)
         self.assertFalse(metric.fresh(.51))
         metric=series();metric.bad_frames=1
+        self.assertFalse(metric.fresh(.2))
+        metric=series();metric.sources.add(b'second')
         self.assertFalse(metric.fresh(.2))
 
 

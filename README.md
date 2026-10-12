@@ -371,7 +371,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The directory/deployment, reference, bag, and session-lifecycle suites contain 33 unit tests. Motion-profile, session-lifecycle, deployment, and reference checks passed for this update; bag-export checks are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The deployment, reference, bag-export, motion-profile, session-lifecycle, and control-chain metric suites contain 34 unit tests. Motion-profile, session-lifecycle, deployment, and reference checks passed for this update; bag-export checks are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

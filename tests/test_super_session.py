@@ -218,6 +218,24 @@ class Tests(unittest.TestCase):
         self.assertIn('publish.scan_publish_en:=true',commands['lio'])
         self.assertFalse(any('first_hover' in command for command in commands.values()))
 
+    def test_margin_profile_requires_reserved_acceleration_target(self):
+        import yaml
+        data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);folder=home/'super_ws/src/SUPER/super_planner/config';folder.mkdir(parents=True)
+            diagnostic=folder/'mid360_ground_diagnostic_ros2.yaml'
+            diagnostic.write_text(yaml.safe_dump(data));before=diagnostic.read_bytes()
+            data['traj_opt']['boundary'].update(max_vel=.3,max_acc=.45)
+            target=folder/'mid360_low_speed_margin_ros2.yaml';target.write_text(yaml.safe_dump(data))
+            s=self.manager(['planner','--planner-profile','low-speed-margin'])
+            with patch.object(m.Path,'home',return_value=home),patch.object(m,'run') as run:
+                self.assertEqual(s.planner_profile(),target)
+                run.assert_not_called()
+                self.assertEqual(diagnostic.read_bytes(),before)
+                data['traj_opt']['boundary']['max_acc']=.5
+                target.write_text(yaml.safe_dump(data))
+                with self.assertRaisesRegex(RuntimeError,'max_acc=0.45'):s.planner_profile()
+
     def test_low_speed_profile_is_separate_and_rejects_unexpected_limits(self):
         import yaml
         data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())

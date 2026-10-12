@@ -126,11 +126,12 @@ Generate separate motion candidates from the actual diagnostic configuration:
 python3 ~/Downloads/create_super_motion_profiles.py
 ```
 
-The helper preserves the diagnostic source and its comments, backs up the source, and writes two separate configurations. An existing different candidate is refused before any candidate is written. Repeating generation with an unchanged source is idempotent.
+The helper preserves the diagnostic source and its comments, backs up the source, and writes separate configurations for baseline low-speed preview, reserved-acceleration preview, and the final demonstration candidate. An existing different candidate is refused before any candidate is written. Repeating generation with an unchanged source is idempotent.
 
 | Candidate | Planner velocity limit | Planner acceleration limit | Use |
 | --- | --- | --- | --- |
-| `mid360_low_speed_preview_ros2.yaml` | 0.3 m/s | 0.5 m/s² | Next disarmed planning test |
+| `mid360_low_speed_preview_ros2.yaml` | 0.3 m/s | 0.5 m/s² | Original low-speed ground test |
+| `mid360_low_speed_margin_ros2.yaml` | 0.3 m/s | 0.45 m/s² | Reserved acceleration target; strict sampled acceptance stays 0.3 / 0.5 |
 | `mid360_demo_candidate_ros2.yaml` | 2.0 m/s | 1.0 m/s² | Final motion target, pending flight integration |
 
 Only `traj_opt.boundary.max_vel` and `max_acc` change. Height, yaw, jerk, nominal collision radius, map settings, and topic names are preserved. Planner optimizer limits do not establish measured tracking limits or a hard flight boundary. In particular, `click_height=-0.05`, accepted planner Z, and the virtual ground/ceiling are not floor-referenced laboratory limits.
@@ -142,7 +143,7 @@ python3 ~/Downloads/super_session.py planner-stop
 python3 ~/Downloads/super_session.py planner --planner-profile low-speed
 ```
 
-Localization and vision remain running. After map/preview readiness, use the same `goal` diagnostic and inspect the accepted target and optimizer output. The manager validates the low-speed limits before launch. It does not offer the 2 m/s candidate as a startup profile and does not change PX4 parameters.
+Localization and vision remain running. After map/preview readiness, use the same `goal` diagnostic and inspect the accepted target and optimizer output. The manager validates the low-speed limits before launch. It does not offer the 2 m/s candidate as a startup profile and does not change PX4 parameters. The original baseline and demonstration files are preserved when the margin candidate is added.
 
 For ideal constant-acceleration straight-line motion, 2 m/s at 1 m/s² requires approximately 2 seconds and 2 metres to accelerate, with another 2 metres to brake. Real trajectories, clearance, latency, and tracking error require additional margin. Flight execution still needs the fixed takeoff-floor/forward reference, transformed goals, envelope enforcement, endpoint hold, and takeover/loss handling.
 
@@ -154,7 +155,7 @@ With the grounded low-speed planner actively publishing after a diagnostic goal:
 python3 ~/Downloads/super_session.py planner-check
 ```
 
-This sources the session environment and runs the read-only `control_chain_age_check.py` for 10 seconds. It checks the managed planning/localization prerequisites, then reports source age, receive gaps, nonincreasing/invalid stamps, and unexpected frames for raw odometry, planner commands, transformed debug targets, and FC local pose. Planner vectors are checked using full three-dimensional norms against 0.3 m/s and 0.5 m/s². Frames and active regular/backup flags must match the pinned integration; nonfinite position/derivative values are rejected. The freshness check requires at least 20 samples per stream, ages/receive gaps/latest receipt within 0.25 seconds, and no stamps more than 0.05 seconds in the future. It also requires fresh connected/disarmed FC state and no arming observed during sampling. Floating-point comparison tolerance is 1e-9.
+This sources the session environment and runs the read-only `control_chain_age_check.py` for 10 seconds. It checks the managed planning/localization prerequisites, then reports source age, receive gaps, nonincreasing/invalid stamps, and unexpected frames for raw odometry, planner commands, transformed debug targets, and FC local pose. Planner vectors are checked using full three-dimensional norms against 0.3 m/s and 0.5 m/s². Frames and active regular/backup flags must match the pinned integration; nonfinite position/derivative values are rejected. The freshness check requires at least 20 samples per stream, ages/receive gaps/latest receipt within 0.25 seconds, and no stamps more than 0.05 seconds in the future. Publisher endpoint identities are polled from the ROS graph every 0.2 seconds; exactly one cumulative identity must be discovered per sampled topic. The step report compares cached graph identities, not per-message DDS metadata. It also requires fresh connected/disarmed FC state and no arming observed during sampling. Floating-point comparison tolerance is 1e-9.
 
 Without the manager, the same check can be run directly:
 
@@ -168,6 +169,22 @@ python3 ~/Downloads/control_chain_age_check.py --check-motion \
 The advertised derivatives are planner-reference values, not measured aircraft speed/acceleration. `Acc` in the optimizer's printed cost report is a penalty value, not the reference acceleration maximum. The report also records the largest adjacent planner position step and its stamp interval. A stationary aircraft can trigger trajectory restarts/replanning; these steps need separate review before endpoint-hold/flight behavior is implemented.
 
 Exit status 2 means the sampled freshness, requested motion limits, or disarmed-state checks did not pass. The report is still printed; the manager may then show the helper's nonzero exit status. Inspect the values before changing a limit. This command publishes no planner goal, native setpoint, mode request, or arming request, and it changes no PX4 parameter. Passing sampled checks does not establish tracking accuracy, mechanical calibration, endpoint hold, envelope enforcement, or flight readiness.
+
+### Reserve optimizer acceleration margin
+
+The first low-speed aircraft sample reported 0.267870 m/s advertised speed and 0.503837 m/s² advertised acceleration. Freshness and disarmed-state checks passed; strict motion acceptance did not. The pinned optimizer uses penalty costs and a penalty-based success check, so SUCCESS is not a hard derivative bound.
+
+Generate the separate candidate and switch only ground planning:
+
+```bash
+python3 ~/Downloads/create_super_motion_profiles.py
+python3 ~/Downloads/super_session.py planner-stop
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-margin
+```
+
+After a nonempty map is received, send the diagnostic `goal` and rerun `planner-check`. The internal planner acceleration target becomes 0.45 m/s²; the checker remains at 0.5 m/s², with no extra tolerance. This headroom is a candidate correction requiring another physical sample, not a guarantee of a continuous bound. The final 2 m/s / 1 m/s² demonstration candidate remains unchanged.
+
+The first sample also recorded a 0.223607 m reference step across 0.030030 seconds. The pinned FSM restarts planning from the current robot state after trajectory time ends while the stationary aircraft remains away from its goal. The report now includes before/after reference positions, nearby raw odometry, and cached single-publisher identity comparison to help correlate the step; it does not automatically classify it as a restart or repair the reference. A flight bridge must handle discontinuities and endpoint hold before native execution.
 
 ## Live RViz2 view
 
@@ -275,8 +292,8 @@ python3 tests/test_super_session_ros.py
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Thirteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Fourteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
 
 Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.
 
-Four offline metric tests verify combined-axis limits, nonfinite/inactive/wrong-frame rejection, timestamp order and reference-step reporting, and missing/stale/future/gapped data. An isolated DDS fixture exercises live sampling with excessive speed/acceleration, armed state, stale data, inactive flags, and wrong pose frames.
+Four offline metric tests verify combined-axis limits, nonfinite/inactive/wrong-frame rejection, timestamp order and reference-step reporting, and missing/stale/future/gapped data. An isolated DDS fixture exercises live sampling with excessive speed/acceleration, armed state, stale data, inactive flags, and wrong pose frames and multiple discovered command publishers.

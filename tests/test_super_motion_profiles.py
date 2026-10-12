@@ -42,6 +42,7 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'no files written'):
                 m.create(source)
             self.assertFalse(source.with_name('mid360_low_speed_preview_ros2.yaml').exists())
+            self.assertFalse(source.with_name('mid360_low_speed_margin_ros2.yaml').exists())
             self.assertEqual(conflicting.read_text(), '# retain existing configuration')
             self.assertEqual(source.read_text(), SOURCE)
 

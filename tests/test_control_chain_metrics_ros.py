@@ -23,7 +23,8 @@ types={'/Odometry':Odometry,'/planning/pos_cmd':PositionCommand,
        '/super_debug/control_target':PoseStamped,'/mavros/local_position/pose':PoseStamped,
        '/mavros/state':State}
 pubs={name:probe.create_publisher(kind,name,10) for name,kind in types.items()}
-settings=dict(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='map')
+duplicate_pub=None
+settings=dict(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='map',duplicate=False)
 
 
 def publish():
@@ -38,6 +39,9 @@ def publish():
         elif name=='/mavros/local_position/pose':msg.header.frame_id=settings['local_frame']
         else:msg.connected=True;msg.armed=settings['armed']
         pubs[name].publish(msg)
+        if name=='/planning/pos_cmd' and settings['duplicate'] and duplicate_pub is not None:
+            msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns+1,1_000_000_000)
+            duplicate_pub.publish(msg)
 
 
 probe.create_timer(.01,publish)
@@ -45,16 +49,19 @@ executor=SingleThreadedExecutor(context=ctx);executor.add_node(probe)
 thread=threading.Thread(target=executor.spin,daemon=True);thread.start()
 try:
     cases=[({},0),({'speed':.35},2),({'acceleration':.55},2),({'armed':True},2),
-           ({'age':.4},2),({'flag':0},2),({'local_frame':'wrong'},2)]
+           ({'age':.4},2),({'flag':0},2),({'local_frame':'wrong'},2),({'duplicate':True},2)]
     for change,expected in cases:
-        settings.update(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='map')
+        settings.update(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='map',duplicate=False)
         settings.update(change)
+        if settings['duplicate']:
+            duplicate_pub=probe.create_publisher(PositionCommand,'/planning/pos_cmd',10)
         output=io.StringIO()
         with contextlib.redirect_stdout(output):result=m.monitor(1.5,check_motion=True)
         assert result==expected,(change,result,output.getvalue())
         assert 'sampled planner motion limits' in output.getvalue()
+        if settings['duplicate']:assert 'publisher identities discovered=2' in output.getvalue()
     print('PASS: live DDS sampling accepts bounded fresh references and rejects excessive speed/acceleration, '
-          'armed state, stale data, inactive trajectory flags and wrong pose frames.')
+          'armed state, stale data, inactive trajectory flags, wrong pose frames and multiple command sources.')
 finally:
     executor.shutdown();thread.join(timeout=2)
     probe.destroy_node();rclpy.shutdown(context=ctx)

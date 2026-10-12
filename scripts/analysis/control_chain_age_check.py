@@ -15,6 +15,7 @@ class Series:
         self.age_sum = self.gap_max = 0.
         self.age_min, self.age_max = math.inf, -math.inf
         self.last_receive = self.last_stamp = None
+        self.sources = set()
 
     def add(self, received, stamp, age):
         self.n += 1
@@ -32,6 +33,7 @@ class Series:
 
     def fresh(self, now, minimum=20, limit=.25):
         return (self.n >= minimum and not self.invalid and not self.reordered and not self.bad_frames
+                and len(self.sources) == 1
                 and self.last_receive is not None and now-self.last_receive <= limit
                 and -.05 <= self.age_min and self.age_max <= limit and self.gap_max <= limit)
 
@@ -46,7 +48,7 @@ class Series:
         print(f'  receive gap max={self.gap_max:.3f}s, '
               f'last receive age={now-self.last_receive:.3f}s; '
               f'invalid stamps={self.invalid}, nonincreasing stamps={self.reordered}, '
-              f'unexpected frames={self.bad_frames}')
+              f'unexpected frames={self.bad_frames}, publisher identities discovered={len(self.sources)}')
 
 
 class Motion:
@@ -54,8 +56,9 @@ class Motion:
         self.n = self.invalid = 0
         self.speed = self.acceleration = self.step = self.step_dt = 0.
         self.previous = None
+        self.step_detail = None
 
-    def add(self, stamp, frame, flag, position, velocity, acceleration):
+    def add(self, stamp, frame, flag, position, velocity, acceleration, source=None, robot=None):
         values = (*position, *velocity, *acceleration)
         if (stamp <= 0 or frame != 'world' or flag not in (1, 2)
                 or any(len(v) != 3 for v in (position, velocity, acceleration))
@@ -66,14 +69,18 @@ class Motion:
         self.speed = max(self.speed, math.hypot(*velocity))
         self.acceleration = max(self.acceleration, math.hypot(*acceleration))
         if self.previous is not None:
-            old_stamp, old_position = self.previous
+            old_stamp, old_position, old_velocity, old_flag, old_source = self.previous
             if stamp <= old_stamp:
                 self.invalid += 1
                 return
             step = math.dist(position, old_position)
             if step > self.step:
                 self.step, self.step_dt = step, (stamp-old_stamp)/1e9
-        self.previous = stamp, tuple(position)
+                self.step_detail = dict(before=(old_stamp,old_position,old_velocity,old_flag),
+                                        after=(stamp,tuple(position),tuple(velocity),flag),
+                                        same_source=(old_source == source if old_source is not None and source is not None else None),
+                                        robot=robot)
+        self.previous = stamp, tuple(position), tuple(velocity), flag, source
 
     def within(self, speed, acceleration):
         return (self.n >= 20 and not self.invalid
@@ -99,6 +106,8 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
               '/mavros/local_position/pose':'map'}
     motion = Motion()
     state = dict(msg=None, receipt=-math.inf, armed_seen=False)
+    observation = dict(raw=None)
+    current_sources = {topic:None for topic, _ in topics}
     qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
 
     def stamp(msg):
@@ -108,25 +117,43 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
         ns = stamp(msg)
         series = samples[topic]
         series.add(time.monotonic(), ns, (node.get_clock().now().nanoseconds-ns)/1e9)
+        source = current_sources[topic]
         if msg.header.frame_id != frames[topic] or (topic == '/Odometry' and msg.child_frame_id != 'body'):
             series.bad_frames += 1
-        if topic == '/planning/pos_cmd':
+        if topic == '/Odometry':
+            p = msg.pose.pose.position
+            observation['raw'] = (ns,(p.x,p.y,p.z))
+        elif topic == '/planning/pos_cmd':
             vectors = [tuple(getattr(getattr(msg, field), axis) for axis in ('x','y','z'))
                        for field in ('position','velocity','acceleration')]
-            motion.add(ns, msg.header.frame_id, msg.trajectory_flag, *vectors)
+            motion.add(ns, msg.header.frame_id, msg.trajectory_flag, *vectors,
+                       source=source, robot=observation['raw'])
 
     def state_received(msg):
         state.update(msg=msg, receipt=time.monotonic(),
                      armed_seen=state['armed_seen'] or msg.armed)
 
-    subscriptions = [node.create_subscription(kind, topic,
-                     lambda msg, name=topic: record(msg, name), qos) for topic, kind in topics]
+    def callback(topic):
+        def received(msg):
+            record(msg, topic)
+        return received
+
+    subscriptions = [node.create_subscription(kind, topic, callback(topic), qos)
+                     for topic, kind in topics]
     if check_motion:
         subscriptions.append(node.create_subscription(State, '/mavros/state', state_received, qos))
     try:
         print(f'Read-only control-chain sampling: {seconds:g}s. No goal or flight requests.', flush=True)
         end = time.monotonic()+seconds
+        graph_at = -math.inf
         while time.monotonic() < end:
+            if time.monotonic()-graph_at >= .2:
+                for topic, _ in topics:
+                    identities = {bytes(endpoint.endpoint_gid)
+                                  for endpoint in node.get_publishers_info_by_topic(topic)}
+                    samples[topic].sources.update(identities)
+                    current_sources[topic] = next(iter(identities)) if len(identities) == 1 else None
+                graph_at = time.monotonic()
             rclpy.spin_once(node, timeout_sec=min(.02, max(0., end-time.monotonic())))
         now = time.monotonic()
         for topic, _ in topics:
@@ -140,6 +167,18 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
               f'(requested <= {max_acceleration:g}); valid={motion.n}, invalid={motion.invalid}')
         print(f'Largest planner position step: {motion.step:.6f} m '
               f'across stamp gap {motion.step_dt:.6f}s; inspect stationary replans separately.')
+        if motion.step_detail:
+            detail = motion.step_detail
+            for label in ('before','after'):
+                ns,p,v,flag = detail[label]
+                print(f'  {label}: stamp_ns={ns}, xyz={[round(x,6) for x in p]}, '
+                      f'speed={math.hypot(*v):.6f} m/s, flag={flag}')
+            print(f'  same cached single publisher identity: {detail["same_source"]}')
+            if detail['robot'] is not None:
+                robot_stamp,robot_position = detail['robot']
+                age = (detail['after'][0]-robot_stamp)/1e9
+                print(f'  latest raw odometry at step: xyz={[round(x,6) for x in robot_position]}, '
+                      f'stamp gap={age:.6f}s')
         state_msg = state['msg']
         state_age = ((node.get_clock().now().nanoseconds-stamp(state_msg))/1e9
                      if state_msg is not None else math.inf)
