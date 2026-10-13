@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 12, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. Planner-driven trajectory flight and obstacle avoidance are the next integration stage.
+**Status — October 13, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. Planner-driven trajectory flight and obstacle avoidance are the next integration stage. Ground timing and low-speed advertised-motion checks have passed; the bounded preview rejected a displaced rest-start reference. The [reviewed exact-start correction](docs/EXACT_PLANNER_START.md) requires an onboard planner rebuild and physical resampling.
 
 ## Quick Start: restore the aircraft after reboot
 
@@ -360,6 +360,7 @@ python3 tests/test_repository_layout.py
 python3 tests/test_super_session.py
 python3 tests/test_super_motion_profiles.py
 python3 tests/test_bounded_reference.py
+python3 tests/test_super_exact_start.py
 python3 tests/test_control_chain_metrics.py
 python3 tests/test_control_chain_metrics_ros.py
 python3 tests/test_hover_reference.py
@@ -372,7 +373,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The deployment, reference, bag-export, motion-profile, session-lifecycle, control-chain metric and bounded-reference suites contain 44 unit tests. Bounded-reference, session-lifecycle and deployment checks passed for this update; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The deployment, reference, bag-export, motion-profile, session-lifecycle, control-chain metric bounded-reference and exact-start patch suites contain 47 unit tests. Exact-start patch/compiled-guard and deployment checks passed for this update; the bounded-reference ROS fixture also passed; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 

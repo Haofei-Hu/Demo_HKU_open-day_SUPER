@@ -1,0 +1,30 @@
+--- a/super_planner/src/super_core/super_planner.cpp
++++ b/super_planner/src/super_core/super_planner.cpp
+@@ -90,14 +90,22 @@
+         }
+ 
+ 
+-        /// 1) First, shift the start_point to free space.
+-        Vec3f local_star_pt;
+-        if (!map_ptr_->getNearestCellNot(GridType::OCCUPIED, robot_state_.p, local_star_pt, 3.0)) {
+-            ros_ptr_->error(
+-                    " -- [SUPER] in [PlanFromRest] Local start point is deeply occupied, which should not happened.");
++        // Exact rest start: retain odometry; never replace it with a voxel centre.
++        Vec3f local_star_pt = robot_state_.p;
++        if (!local_star_pt.allFinite()) {
++            ros_ptr_->error(" -- [SUPER] [PlanFromRest] Exact start rejected: nonfinite odometry.");
+             latest_replan.setRetCode(SUPER_RET_CODE::SUPER_NO_START_POINT);
+             return FAILED;
+         }
++        const auto start_grid_type = map_ptr_->getGridType(local_star_pt);
++        if (start_grid_type != GridType::KNOWN_FREE && start_grid_type != GridType::UNKNOWN) {
++            ros_ptr_->error(" -- [SUPER] [PlanFromRest] Exact start rejected: grid type {}; no relocation.",
++                            static_cast<int>(start_grid_type));
++            latest_replan.setRetCode(SUPER_RET_CODE::SUPER_NO_START_POINT);
++            return FAILED;
++        }
++        ros_ptr_->info(" -- [SUPER] [PlanFromRest] Exact odometry start retained; grid type {}.",
++                       static_cast<int>(start_grid_type));
+         latest_replan.setLocalStartP(local_star_pt);
+ 
+         /// 2) Generate Exp traj

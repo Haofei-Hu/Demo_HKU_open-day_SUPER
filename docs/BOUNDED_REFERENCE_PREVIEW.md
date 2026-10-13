@@ -23,7 +23,7 @@ Inspect readiness from the same command terminal:
 ```bash
 source /opt/ros/humble/setup.zsh
 timeout 8s ros2 topic echo /super_debug/bounded_reference_status std_msgs/msg/String --no-daemon \
-  --qos-reliability best_effort --qos-durability volatile --field data
+  --qos-reliability best_effort --qos-durability volatile --full-length --field data
 ```
 
 Wait for `WAIT_TRAJECTORY`, indicating the ground frame is locked. Confirm a nonempty occupancy map as in the session runbook, then send one diagnostic goal:
@@ -31,12 +31,14 @@ Wait for `WAIT_TRAJECTORY`, indicating the ground frame is locked. Confirm a non
 ```bash
 python3 ~/Downloads/super_session.py goal
 timeout 8s ros2 topic echo /super_debug/bounded_reference_status std_msgs/msg/String --no-daemon \
-  --qos-reliability best_effort --qos-durability volatile --field data
+  --qos-reliability best_effort --qos-durability volatile --full-length --field data
 ```
 
 Expected progression is `WAIT_TRAJECTORY` → `TRACK` → `END_HOLD`. A fault prints its reason and suppresses output. Inspect that reason rather than widening limits, rewriting alignment, or repeatedly sending goals. To start a different goal, stop/restart the ground planning and preview processes after reviewing current state. `planner-stop` stops reference preview first, then coordinate preview and planner, while preserving localization and vision. Hover startup excludes all three planning windows.
 
 If a ROS CLI command fails with `xmlrpc.client.Fault` containing `!rclpy.ok()`, the traceback is from the CLI daemon's ROS context. The commands above bypass that daemon; they do not restart localization or establish that the preview process is healthy. Inspect `reference_preview.log` in the current session log directory alongside the status topic. A normal `timeout` expiry after the requested observation interval is separate from a node traceback.
+
+The first aircraft trial reached `WAIT_TRAJECTORY` and rejected an initial reference at forward/left/FC-height `[-0.0552, -0.0466, 0.1089]`. See the [exact rest-start correction](EXACT_PLANNER_START.md) for the reviewed planner change and required rebuild. The forward bound remains zero; the preview does not translate or clip the trajectory to make this test pass. New fault reports include current measured coordinates in the locked frame to distinguish reference displacement from position drift.
 
 ## Fixed coordinates and envelope
 

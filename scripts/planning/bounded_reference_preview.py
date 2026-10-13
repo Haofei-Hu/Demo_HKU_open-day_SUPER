@@ -163,6 +163,7 @@ def node_type():
         def __init__(self):
             super().__init__()
             self.reference = None
+            self.latest_aligned_pose = None
             self.pending = deque(maxlen=64)
             self.poly_pending = deque(maxlen=24)
             self.feedback = {}
@@ -225,6 +226,8 @@ def node_type():
                 self.poly_pending.append(msg)
 
         def aligned_received(self,msg):
+            if msg.header.frame_id == 'px4_enu_preview' and self.fresh(self.stamp(msg)):
+                self.latest_aligned_pose = msg.pose.pose
             super().aligned_received(msg)
             if (self.reference is None and self.mapping.pairs >= 10 and self.ready()
                     and self.fresh(self.stamp(msg)) and msg.header.frame_id == 'px4_enu_preview'):
@@ -303,7 +306,15 @@ def node_type():
                     _,p,q = self.reference.last
                     self.publish_pose(self.get_clock().now().to_msg(),p,q)
             except (ValueError,OverflowError) as exc:
-                self.fail(exc)
+                context = ''
+                if self.latest_aligned_pose is not None:
+                    try:
+                        measured,_ = arrays(self.latest_aligned_pose)
+                        relative = self.reference.frame.coordinates(measured).round(4).tolist()
+                        context = '; measured forward/left/FC-height='+str(relative)
+                    except ValueError:
+                        pass
+                self.fail(str(exc)+context)
 
         def report(self):
             if self.fault_reason:
