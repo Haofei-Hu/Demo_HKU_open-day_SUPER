@@ -314,7 +314,7 @@ python3 tests/test_super_session_ros.py
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Seventeen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, bounded-preview launch/hover exclusion/local shutdown, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Nineteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, bounded-preview launch/hover exclusion/local shutdown, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
 
 Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.
 
@@ -339,3 +339,18 @@ python3 ~/Downloads/super_session.py reference-preview
 The manager creates `mid360_low_speed_3d_goal_ros2.yaml` separately from the reserved profile. Only `fsm.click_height` changes to −6, disabling the pinned planner's fixed-height override; this is a sentinel, not a six-metre goal. Motion limits, map settings and original profiles remain unchanged. The goal helper sends the current raw Z and prints requested XYZ. Wait for `WAIT_TRAJECTORY` before one goal, then compare the accepted `Get goal at` position and bounded status. Map goal/start relocation can still displace the result, so the existing per-axis offset and continuity gates remain active.
 
 A recorded aircraft sample had raw odometry Z 1.494 m while the accepted goal Z was 0.150 m under `click_height=-0.05`. Those values are planner coordinates, not floor height. A subsequent same-height test accepted goal Z 1.450 m and reached `END_HOLD`; its initial offsets were within 10 cm per axis. Map snapping remains active, so each new start and goal still needs inspection. Fault status now includes the first fault's phase and accepted command count.
+
+### Battery changes and fresh-session recovery
+
+When a battery change powers off the onboard computer, treat the next boot as a new localization session:
+
+```bash
+python3 ~/Downloads/super_session.py start
+python3 ~/Downloads/super_session.py align
+# Use the freshly measured quaternion, not a prior battery/session value:
+python3 ~/Downloads/super_session.py vision QX QY QZ QW
+```
+
+Keep the aircraft stationary on its takeoff floor through initialization and pairing. If only the FC/sensors reboot while the computer remains running, use grounded `stop`, `start`, `align` before fresh vision initialization. Stop/start clears managed planning/reference state; configuration files persist. Recheck input age, estimator validity and external/FC pose agreement. Each flight still requires explicit initiation and current RC/flight readiness. Cold-start recovery does not establish that localization will remain stable for the complete demonstration.
+
+A clean-session sample on October 13 restored full pose rotation agreement from approximately 35° to 1.75° and odometry maximum age to 27 ms. The underlying cause and complete-run stability remain under investigation.

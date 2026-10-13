@@ -1,6 +1,6 @@
 # Next development stage
 
-The automatic takeoff, fixed-position hover, and landing milestone is complete. Development now moves to repeatability, localization quality, failure response, and planner-driven flight. Current blocker: a stationary external/FC attitude disagreement of approximately 35°. Resolve the initialization/frame consistency issue before native trajectory handover; see the [October 13 evidence](PROGRESS_2026-10-13.md#current-attitude-consistency-blocker).
+The automatic takeoff, fixed-position hover, and landing milestone is complete. Development now moves to repeatability, localization quality, failure response, and planner-driven flight. A stationary external/FC attitude disagreement of approximately 35° recovered to 1.75° after a clean session and fresh survey. Investigate the cause and validate stability over a complete demonstration before native trajectory handover; see the [October 13 evidence](PROGRESS_2026-10-13.md#current-attitude-consistency-blocker).
 
 ## 1. Quantify and repeat the successful flight
 
@@ -68,3 +68,5 @@ A separate debug-only bounded reference preview now implements fixed takeoff-flo
 The first bounded-preview ground trial rejected an initial reference at forward −0.0552 m while lateral and height values were valid. The ground envelope now permits 10 cm behind the captured takeoff point, retaining original SUPER rest-start selection. Restore the optional exact-start patch if applied, then resample for TRACK → END_HOLD with the updated preview. Native flight output remains separate.
 
 The current bounded-preview workflow uses `low-speed-3d`: reserved motion limits with fixed goal-Z override disabled. Inspect printed requested XYZ and accepted map-snapped goals. This addresses the stale absolute-height diagnostic configuration; rest-start relocation, physical endpoint validation and correct flight-height handover remain separate checks.
+
+The next disarmed target test uses `goal --goal-height 1.0` after a fresh low-speed-3d planner and bounded preview. It requests fixed aligned FC XY and a 0.915 m lift from the measured 0.085 m resting height, then inverts the current world/mount/terminal lever conversion. Inspect map-snapped goal displacement and END_HOLD floor height before treating the target as flight-ready.

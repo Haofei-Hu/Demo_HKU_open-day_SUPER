@@ -178,6 +178,26 @@ class Tests(unittest.TestCase):
             self.assertEqual(s.started,[])
         self.assertEqual(FakeGate.writes,[])
 
+    def test_height_goal_requires_3d_preview_and_forwards_ground_only_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            s=self.manager(['goal','--goal-height','1','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            helper=Path(directory)/'send_ground_height_goal.py';helper.write_text('# fixture')
+            with patch.object(m,'GroundGate',FakeGate),patch.object(m,'run') as run:
+                with self.assertRaisesRegex(RuntimeError,'Height goal requires'):s.mutate('goal')
+                s.config.update(planner_profile='low-speed-3d',planner_config_path='/tmp/3d.yaml')
+                with self.assertRaisesRegex(RuntimeError,'Height goal requires'):s.mutate('goal')
+                s.window_state['reference_preview']='0';s.mutate('goal')
+                self.assertEqual(run.call_args.args[0],['python3','-u',helper,'--height','1.0',
+                    '--alignment-path',Path(directory)/'aligned_pose_preview.py','--planner-config','/tmp/3d.yaml'])
+            self.assertEqual(s.started,[]);self.assertEqual(FakeGate.writes,[])
+
+    def test_height_goal_arguments_are_bounded_and_goal_only(self):
+        for argv in (['goal','--goal-height','nan'],['goal','--goal-height','0.085'],
+                     ['goal','--goal-height','1.01'],['hover','--goal-height','1']):
+            with self.assertRaises(SystemExit):m.arguments(argv)
+        self.assertEqual(m.arguments(['goal','--goal-height','1']).goal_height,1.)
+
     def test_reference_preview_is_ground_only_and_stops_before_planner(self):
         import types
         messages=types.ModuleType('mars_quadrotor_msgs.msg')

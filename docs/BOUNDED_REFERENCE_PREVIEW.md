@@ -70,3 +70,19 @@ python3 tests/test_super_session.py
 # In an isolated Humble environment with the pinned MAVROS/SUPER messages:
 python3 tests/test_bounded_reference_ros.py
 ```
+
+## Vertical 1 m target in a ground preview
+
+Install the current manager and `send_ground_height_goal.py`. After pose agreement is checked, start a fresh `low-speed-3d` planner and `reference-preview` as above. Wait for WAIT_TRAJECTORY, then run:
+
+```bash
+python3 ~/Downloads/super_session.py goal --goal-height 1.0
+timeout 12s ros2 topic echo /super_debug/bounded_reference_status std_msgs/msg/String --no-daemon \
+  --qos-reliability best_effort --qos-durability volatile --full-length --field data
+```
+
+This is a disarmed target test. At the current takeoff floor, FC centre rests 0.085 m above the surface, so a 1 m FC-height goal requires 0.915 m of lift. The helper retains current aligned XY, recovers the session origin from identical-stamp raw/aligned poses and inverts the position conversion using the planner's flat terminal yaw. This accounts for world rotation, mounting and the attitude-dependent lever arm; raw planner Z is not assumed to be floor height. The printed aligned target is the requested point before SUPER snaps its goal to a nonoccupied cell.
+
+The helper waits for ten fresh matched pairs, fresh grounded/disarmed FC state and an unused WAIT_TRAJECTORY preview, and rejects changed geometry/config. It requires the low-speed-3d profile and publishes exactly one `/goal_pose`; it has no native MAVROS publisher or flight service. Do not send another height goal into END_HOLD: restart only the planning/reference windows first. Compare the accepted goal, endpoint forward/left coordinates and floor height with the requested vertical target. Each requested endpoint deviation should remain within 0.10 m per axis; larger relocation requires diagnosis, not automatic shifting or clipping.
+
+Three geometry unit checks cover rotated-frame/lever inversion, invalid heights/poses and unready/nonrigid mappings. The isolated DDS fixture checks one correctly transformed vertical goal, armed/completed-preview rejection and absence of native output. Actual flight handover, clearance and full-flight tracking remain separate validation.

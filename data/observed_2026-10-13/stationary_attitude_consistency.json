@@ -44,5 +44,69 @@
   "body_age_mean_s": 0.01,
   "body_age_max_s": 0.02,
   "candidate_applied": false,
-  "interpretation": "Current stationary body/FC rotation differs from the active survey. Root cause is not isolated; repeated clean initialization and a new survey are pending. Do not rebase the active relay or treat position agreement as attitude agreement."
+  "interpretation": "Current stationary body/FC rotation differs from the active survey. Root cause is not isolated; repeated clean initialization and a new survey are pending. Do not rebase the active relay or treat position agreement as attitude agreement.",
+  "clean_session_followup": {
+    "log_session": "20261013_202943_749137",
+    "candidate_xyzw": [
+      -0.016131,
+      0.009132,
+      0.953024,
+      0.302328
+    ],
+    "candidate_rpy_deg": [
+      0.439,
+      2.078,
+      144.807
+    ],
+    "matched_body_imu_samples": 703,
+    "rotation_spread_mean_max_deg": [
+      0.288,
+      0.825
+    ],
+    "pairing_gap_max_s": 0.033,
+    "body_age_mean_max_s": [
+      0.015,
+      0.02
+    ],
+    "initial_odometry_age_min_mean_max_s": [
+      0.01,
+      0.022,
+      0.339
+    ],
+    "later_odometry_age_min_mean_max_s": [
+      0.01,
+      0.014,
+      0.027
+    ],
+    "later_external_position_m": [
+      0.008372601511373867,
+      -0.007632044420003037,
+      0.02214644115629083
+    ],
+    "later_fc_position_m": [
+      0.0032144340220838785,
+      -0.013373548164963722,
+      0.019836824387311935
+    ],
+    "later_external_q_xyzw": [
+      -0.023158270378251897,
+      0.007031176271368445,
+      0.7700422793004787,
+      0.6375336423774456
+    ],
+    "later_fc_q_xyzw": [
+      0.010839716029108286,
+      0.0019287902652786704,
+      -0.7697991383335093,
+      -0.6381912732695583
+    ],
+    "later_sequential_pose_rotation_difference_deg": 1.7473761665183587,
+    "later_sequential_position_axis_delta_cm": [
+      0.5158167489289989,
+      0.5741503744960685,
+      0.2309616768978895
+    ],
+    "local_position_velocity_flags_valid": true,
+    "interpretation": "Pose agreement recovered in this sample after grounded stop/start, fresh survey and vision initialization. Root cause and stability across a complete demonstration remain open; no long-duration or flight tracking guarantee is established."
+  }
 }

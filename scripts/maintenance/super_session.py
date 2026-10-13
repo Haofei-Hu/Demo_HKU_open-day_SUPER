@@ -400,15 +400,24 @@ class Session:
                 elif action in ('goal', 'planner-check'):
                     if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
                         raise RuntimeError('Start the ground planner and command preview first')
-                    helper = self.scripts/('send_control_preview_goal.py' if action == 'goal' else 'control_chain_age_check.py')
+                    height_goal = action == 'goal' and self.args.goal_height is not None
+                    if height_goal and (self.config.get('planner_profile') != 'low-speed-3d'
+                                        or windows.get('reference_preview') != '0'):
+                        raise RuntimeError('Height goal requires a managed low-speed-3d planner and fresh reference preview')
+                    helper = self.scripts/('send_ground_height_goal.py' if height_goal else
+                        'send_control_preview_goal.py' if action == 'goal' else 'control_chain_age_check.py')
                     if not helper.is_file():
                         raise RuntimeError('Missing ground helper: '+str(helper))
                     command = ['python3', '-u', helper]
                     if action == 'planner-check':
                         command += ['--check-motion', '--max-speed', '0.3', '--max-acceleration', '0.5']
+                    if height_goal:
+                        command += ['--height',str(self.args.goal_height),
+                                    '--alignment-path',self.scripts/'aligned_pose_preview.py',
+                                    '--planner-config',self.config['planner_config_path']]
                     run(command)
                     if action == 'goal':
-                        print('Ground goal sent along planner X. Inspect accepted goal and preview; no flight setpoints.')
+                        print('Ground diagnostic goal sent. Inspect accepted goal and preview; no flight setpoints.')
                 else:
                     if any(name in windows for name in ('planner', 'cmd_preview')):
                         raise RuntimeError('Planning windows already exist; no duplicate/restart')
@@ -421,6 +430,9 @@ class Session:
                     from mars_quadrotor_msgs.msg import PositionCommand
                     PositionCommand()  # Verify generated message support before launching.
                     config = self.planner_profile()
+                    self.config['planner_profile']=self.args.planner_profile
+                    self.config['planner_config_path']=str(config)
+                    self.save()
                     gate.check()
                     print('Ground planner profile:', config)
                     self.launch('planner', shell_command(['ros2', 'run', 'super_planner', 'fsm_node',
@@ -499,6 +511,7 @@ def arguments(argv=None):
     parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d'), default='diagnostic',
                         help='ground profile; low-speed 0.3/0.5, margin 0.3/0.45, reserved/3d 0.25/0.45; 3d preserves message Z before map relocation')
     parser.add_argument('--hover-height', type=float, default=1.)
+    parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
@@ -516,6 +529,9 @@ def arguments(argv=None):
         parser.error('--execute is only valid for hover')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':
         parser.error('--planner-profile is only valid for planner')
+    if args.goal_height is not None and (args.action!='goal' or not math.isfinite(args.goal_height)
+                                       or not .085<args.goal_height<=1.):
+        parser.error('--goal-height is only for goal, with FC floor height in (0.085, 1] m')
     if not (.085 < args.hover_height <= 1. and math.isfinite(args.hover_height)
             and 0 <= args.hold_seconds <= 6 and math.isfinite(args.hold_seconds)):
         parser.error('Hover height must be (.085, 1] m and hold [0, 6] seconds')

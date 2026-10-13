@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. The latest disarmed bounded-reference test reached and held `END_HOLD`, with initial forward/left/up offsets `[0.0013, 0.0022, −0.0537] m`, all within the 10 cm per-axis requirement. Subsequent stationary restart references were suppressed. See the [ground result](data/observed_2026-10-13/bounded_reference_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. A later stationary check found approximately 35° external/FC attitude disagreement; initialization and frame diagnosis are the current blocker.
+**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. The latest disarmed bounded-reference test reached and held `END_HOLD`, with initial forward/left/up offsets `[0.0013, 0.0022, −0.0537] m`, all within the 10 cm per-axis requirement. Subsequent stationary restart references were suppressed. See the [ground result](data/observed_2026-10-13/bounded_reference_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. A later stationary check found approximately 35° external/FC attitude disagreement. A clean session and fresh survey restored agreement to 1.75° in a subsequent sample; the cause and stability over a complete demonstration remain under investigation.
 
 ## Quick Start: restore the aircraft after reboot
 
@@ -362,6 +362,7 @@ python3 tests/test_repository_layout.py
 python3 tests/test_super_session.py
 python3 tests/test_super_motion_profiles.py
 python3 tests/test_super_3d_goal_profile.py
+python3 tests/test_ground_height_goal.py
 python3 tests/test_bounded_reference.py
 python3 tests/test_super_exact_start.py
 python3 tests/test_control_chain_metrics.py
@@ -376,7 +377,7 @@ python3 tests/test_first_hover_control.py
 FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_control.py
 ```
 
-The deployment, reference, bag-export, motion-profile, session-lifecycle, control-chain metric, bounded-reference and exact-start patch suites contain 53 unit tests. Separate 3D-goal generation, session-profile checks and bounded-reference checks passed for this update; the bounded-reference ROS fixture also passed; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
+The deployment, reference, bag-export, motion-profile, height-goal, session-lifecycle, control-chain metric, bounded-reference and exact-start patch suites contain 58 unit tests. Separate 3D-goal generation, session-profile checks and bounded-reference checks passed for this update; the bounded-reference ROS fixture also passed; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
 
