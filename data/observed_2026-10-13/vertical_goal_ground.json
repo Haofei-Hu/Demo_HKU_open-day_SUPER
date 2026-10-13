@@ -1,0 +1,178 @@
+{
+  "date": "2026-10-13",
+  "stage": "disarmed vertical reference preview",
+  "log_session": "20261013_213735_594847",
+  "planner_profile": "low-speed-3d",
+  "result": "TRACK to END_HOLD observed",
+  "native_flight_output": false,
+  "aircraft_condition": "stationary on actual takeoff floor; disarmed",
+  "requested_fc_floor_height_m": 1.0,
+  "resting_fc_floor_height_m": 0.085,
+  "requested_lift_m": 0.915,
+  "requested_aligned_fc_xyz_m": [
+    0.001345,
+    -0.020816,
+    0.941008
+  ],
+  "requested_planner_xyz_m": [
+    -0.006628,
+    -0.027204,
+    0.930693
+  ],
+  "accepted_map_snapped_planner_xyz_m": null,
+  "accepted_map_snapped_goal_evidence": "Planner goal log was not supplied for this trial.",
+  "initial_forward_left_up_offset_m": [
+    0.0346,
+    0.0038,
+    0.0349
+  ],
+  "per_axis_offset_limit_m": 0.1,
+  "accepted_reference_samples": 684,
+  "held_forward_left_fc_floor_height_m": [
+    -0.0226,
+    -0.0447,
+    1.0395
+  ],
+  "held_offset_from_nominal_captured_frame_vertical_target_m": [
+    -0.0226,
+    -0.0447,
+    0.0395
+  ],
+  "exact_endpoint_error_from_requested_aligned_xyz_m": null,
+  "endpoint_comparison_scope": "Held coordinates are in the captured takeoff frame. Exact displacement from the helper current-XY target additionally requires captured origin/yaw; nominal locked-frame target is [0, 0, 1].",
+  "displayed_track_reports": [
+    {
+      "forward_left_fc_height_m": [
+        0.0205,
+        0.0389,
+        0.3687
+      ],
+      "accepted": 262
+    },
+    {
+      "forward_left_fc_height_m": [
+        -0.0224,
+        0.0248,
+        0.6453
+      ],
+      "accepted": 362
+    },
+    {
+      "forward_left_fc_height_m": [
+        -0.033,
+        0.0119,
+        0.8946
+      ],
+      "accepted": 462
+    },
+    {
+      "forward_left_fc_height_m": [
+        -0.0318,
+        0.0065,
+        1.0186
+      ],
+      "accepted": 562
+    },
+    {
+      "forward_left_fc_height_m": [
+        -0.0295,
+        -0.0461,
+        1.0397
+      ],
+      "accepted": 662
+    }
+  ],
+  "displayed_end_hold_reports": 6,
+  "blocked_subsequent_reference_samples": [
+    77,
+    177,
+    277,
+    377,
+    477,
+    577
+  ],
+  "timestamped_hold_span_s": null,
+  "fresh_survey": {
+    "candidate_xyzw": [
+      -0.014706,
+      0.005904,
+      0.955105,
+      0.295842
+    ],
+    "candidate_rpy_deg": [
+      0.148,
+      1.81,
+      145.582
+    ],
+    "received_body_imu_samples": [
+      750,
+      606
+    ],
+    "matched_samples": 607,
+    "rotation_spread_mean_max_deg": [
+      0.197,
+      0.741
+    ],
+    "pairing_gap_max_s": 0.045,
+    "odometry_samples": 729,
+    "odometry_age_min_mean_max_s": [
+      0.005,
+      0.007,
+      0.011
+    ],
+    "body_age_mean_max_s": [
+      0.009,
+      0.022
+    ]
+  },
+  "stationary_position_readbacks": {
+    "external_xyz_m": [
+      [
+        -0.004057434454548023,
+        -0.0009222118147891728,
+        0.00998573215751225
+      ],
+      [
+        -0.003640806708589281,
+        -0.006828412757537317,
+        0.003953809861628674
+      ]
+    ],
+    "fc_xyz_m": [
+      [
+        -0.006909655407071114,
+        0.0009795792866498232,
+        0.01355418749153614
+      ],
+      [
+        -0.0051114521920681,
+        -0.0051011741161346436,
+        0.013655238784849644
+      ]
+    ],
+    "external_axis_change_m": [
+      0.00041662774595874197,
+      -0.005906200942748144,
+      -0.006031922295883577
+    ],
+    "fc_axis_change_m": [
+      0.0017982032150030136,
+      -0.006080753402784467,
+      0.00010105129331350327
+    ],
+    "timestamps_captured": false,
+    "scope": "Two sequential position readbacks before the vertical goal, not continuous or long-duration tracking evidence."
+  },
+  "preceding_session_position_inconsistency": {
+    "log_session": "20261013_202943_749137",
+    "earlier_aligned_z_m": 0.02214644115629083,
+    "later_aligned_z_inferred_from_height_goal_m": 0.713803,
+    "inference": "Requested aligned target Z 1.628803 minus lift 0.915.",
+    "aircraft_reported_stationary": true,
+    "accepted_reference_samples": 0,
+    "bounded_status": "WAIT_TRAJECTORY",
+    "recovery": "Grounded managed ROS stop/start and fresh survey; computer not rebooted.",
+    "root_cause": "Not isolated; no planner failure logs supplied, origin change and localization drift not distinguished."
+  },
+  "scope": "Bounded reference generation, initial handover and endpoint hold in a physical disarmed ground test. Blocked counts are reference samples. Actual climb, airborne tracking, obstacle clearance and native trajectory execution are not established."
+}

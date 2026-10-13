@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. The latest disarmed bounded-reference test reached and held `END_HOLD`, with initial forward/left/up offsets `[0.0013, 0.0022, −0.0537] m`, all within the 10 cm per-axis requirement. Subsequent stationary restart references were suppressed. See the [ground result](data/observed_2026-10-13/bounded_reference_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. A later stationary check found approximately 35° external/FC attitude disagreement. A clean session and fresh survey restored agreement to 1.75° in a subsequent sample; the cause and stability over a complete demonstration remain under investigation.
+**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. A disarmed 1 m vertical reference test progressed through `TRACK` to `END_HOLD`, accepting 684 samples and holding forward/left/FC-floor-height `[-0.0226, -0.0447, 1.0395] m` while suppressing subsequent restart references. These locked-frame endpoint offsets are within 10 cm per axis. See the [vertical reference result](data/observed_2026-10-13/vertical_goal_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. Stationary attitude and position inconsistencies recovered in samples after clean ROS-session initialization; their causes and stability over a complete demonstration remain under investigation.
 
 ## Quick Start: restore the aircraft after reboot
 
@@ -21,6 +21,8 @@ python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
 python3 ~/Downloads/super_session.py reference-preview
 # After a nonempty occupancy map and preview readiness:
 python3 ~/Downloads/super_session.py goal
+# Alternative: a 1 m vertical reference, on the actual floor and before any goal:
+# python3 ~/Downloads/super_session.py goal --goal-height 1.0
 # Stop planning only; localization and vision remain running:
 python3 ~/Downloads/super_session.py planner-stop
 ```
