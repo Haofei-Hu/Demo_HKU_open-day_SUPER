@@ -42,9 +42,9 @@ The first aircraft trial reached `WAIT_TRAJECTORY` and rejected an initial refer
 
 ## Fixed coordinates and envelope
 
-The frame uses the matched aligned FC-centre position and yaw at startup. Yaw defines forward; positive lateral displacement is left. Floor height is the FC-centre Z displacement from that position plus the measured 0.085 m resting FC height. The ground diagnostic envelope is forward −0.10–5 m, lateral ±2 m, and FC-centre floor height 0–2 m. The frame remains fixed for the process.
+The frame uses the matched aligned FC-centre position and yaw at startup. Yaw defines forward; positive lateral displacement is left. Floor height is the FC-centre Z displacement from that position plus the measured 0.085 m resting FC height. The ground diagnostic envelope is forward −0.10–5 m, lateral ±2 m, and FC-centre floor height −0.10–2 m. The frame remains fixed for the process.
 
-These are preview-frame point bounds. They do not establish rotor clearance, obstacle-free execution or agreement with an independently surveyed physical axis. A flight bridge still needs explicit validation of the preview-to-EKF frame relationship and vehicle envelope. SUPER's grid/free-space relocation can also move the initial reference or accepted goal. An initial reference outside the envelope or more than 0.10 m from the captured pose is rejected; it is not silently shifted or clipped.
+These are preview-frame point bounds. They do not establish rotor clearance, obstacle-free execution or agreement with an independently surveyed physical axis. A flight bridge still needs explicit validation of the preview-to-EKF frame relationship and vehicle envelope. SUPER's grid/free-space relocation can also move the initial reference or accepted goal. An initial reference outside the envelope or more than 0.10 m from the current measured position on any captured forward/left/up axis is rejected. Each axis is checked separately, not by total three-dimensional distance. The current measured position comes from fresh aligned feedback; the captured yaw and floor origin remain fixed. The status reports the accepted initial axis offsets. References are not shifted or clipped. The negative floor margin is for this disarmed diagnostic only; a flight interface must use the actual flight height and validate clearance. This startup guard does not measure full-flight tracking error or promise 10 cm flight accuracy.
 
 ## Endpoint evidence and continuity
 
@@ -60,7 +60,7 @@ This stage does not smooth or reconcile a moving discontinuity, implement autono
 
 ## Verification
 
-Eight offline checks exercise fixed yaw/floor bounds, pinned polynomial evaluation, malformed trajectories, completion evidence, endpoint hold across restarts, moving jumps, timestamp order, advertised caps, and changed goals. An isolated ROS Humble fixture exercises committed-trajectory matching, held output, restart suppression, stale estimator/localization rejection and alignment/source/arming latches. Publisher inspection verifies that the preview owns no MAVROS or goal output. Lifecycle and real tmux fixtures cover guarded launch, hover exclusion and stopping the preview before planner shutdown. These software checks are separate from pending physical validation.
+Nine offline checks exercise fixed yaw/floor bounds, pinned polynomial evaluation, malformed trajectories, completion evidence, endpoint hold across restarts, moving jumps, timestamp order, advertised caps, and changed goals. An isolated ROS Humble fixture exercises committed-trajectory matching, held output, restart suppression, stale estimator/localization rejection and alignment/source/arming latches. Publisher inspection verifies that the preview owns no MAVROS or goal output. Lifecycle and real tmux fixtures cover guarded launch, hover exclusion and stopping the preview before planner shutdown. These software checks are separate from pending physical validation.
 
 ```bash
 python3 tests/test_bounded_reference.py

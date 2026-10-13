@@ -53,6 +53,7 @@ Initialization must remain a grounded, disarmed operation. Process restoration m
 | Formal venue | Survey the 3×6×3 m space, takeoff position, vehicle envelope, and clearance margins |
 | Planner-to-flight bridge | Consistent coordinates/lever arm, valid targets, endpoint hold, planner-stop behavior, limits, takeover, and landing |
 | Target speed | Final candidate: 2 m/s with 1 m/s² translational acceleration; begin with 0.3 m/s and 0.5 m/s² previews, then staged flight validation |
+| Directional deviation | Require absolute forward/left/up error ≤0.10 m on each axis; validate reference handover and time-aligned full-flight tracking separately, including the response to exceeding the limit |
 
 The 225 mm wheelbase and 5-inch propellers do not by themselves define the collision envelope. The recorded SUPER YAML includes a 5 m/s planner limit and is a historical configuration, not the final demonstration profile.
 

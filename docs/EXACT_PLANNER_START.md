@@ -46,7 +46,7 @@ python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserve
 python3 ~/Downloads/super_session.py reference-preview
 ```
 
-Follow the [bounded preview workflow](BOUNDED_REFERENCE_PREVIEW.md): wait for `WAIT_TRAJECTORY`, confirm a nonempty occupancy map, send one goal and inspect `TRACK` → `END_HOLD`. The preview allows forward −0.10–5 m, lateral ±2 m and FC-centre floor height 0–2 m. The initial reference must also remain within 0.10 m in three dimensions of the captured pose. References are neither translated nor clipped. No native flight setpoints are generated.
+Follow the [bounded preview workflow](BOUNDED_REFERENCE_PREVIEW.md): wait for `WAIT_TRAJECTORY`, confirm a nonempty occupancy map, send one goal and inspect `TRACK` → `END_HOLD`. The preview allows forward −0.10–5 m, lateral ±2 m and FC-centre floor height −0.10–2 m. The initial reference must also remain within 0.10 m of the current measured pose on each forward/left/up axis separately. The negative floor margin is a disarmed-preview allowance and does not define a flight target. References are neither translated nor clipped. No native flight setpoints are generated.
 
 ## Archived exact-start experiment
 

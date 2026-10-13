@@ -37,7 +37,7 @@ class TakeoffFrame:
 
     def check(self, position):
         p = self.coordinates(position)
-        if not np.all(np.isfinite(p)) or not (-.10 <= p[0] <= 5 and abs(p[1]) <= 2 and 0 <= p[2] <= 2):
+        if not np.all(np.isfinite(p)) or not (-.10 <= p[0] <= 5 and abs(p[1]) <= 2 and -.10 <= p[2] <= 2):
             raise ValueError('Outside forward/left/floor-height envelope: '+str(p.round(4).tolist()))
         return p
 
@@ -94,6 +94,7 @@ class Reference:
         self.reason = ''
         self.last = None
         self.endpoint = None
+        self.initial_offset = None
         self.accepted = self.restarts_blocked = 0
 
     def fault(self, reason):
@@ -105,7 +106,7 @@ class Reference:
             raise ValueError('Committed endpoint changed; explicit new session required')
         self.plans.append(plan)
 
-    def command(self, stamp, raw, velocity, acceleration, position, quaternion):
+    def command(self, stamp, raw, velocity, acceleration, position, quaternion, measured_position=None):
         if self.phase == 'FAULT':
             return False
         vectors = tuple(np.asarray(v,dtype=float) for v in (raw,velocity,acceleration,position))
@@ -130,8 +131,13 @@ class Reference:
             raise ValueError('Command belongs to a different goal')
         self.frame.check(position)
         if self.last is None:
-            if norm(position-self.frame.origin) > .10:
-                raise ValueError('Initial reference too far from takeoff pose; start preview before goal')
+            measured = self.frame.origin if measured_position is None else np.asarray(measured_position,dtype=float)
+            if measured.shape != (3,) or not np.all(np.isfinite(measured)):
+                raise ValueError('Invalid measured start position')
+            offset = self.frame.axes @ (position-measured)
+            if np.any(np.abs(offset) > .10):
+                raise ValueError('Initial reference offset exceeds 0.10 m per axis: '+str(offset.round(4).tolist()))
+            self.initial_offset = offset.copy()
         else:
             dt = (stamp-self.last[0])/1e9
             if dt > .25 or norm(position-self.last[1]) > .015+.3*dt:
@@ -186,7 +192,8 @@ def node_type():
                                                        self.polynomial_received,qos_profile_sensor_data))
             self.output_timer = self.create_timer(.02,self.tick)
             self.get_logger().info('GROUND REFERENCE ONLY: forward -0.10..5 m, left +/-2 m, '
-                                   'FC floor height 0..2 m; first-goal endpoint hold. No native output.')
+                                   'FC floor height -0.10..2 m; initial offset <=0.10 m per axis; '
+                                   'first-goal endpoint hold. No native output.')
 
         def feedback_callback(self,name):
             def received(msg):
@@ -294,7 +301,10 @@ def node_type():
                     p,q = self.mapping.command(msg)
                     vectors = [np.array([getattr(getattr(msg,f),axis) for axis in ('x','y','z')])
                                for f in ('position','velocity','acceleration')]
-                    accepted = self.reference.command(ns,*vectors,p,q)
+                    if self.latest_aligned_pose is None:
+                        raise ValueError('Missing measured start pose')
+                    measured,_ = arrays(self.latest_aligned_pose)
+                    accepted = self.reference.command(ns,*vectors,p,q,measured_position=measured)
                     if accepted is None:
                         break
                     self.pending.popleft()
@@ -325,6 +335,7 @@ def node_type():
                 r = self.reference
                 coordinates = r.frame.coordinates(r.last[1]).round(4).tolist() if r.last else None
                 text = (f'{r.phase}: forward/left/FC-height={coordinates}; '
+                        f'initial forward/left/up offset={r.initial_offset.round(4).tolist() if r.initial_offset is not None else None}; '
                         f'accepted={r.accepted}; subsequent references blocked={r.restarts_blocked}; DEBUG ONLY')
             msg = String();msg.data = text
             self.status_pub.publish(msg)

@@ -40,8 +40,32 @@ class Tests(unittest.TestCase):
         base.check([-.10,0,0])
         # Backward allowance is measured along captured yaw, not world X.
         np.testing.assert_allclose(f.check([2,-1.099,.3]),[-.099,0,.085],atol=1e-12)
-        for p in ([-.100001,0,0],[5.001,0,0],[0,2.001,0],[0,0,-.086],[0,0,1.916]):
+        base.check([0,0,-.185])
+        for p in ([-.100001,0,0],[5.001,0,0],[0,2.001,0],[0,0,-.185001],[0,0,1.916]):
             with self.assertRaises(ValueError):TakeoffFrame([0,0,0],[0,0,0,1]).check(p)
+
+    def test_initial_offset_is_per_axis_and_uses_current_measured_position(self):
+        # Actual reported reference is >10 cm in norm, but <10 cm on every axis.
+        r=self.reference()
+        self.assertTrue(self.sample(r,0.,(-.0571,-.0181,-.0855)))
+        np.testing.assert_allclose(r.initial_offset,[-.0571,-.0181,-.0855])
+        for axis in range(3):
+            for sign in (-1,1):
+                r=self.reference();inside=np.zeros(3);inside[axis]=sign*.10
+                self.assertTrue(self.sample(r,0.,inside))
+                r=self.reference();offset=np.zeros(3);offset[axis]=sign*.100001
+                with self.assertRaisesRegex(ValueError,'offset exceeds|Outside'):
+                    self.sample(r,0.,offset)
+        # Current measurement, rather than the earlier captured origin, gates handover.
+        r=self.reference()
+        with self.assertRaisesRegex(ValueError,'offset exceeds'):
+            r.command(100000000000,[0,0,0],[0,0,0],[0,0,0],[.05,0,0],[0,0,0,1],
+                      measured_position=[-.06,0,0])
+        # Yaw defines forward/left; a world-axis diagonal can exceed that limit.
+        q=[0,0,math.sin(math.pi/8),math.cos(math.pi/8)]
+        r=Reference(TakeoffFrame([0,0,0],q));r.add_plan(trajectory())
+        with self.assertRaisesRegex(ValueError,'offset exceeds'):
+            self.sample(r,0.,(.08,.08,0))
 
     def test_piece_coefficients_use_descending_local_seconds(self):
         m=trajectory();m.time_pos=[1.,2.];m.piece_num_pos=2
