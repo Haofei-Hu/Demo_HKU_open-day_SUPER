@@ -201,5 +201,42 @@
     ],
     "last_report_interval_stddev_s": 0.00246,
     "scope": "ROS CLI receive timing during held debug output; header freshness and native FC delivery not measured by topic hz."
+  },
+  "later_stationary_pose_readback": {
+    "external_xyz_m": [
+      0.005765517693002018,
+      -0.07752555924141248,
+      0.04013043640262976
+    ],
+    "fc_xyz_m": [
+      0.0064449431374669075,
+      -0.07778166234493256,
+      0.03900817781686783
+    ],
+    "external_orientation_xyzw": [
+      -0.009700849419212908,
+      -0.0009464107184876177,
+      0.7695265411601571,
+      0.6385404452948794
+    ],
+    "fc_orientation_xyzw": [
+      0.01052113722083755,
+      0.0016397484952799754,
+      -0.7707552870071834,
+      -0.6370422606170981
+    ],
+    "external_minus_fc_axis_m": [
+      -0.0006794254444648894,
+      0.00025610310352007504,
+      0.001122258585761933
+    ],
+    "sign_invariant_full_rotation_difference_deg": 0.25386531318722244,
+    "external_axis_change_from_first_stationary_readback_m": [
+      0.009822952147550041,
+      -0.07660334742662331,
+      0.03014470424511751
+    ],
+    "timestamps_captured": false,
+    "interpretation": "Current sequential external/FC pose agreement is close, but aligned Y changed about 7.66 cm and Z about 3.01 cm from the first stationary readback. Both remain below 10 cm per axis in session coordinates. Temporal stability and cause remain unresolved; FC fusion of external pose is not an independent physical drift measurement."
   }
 }
