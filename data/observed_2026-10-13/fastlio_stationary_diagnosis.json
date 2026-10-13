@@ -70,7 +70,7 @@
     "rebuild_required": false,
     "changes": "One LIO startup override only; new grounded ROS session and fresh world-frame survey required.",
     "aircraft_parameter_readback_observed": true,
-    "drift_result": "Pending fresh vision restoration and timed stationary observations; startup/readback alone do not demonstrate improvement.",
+    "drift_result": "120-second stationary observation completed: all observed forward/left/up coordinate excursions below 2 cm, within 10 cm per axis. No causal or full-flight stability conclusion.",
     "aircraft_parameter_readback_value": false,
     "log_session": "20261013_220904_825406",
     "fresh_survey": {
@@ -105,6 +105,105 @@
         0.01,
         0.025
       ]
+    },
+    "timed_stationary_observation": {
+      "requested_duration_s": 120,
+      "ros_start_stamp_ns": 1791901257964859963,
+      "ros_end_stamp_ns": 1791901378022499136,
+      "reference_definition": "Each source initial two-second mean position/yaw; excursion axes are forward, left, up.",
+      "aircraft_condition": "stationary ground observation; fixed online-extrinsic startup override active",
+      "aligned_pose": {
+        "topic": "/super_debug/aligned_pose_cov",
+        "samples": 5978,
+        "sampled_span_s": 119.539,
+        "receive_gap_max_s": 0.03,
+        "last_valid_receive_age_s": 0.027,
+        "mean_xyz_m": [
+          0.0025,
+          0.0007,
+          -0.0011
+        ],
+        "initial_two_second_mean_xyz_m": [
+          0.0024,
+          0.0021,
+          -0.0015
+        ],
+        "final_two_second_mean_xyz_m": [
+          0.0036,
+          0.0016,
+          0.0016
+        ],
+        "mean_window_change_xyz_cm": [
+          0.121,
+          -0.057,
+          0.315
+        ],
+        "min_max_range_xyz_cm": [
+          1.541,
+          1.667,
+          3.814
+        ],
+        "max_excursion_forward_left_up_cm": [
+          0.95,
+          0.784,
+          1.962
+        ],
+        "fixed_axis_yaw_deg": 101.664,
+        "mean_yaw_deg": 101.655,
+        "age_mean_max_s": [
+          0.013,
+          0.024
+        ],
+        "received_rate_from_sample_span_hz": 50.00041827353416
+      },
+      "fc_pose": {
+        "topic": "/mavros/local_position/pose",
+        "samples": 3597,
+        "sampled_span_s": 119.865,
+        "receive_gap_max_s": 0.04,
+        "last_valid_receive_age_s": 0.063,
+        "mean_xyz_m": [
+          0.0023,
+          0.0009,
+          -0.0013
+        ],
+        "initial_two_second_mean_xyz_m": [
+          -0.0014,
+          0.0058,
+          0.0027
+        ],
+        "final_two_second_mean_xyz_m": [
+          0.0021,
+          0.0023,
+          0.0019
+        ],
+        "mean_window_change_xyz_cm": [
+          0.347,
+          -0.347,
+          -0.073
+        ],
+        "min_max_range_xyz_cm": [
+          2.368,
+          2.301,
+          2.685
+        ],
+        "max_excursion_forward_left_up_cm": [
+          1.591,
+          1.416,
+          1.947
+        ],
+        "fixed_axis_yaw_deg": 101.639,
+        "mean_yaw_deg": 101.659,
+        "age_mean_max_s": [
+          0.006,
+          0.014
+        ],
+        "received_rate_from_sample_span_hz": 30.000417135944605
+      },
+      "per_axis_stationary_excursion_limit_cm": 10.0,
+      "observed_all_axis_excursions_within_limit": true,
+      "scope": "Continuous received-pose coordinate observations within this stationary window. No independent physical accuracy, airborne tracking, long-run stability or matched-duration causal baseline comparison is established.",
+      "ros_observation_span_s": 120.057639173
     }
   },
   "root_cause": "Not established; extrinsic estimation and coarse filtering/point support are diagnostic hypotheses, not confirmed causes."

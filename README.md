@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. A disarmed 1 m vertical reference test progressed through `TRACK` to `END_HOLD`, accepting 684 samples and holding forward/left/FC-floor-height `[-0.0226, -0.0447, 1.0395] m` while suppressing subsequent restart references. These locked-frame endpoint offsets are within 10 cm per axis. See the [vertical reference result](data/observed_2026-10-13/vertical_goal_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. Stationary attitude and position inconsistencies recovered in samples after clean ROS-session initialization; their causes and stability over a complete demonstration remain under investigation.
+**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. A disarmed 1 m vertical reference test progressed through `TRACK` to `END_HOLD`, accepting 684 samples and holding forward/left/FC-floor-height `[-0.0226, -0.0447, 1.0395] m` while suppressing subsequent restart references. These locked-frame endpoint offsets are within 10 cm per axis. A later 120-second stationary observation with online IMU–LiDAR extrinsic estimation disabled measured maximum forward/left/up coordinate excursions below 2 cm in both external and FC poses. See the [vertical reference result](data/observed_2026-10-13/vertical_goal_ground.json), [stationary observation](data/observed_2026-10-13/fastlio_stationary_diagnosis.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. The cause of earlier stationary attitude/position inconsistencies and stability over a complete demonstration remain under investigation.
 
 ## Quick Start: restore the aircraft after reboot
 
@@ -12,6 +12,8 @@ For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.
 python3 ~/Downloads/super_session.py start
 python3 ~/Downloads/super_session.py align
 ```
+
+For the current fixed-extrinsic ground comparison, use `start --fixed-lio-extrinsics` when creating a new session, then run the same fresh survey and vision sequence. Plain `start` uses the original YAML-based baseline; the override does not edit that file. See the [comparison workflow](docs/SESSION_STARTUP.md).
 
 Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. For disarmed ground planning after fusion is valid:
 
