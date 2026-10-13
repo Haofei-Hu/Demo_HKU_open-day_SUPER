@@ -19,8 +19,12 @@
     -0.027204,
     0.930693
   ],
-  "accepted_map_snapped_planner_xyz_m": null,
-  "accepted_map_snapped_goal_evidence": "Planner goal log was not supplied for this trial.",
+  "accepted_map_snapped_planner_xyz_m": [
+    -0.05,
+    -0.05,
+    0.95
+  ],
+  "accepted_map_snapped_goal_evidence": "Subsequent Get goal at and Receive click goal logs from the same planner session.",
   "initial_forward_left_up_offset_m": [
     0.0346,
     0.0038,
@@ -174,5 +178,28 @@
     "recovery": "Grounded managed ROS stop/start and fresh survey; computer not rebooted.",
     "root_cause": "Not isolated; no planner failure logs supplied, origin change and localization drift not distinguished."
   },
-  "scope": "Bounded reference generation, initial handover and endpoint hold in a physical disarmed ground test. Blocked counts are reference samples. Actual climb, airborne tracking, obstacle clearance and native trajectory execution are not established."
+  "scope": "Bounded reference generation, initial handover and endpoint hold in a physical disarmed ground test. Blocked counts are reference samples. Actual climb, airborne tracking, obstacle clearance and native trajectory execution are not established.",
+  "accepted_goal_yaw_deg": -0.069,
+  "map_snap_displacement_planner_xyz_m": [
+    -0.043372,
+    -0.022796000000000004,
+    0.019306999999999963
+  ],
+  "map_snap_displacement_norm_m": 0.052664487550910424,
+  "held_output_rate_observation": {
+    "topic": "/super_debug/bounded_control_target",
+    "command_timeout_s": 10,
+    "reported_average_rate_min_max_hz": [
+      49.908,
+      50.017
+    ],
+    "last_reported_average_rate_hz": 49.973,
+    "last_report_window_samples": 355,
+    "observed_receive_interval_min_max_s": [
+      0.007,
+      0.033
+    ],
+    "last_report_interval_stddev_s": 0.00246,
+    "scope": "ROS CLI receive timing during held debug output; header freshness and native FC delivery not measured by topic hz."
+  }
 }
