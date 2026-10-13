@@ -31,6 +31,24 @@
   "shown_hold_span_s": 33.99,
   "blocked_subsequent_reference_samples_first": 6349,
   "blocked_subsequent_reference_samples_last": 8567,
-  "evidence": "Bounded-reference node logs and accepted-goal logs; no separate DDS subscriber readback in this sample.",
-  "scope": "Initial handover and endpoint hold in a stationary ground preview. Blocked counts are reference samples, not flights or replans. No airborne tracking accuracy, clearance or native trajectory execution is established."
+  "evidence": "Bounded-reference node logs, accepted-goal logs and one separate DDS subscriber pose readback. Publication rate and current preview-to-EKF pose agreement were not measured in this sample.",
+  "scope": "Initial handover and endpoint hold in a stationary ground preview. Blocked counts are reference samples, not flights or replans. No airborne tracking accuracy, clearance or native trajectory execution is established.",
+  "subscriber_readback": {
+    "topic": "/super_debug/bounded_control_target",
+    "frame_id": "px4_enu_preview",
+    "stamp_sec": 1791886982,
+    "stamp_nanosec": 111326430,
+    "position_m": [
+      -0.4005267796920583,
+      0.005398591697529112,
+      1.532121931573964
+    ],
+    "orientation_xyzw": [
+      -0.014501588791862788,
+      0.0020909172215599,
+      0.736871289104298,
+      0.675874274759333
+    ],
+    "samples_observed": 1
+  }
 }
