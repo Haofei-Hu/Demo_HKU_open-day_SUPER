@@ -1,6 +1,6 @@
 # Next development stage
 
-The automatic takeoff, fixed-position hover, and landing milestone is complete. Development now moves to repeatability, localization quality, failure response, and planner-driven flight.
+The automatic takeoff, fixed-position hover, and landing milestone is complete. Development now moves to repeatability, localization quality, failure response, and planner-driven flight. Current blocker: a stationary external/FC attitude disagreement of approximately 35°. Resolve the initialization/frame consistency issue before native trajectory handover; see the [October 13 evidence](PROGRESS_2026-10-13.md#current-attitude-consistency-blocker).
 
 ## 1. Quantify and repeat the successful flight
 

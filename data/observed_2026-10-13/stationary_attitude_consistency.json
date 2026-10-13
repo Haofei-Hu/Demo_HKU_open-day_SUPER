@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-13",
+  "aircraft_condition": "stationary and flat",
+  "sequential_pose_position_difference_cm": [
+    -0.962917513799147,
+    0.698114108832225,
+    0.838520570226087
+  ],
+  "external_pose_rpy_deg": [
+    21.430157137574067,
+    -26.277867337436483,
+    88.3293521324644
+  ],
+  "fc_pose_rpy_deg": [
+    -0.9025710015348277,
+    0.8059541256127232,
+    98.15625891568493
+  ],
+  "sequential_pose_rotation_difference_deg": 34.91262086559868,
+  "active_world_rotation_xyzw": [
+    -0.012958000130253819,
+    0.0068380000687355775,
+    0.9210080092579725,
+    0.389268003912922
+  ],
+  "paired_body_imu_candidate_xyzw": [
+    -0.28405,
+    0.128068,
+    0.889754,
+    0.333544
+  ],
+  "active_to_candidate_rotation_difference_deg": 34.943458126459134,
+  "paired_candidate_rpy_deg": [
+    2.729,
+    36.221,
+    139.793
+  ],
+  "received_body_samples": 669,
+  "received_imu_samples": 655,
+  "matched_samples": 656,
+  "rotation_spread_mean_deg": 0.191,
+  "rotation_spread_max_deg": 0.7,
+  "pairing_gap_max_s": 0.032,
+  "body_age_mean_s": 0.01,
+  "body_age_max_s": 0.02,
+  "candidate_applied": false,
+  "interpretation": "Current stationary body/FC rotation differs from the active survey. Root cause is not isolated; repeated clean initialization and a new survey are pending. Do not rebase the active relay or treat position agreement as attitude agreement."
+}
