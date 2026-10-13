@@ -48,7 +48,8 @@ def main():
             goal.pose.orientation = odom.pose.pose.orientation
             publisher.publish(goal)
             print('Sent one planner goal: +0.30 m along planner X, heading retained.')
-            print('Goal Z follows SUPER click_height; inspect actual Get goal at output.')
+            print('Requested planner xyz:', [round(getattr(goal.pose.position,axis),6) for axis in ('x','y','z')])
+            print('Use low-speed-3d to retain message Z; inspect Get goal at for map relocation.')
             end = time.monotonic() + .5
             while time.monotonic() < end:
                 rclpy.spin_once(node, timeout_sec=.05)

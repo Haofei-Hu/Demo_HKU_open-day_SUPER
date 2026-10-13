@@ -282,16 +282,29 @@ class Session:
             'low-speed': ('mid360_low_speed_preview_ros2.yaml', .3, .5),
             'low-speed-margin': ('mid360_low_speed_margin_ros2.yaml', .3, .45),
             'low-speed-reserved': ('mid360_low_speed_reserved_ros2.yaml', .25, .45),
+            'low-speed-3d': ('mid360_low_speed_3d_goal_ros2.yaml', .25, .45),
         }
         expected = motion_profiles.get(self.args.planner_profile)
         if expected is not None:
             filename, expected_velocity, expected_acceleration = expected
             target = folder/filename
             if not target.is_file():
-                helper = self.scripts/'create_super_motion_profiles.py'
-                if not helper.is_file():
-                    raise RuntimeError('Missing helper: '+str(helper))
-                run(['python3', helper, '--source', diagnostic])
+                if self.args.planner_profile == 'low-speed-3d':
+                    source = folder/'mid360_low_speed_reserved_ros2.yaml'
+                    if not source.is_file():
+                        helper = self.scripts/'create_super_motion_profiles.py'
+                        if not helper.is_file():
+                            raise RuntimeError('Missing helper: '+str(helper))
+                        run(['python3',helper,'--source',diagnostic])
+                    helper = self.scripts/'create_super_3d_goal_profile.py'
+                    if not helper.is_file():
+                        raise RuntimeError('Missing helper: '+str(helper))
+                    run(['python3',helper,'--source',source])
+                else:
+                    helper = self.scripts/'create_super_motion_profiles.py'
+                    if not helper.is_file():
+                        raise RuntimeError('Missing helper: '+str(helper))
+                    run(['python3', helper, '--source', diagnostic])
         data = yaml.safe_load(target.read_text())
         if not isinstance(data, dict):
             raise RuntimeError('Invalid diagnostic YAML')
@@ -307,6 +320,8 @@ class Session:
             limits = data.get('traj_opt', {}).get('boundary', {})
             if limits.get('max_vel') != expected_velocity or limits.get('max_acc') != expected_acceleration:
                 raise RuntimeError(f'Low-speed preview requires max_vel={expected_velocity} and max_acc={expected_acceleration}')
+        if self.args.planner_profile == 'low-speed-3d' and fsm.get('click_height') != -6.0:
+            raise RuntimeError('3D goal preview requires click_height=-6 to preserve message Z')
         (folder.parent/'log').mkdir(parents=True, exist_ok=True)
         return target
 
@@ -481,8 +496,8 @@ def arguments(argv=None):
     parser.add_argument('--fcu-url', default=DEFAULT_FCU)
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--restart', action='store_true', help='replace only the hover window after a fresh ground-state check')
-    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved'), default='diagnostic',
-                        help='ground profile; low-speed uses 0.3/0.5, low-speed-margin uses 0.3/0.45, low-speed-reserved uses 0.25/0.45 (m/s, m/s^2)')
+    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d'), default='diagnostic',
+                        help='ground profile; low-speed 0.3/0.5, margin 0.3/0.45, reserved/3d 0.25/0.45; 3d preserves message Z before map relocation')
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)

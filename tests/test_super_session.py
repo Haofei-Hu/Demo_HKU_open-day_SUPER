@@ -286,6 +286,29 @@ class Tests(unittest.TestCase):
                         s.planner_profile()
                 self.assertEqual(preserved,{p:p.read_bytes() for p in preserved})
 
+    def test_3d_profile_preserves_reserved_file_and_rejects_fixed_height(self):
+        import yaml
+        data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+        data['traj_opt']['boundary'].update(max_vel=.25,max_acc=.45)
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);folder=home/'super_ws/src/SUPER/super_planner/config';folder.mkdir(parents=True)
+            (folder/'mid360_ground_diagnostic_ros2.yaml').write_text(yaml.safe_dump(data))
+            reserved=folder/'mid360_low_speed_reserved_ros2.yaml';reserved.write_text(yaml.safe_dump(data))
+            before=reserved.read_bytes()
+            scripts=home/'Downloads';scripts.mkdir()
+            (scripts/'create_super_3d_goal_profile.py').write_bytes((ROOT/'scripts/maintenance/create_super_3d_goal_profile.py').read_bytes())
+            s=self.manager(['planner','--planner-profile','low-speed-3d','--scripts-dir',str(scripts)])
+            with patch.object(m.Path,'home',return_value=home):
+                target=s.planner_profile()
+            self.assertEqual(target.name,'mid360_low_speed_3d_goal_ros2.yaml')
+            expected=yaml.safe_load(before);expected['fsm']['click_height']=-6.
+            self.assertEqual(yaml.safe_load(target.read_text()),expected)
+            with patch.object(m.Path,'home',return_value=home),patch.object(m,'run') as run:
+                s.planner_profile();run.assert_not_called()
+                expected['fsm']['click_height']=-.05;target.write_text(yaml.safe_dump(expected))
+                with self.assertRaisesRegex(RuntimeError,'click_height=-6'):s.planner_profile()
+            self.assertEqual(reserved.read_bytes(),before)
+
     def test_low_speed_profile_is_separate_and_rejects_unexpected_limits(self):
         import yaml
         data=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())

@@ -42,7 +42,7 @@ Source restoration does not replace an already built executable. Confirm a succe
 ## Resume the bounded ground preview
 
 ```bash
-python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserved
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
 python3 ~/Downloads/super_session.py reference-preview
 ```
 

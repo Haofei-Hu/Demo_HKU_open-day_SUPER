@@ -314,7 +314,7 @@ python3 tests/test_super_session_ros.py
 
 Use an isolated test environment. The tmux check requires tmux; the ROS check requires Humble and MAVROS messages/services including ParamPull.
 
-Sixteen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, bounded-preview launch/hover exclusion/local shutdown, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
+Seventeen lifecycle unit tests cover invalid inputs, ground-state gates, one-time alignment/vision initialization, stale preview/configuration rejection, explicit hover startup/replacement, planning/hover exclusion, local planning shutdown, diagnostic/low-speed profile preservation and validation, bounded-preview launch/hover exclusion/local shutdown, shutdown ordering, and argument quoting. A real tmux test uses dummy nodes to check windows, logs, idempotent startup, local planning stop, and cooperative full stop without leaked processes. An isolated ROS test checks MAVROS 2.14 ParamPull, typed parameter readback, bounded EV_CTRL writes, fresh valid ground localization in AUTO.LOITER without RC mode flags, and armed/disconnected/stale-state rejection.
 
 Three motion-profile tests cover preservation of all non-motion configuration, source/comments, idempotent generation, conflicting-candidate refusal before writes, and invalid/duplicate limit rejection. Low-speed planner convergence and aircraft behavior remain physical validation steps.
 
@@ -325,3 +325,17 @@ Nine bounded-reference unit tests and an isolated DDS fixture verify polynomial 
 The first bounded-preview aircraft trial locked the frame but rejected a reference 5.52 cm behind it. The current preview includes a 10 cm backward allowance and keeps the original SUPER rest-start behavior. See the [rollback guide](EXACT_PLANNER_START.md) if the optional exact-start patch was applied. Rebuild only when restoring a previously patched executable. Restart ground planning/reference preview and resample while retaining the 50 Hz localization and vision session.
 
 The current ground preview checks initial reference offsets against fresh measured position separately on forward, left and up axes, with an absolute 0.10 m limit per axis. Its debug floor envelope is −0.10–2 m. This allows small grid offsets during a disarmed test without changing coordinates. The status prints the accepted initial offsets. Actual flight-height selection, continuous tracking error and clearance remain separate checks for native flight integration.
+
+### Same-height 3D ground goals
+
+Use the current `low-speed-3d` profile for bounded-reference testing:
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
+python3 ~/Downloads/super_session.py reference-preview
+```
+
+The manager creates `mid360_low_speed_3d_goal_ros2.yaml` separately from the reserved profile. Only `fsm.click_height` changes to −6, disabling the pinned planner's fixed-height override; this is a sentinel, not a six-metre goal. Motion limits, map settings and original profiles remain unchanged. The goal helper sends the current raw Z and prints requested XYZ. Wait for `WAIT_TRAJECTORY` before one goal, then compare the accepted `Get goal at` position and bounded status. Map goal/start relocation can still displace the result, so the existing per-axis offset and continuity gates remain active.
+
+A recorded aircraft sample had raw odometry Z 1.494 m while the accepted goal Z was 0.150 m under `click_height=-0.05`. Those values are planner coordinates, not floor height. Preserving current message Z addresses that fixed-height mismatch; its physical effect and any remaining start relocation must be resampled. Fault status now includes the first fault's phase and accepted command count.

@@ -175,6 +175,7 @@ def node_type():
             self.feedback = {}
             self.locked_sources = None
             self.fault_reason = ''
+            self.fault_phase = None
             self.graph_at = -math.inf
             self.alignment_path = Path(self.get_parameter('alignment_path').value)
             self.alignment_hash = hashlib.sha256(self.alignment_path.read_bytes()).digest()
@@ -201,6 +202,9 @@ def node_type():
             return received
 
         def fail(self,reason):
+            if self.fault_reason:
+                return  # Preserve the first fault and its tracking phase.
+            self.fault_phase = self.reference.phase if self.reference is not None else 'UNLOCKED'
             self.fault_reason = str(reason)
             if self.reference is not None:
                 self.reference.fault(reason)
@@ -328,7 +332,8 @@ def node_type():
 
         def report(self):
             if self.fault_reason:
-                text = 'FAULT: '+self.fault_reason
+                text = ('FAULT: '+self.fault_reason+f'; phase before fault={self.fault_phase}; '
+                        f'accepted={self.reference.accepted if self.reference is not None else 0}; DEBUG ONLY')
             elif not self.ready() or self.reference is None:
                 text = 'WAIT: fresh grounded feedback, fixed sources and paired geometry'
             else:

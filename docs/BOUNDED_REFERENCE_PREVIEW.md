@@ -6,15 +6,17 @@ It publishes only `/super_debug/bounded_control_target` (`geometry_msgs/PoseStam
 
 ## Start in the managed session
 
-Install the updated `super_session.py`, `control_bridge_preview.py`, and `bounded_reference_preview.py` into the active Downloads directory. Keep the aircraft disarmed, stationary on the actual takeoff floor, with valid local position/velocity and the current vision session running. A fresh grounded AUTO.LOITER state is sufficient for this diagnostic.
+Install the updated `super_session.py`, `create_super_3d_goal_profile.py`, `send_control_preview_goal.py`, `control_bridge_preview.py`, and `bounded_reference_preview.py` into the active Downloads directory. Keep the aircraft disarmed, stationary on the actual takeoff floor, with valid local position/velocity and the current vision session running. A fresh grounded AUTO.LOITER state is sufficient for this diagnostic.
 
 Start a fresh ground planner without sending a goal:
 
 ```bash
 python3 ~/Downloads/super_session.py planner-stop
-python3 ~/Downloads/super_session.py planner --planner-profile low-speed-reserved
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
 python3 ~/Downloads/super_session.py reference-preview
 ```
+
+The `low-speed-3d` profile keeps the reserved 0.25 m/s / 0.45 m/s² limits and disables SUPER's fixed goal-Z override. The diagnostic goal requests +0.30 m along planner X and retains current raw odometry Z. In pinned SUPER, `click_height=-6` is a configuration sentinel because override occurs only above −5; it is not a target height. Goal snapping to a nonoccupied inflated cell still occurs, so inspect requested and accepted coordinates. This prevents a stale absolute planner Z from being treated as the current floor/flight height. It does not change rest-start selection.
 
 This adds one managed tmux window, `reference_preview`, without restarting localization or rewriting alignment. The manager validates fresh grounded localization and the generated `PolynomialTrajectory` message. The node also requires fresh state, landed-state and estimator telemetry, ten matched raw/aligned pose pairs, unchanged alignment contents, and one fixed discovered publisher per input topic.
 
@@ -34,7 +36,7 @@ timeout 8s ros2 topic echo /super_debug/bounded_reference_status std_msgs/msg/St
   --qos-reliability best_effort --qos-durability volatile --full-length --field data
 ```
 
-Expected progression is `WAIT_TRAJECTORY` → `TRACK` → `END_HOLD`. A fault prints its reason and suppresses output. Inspect the reason before changing configuration or sending another goal; boundary margins should reflect the intended test area. To start a different goal, stop/restart the ground planning and preview processes after reviewing current state. `planner-stop` stops reference preview first, then coordinate preview and planner, while preserving localization and vision. Hover startup excludes all three planning windows.
+Expected progression is `WAIT_TRAJECTORY` → `TRACK` → `END_HOLD`. A fault prints its first reason, phase before fault, and accepted sample count, then suppresses output. `accepted=0` identifies a fault before any reference was accepted; a positive count identifies a failure after tracking began. Inspect the reason before changing configuration or sending another goal; boundary margins should reflect the intended test area. To start a different goal, stop/restart the ground planning and preview processes after reviewing current state. `planner-stop` stops reference preview first, then coordinate preview and planner, while preserving localization and vision. Hover startup excludes all three planning windows.
 
 If a ROS CLI command fails with `xmlrpc.client.Fault` containing `!rclpy.ok()`, the traceback is from the CLI daemon's ROS context. The commands above bypass that daemon; they do not restart localization or establish that the preview process is healthy. Inspect `reference_preview.log` in the current session log directory alongside the status topic. A normal `timeout` expiry after the requested observation interval is separate from a node traceback.
 
