@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-13",
+  "log_session": "20261013_213735_594847",
+  "timing_excerpt_samples": 40,
+  "timing_excerpt_first_last_ros_s": [
+    1791899881.0247457,
+    1791899920.4337754
+  ],
+  "timing_excerpt_span_s": 39.409029722213745,
+  "sampled_ranges": {
+    "pub_age": {
+      "min": 0.005,
+      "max": 0.022
+    },
+    "lrx": {
+      "min": 0.019,
+      "max": 0.024
+    },
+    "irx": {
+      "min": 0.0,
+      "max": 0.001
+    },
+    "latest_lidar": {
+      "min": 0.025,
+      "max": 0.042
+    },
+    "latest_imu": {
+      "min": 0.004,
+      "max": 0.012
+    },
+    "lidar_q": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "imu_q": {
+      "min": 1.0,
+      "max": 3.0
+    },
+    "oldest_lidar_age": {
+      "min": -1.0,
+      "max": -1.0
+    },
+    "pre_ms": {
+      "min": 0.0,
+      "max": 0.1
+    },
+    "proc_ms": {
+      "min": 0.9,
+      "max": 8.5
+    },
+    "scan_dt": {
+      "min": 0.017,
+      "max": 0.023
+    }
+  },
+  "installed_yaml_observed": "configs/observed_2026-10-13/fastlio_mid360_baseline.yaml",
+  "startup_publish_overrides": "Managed core startup overrides YAML map/path/body-frame publishing flags; the archived YAML is a file readback, not a full live parameter dump.",
+  "interpretation": "No lidar backlog in the shown timing samples; scan duration approximately 20 ms. Timing alone does not establish point support, observability or stationary localization accuracy.",
+  "upstream_revision_reviewed": "a4743b095409588842a5b30ddfa27e29d2f99164",
+  "source_findings": {
+    "known_extrinsics_guidance": "FAST_LIO README recommends extrinsic_est_en=false when extrinsics are supplied.",
+    "online_estimation": "Enabled extrinsic_est_en adds extrinsic rotation and translation columns to the lidar measurement Jacobian.",
+    "livox_timing": "Livox CustomMsg preprocessing uses per-point offset_time; SCAN_RATE=10 is not evidence of 10 Hz input in that path."
+  },
+  "selected_comparison": {
+    "manager_start_flag": "--fixed-lio-extrinsics",
+    "startup_override": "mapping.extrinsic_est_en:=false",
+    "yaml_modified": false,
+    "source_patch_required": false,
+    "rebuild_required": false,
+    "changes": "One LIO startup override only; new grounded ROS session and fresh world-frame survey required.",
+    "aircraft_parameter_readback_observed": false,
+    "drift_result": "Pending fresh aircraft session and timed stationary observations."
+  },
+  "root_cause": "Not established; extrinsic estimation and coarse filtering/point support are diagnostic hypotheses, not confirmed causes."
+}

@@ -49,6 +49,21 @@ Run fresh-session checks:
 python3 ~/Downloads/super_session.py align
 ```
 
+For the optional grounded IMU–LiDAR extrinsic comparison, replace `start` with `start --fixed-lio-extrinsics` after stopping the old session. This adds only the startup override `mapping.extrinsic_est_en:=false`; the installed YAML, filtering, publication frequency and mechanical mounting conversion remain unchanged. It requires a new survey and vision initialization. The flag applies only to `start`, and an existing baseline session cannot be converted in place. Session metadata and `status` record the requested override; verify its actual value with `ros2 param get /laser_mapping mapping.extrinsic_est_en`. Starting a new session without the flag restores the YAML-based baseline. This is a comparison, not a verified drift fix.
+
+With the updated manager installed and the aircraft grounded/disarmed:
+
+```bash
+python3 ~/Downloads/super_session.py stop &&
+python3 ~/Downloads/super_session.py start --fixed-lio-extrinsics
+# Keep stationary for initialization before the following readback/survey.
+source /opt/ros/humble/setup.zsh
+ros2 param get /laser_mapping mapping.extrinsic_est_en
+python3 ~/Downloads/super_session.py align
+```
+
+The expected live readback is `Boolean value is: False`. Inspect the new survey before using its quaternion to restore vision. Collect timestamped stationary measurements under comparable conditions; do not reuse a prior quaternion or treat one restarted sample as a confirmed correction.
+
 This requires fresh connected/disarmed/on-ground state, pulls MAVROS parameters, sets and reads back EV_CTRL=0, then runs odometry-age and 15-second attitude checks. A quaternion is printed, not automatically saved. Inspect the sample count, ages, pairing gap, and rotation spread; remain stationary. If the survey is stale, inconsistent, or has insufficient matches, diagnose it before enabling vision.
 
 Use this run's four xyzw values, replacing the placeholders:

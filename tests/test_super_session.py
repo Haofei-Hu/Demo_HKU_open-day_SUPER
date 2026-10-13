@@ -72,6 +72,39 @@ class Tests(unittest.TestCase):
             with self.assertRaises(SystemExit): m.arguments(argv)
         self.assertEqual(m.arguments(['vision','0','0','0','1']).quaternion,[0.,0.,0.,1.])
 
+    def test_fixed_lio_extrinsics_changes_only_lio_startup(self):
+        baseline=m.Session(m.arguments(['start'])).core_commands()
+        fixed=m.Session(m.arguments(['start','--fixed-lio-extrinsics'])).core_commands()
+        self.assertEqual(set(baseline),set(fixed))
+        for name in ('lidar','mavros','body'):
+            self.assertEqual(baseline[name],fixed[name])
+        self.assertEqual(fixed['lio'],baseline['lio']+' -p mapping.extrinsic_est_en:=false')
+        for action in ('align','vision','planner','stop','hover'):
+            argv=[action,'--fixed-lio-extrinsics']
+            if action=='vision':argv+=['0','0','0','1']
+            with self.assertRaises(SystemExit):m.arguments(argv)
+
+    def test_fixed_lio_start_records_override_and_preserves_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scripts=Path(directory)/'Downloads';scripts.mkdir()
+            for name in m.SCRIPTS:(scripts/name).write_text('# unchanged prerequisite\n')
+            before={name:(scripts/name).read_bytes() for name in m.SCRIPTS}
+            s=self.manager(['start','--fixed-lio-extrinsics','--scripts-dir',str(scripts)])
+            with patch.object(s,'exists',return_value=False),patch.object(m,'SETUPS',()), \
+                 patch.object(m,'unmanaged_processes',return_value=[]),patch.object(m,'ros_environment',return_value={}):
+                s.start()
+            self.assertTrue(s.config['fixed_lio_extrinsics'])
+            self.assertFalse(s.config['hover_execute'])
+            self.assertEqual([name for name,_ in s.started],list(m.CORE))
+            self.assertEqual(before,{name:(scripts/name).read_bytes() for name in m.SCRIPTS})
+
+    def test_fixed_lio_override_cannot_rebase_existing_session(self):
+        s=self.manager(['start','--fixed-lio-extrinsics'])
+        with patch.object(s,'exists',return_value=True):
+            with self.assertRaisesRegex(RuntimeError,'Existing session has no fixed-LIO override'):
+                s.start()
+        self.assertEqual(s.started,[])
+
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
         for action in ('align','vision','planner','goal','planner-check','planner-stop','hover','stop'):

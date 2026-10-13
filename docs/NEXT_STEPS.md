@@ -29,6 +29,8 @@ FAST_LIO does not apply loop-closure optimization. A stable final estimate and a
 
 ## 3. Measure mounting geometry and timing
 
+The immediate grounded comparison uses `start --fixed-lio-extrinsics` after a managed stop, followed by live readback of `mapping.extrinsic_est_en=false`, a fresh survey and vision restoration. Only online internal IMU–LiDAR estimation changes; YAML, world-frame pairing procedure, nominal mounting, 50 Hz publication and motion limits are preserved. A new session without the flag uses the original YAML again. The observed low-latency excerpt and current configuration are [archived](../data/observed_2026-10-13/fastlio_stationary_diagnosis.json). Compare timed stationary windows under comparable conditions; improvement is not yet measured, and the existing untimestamped snapshots cannot assign a drift rate.
+
 The integration currently uses nominal +45° LiDAR yaw, a 10 cm vertical offset, and the configured internal IMU lever arm. Measure mounting rotation and translation, then compare known translations, yaw rotations, and small pitch/roll motions against the transformed pose.
 
 Session quaternion pairing aligns world frames; it does not calibrate mechanical extrinsics. Investigate cloud spikes using raw timing, deskewing, mounting, and dynamic-scene evidence before changing parameters.

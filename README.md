@@ -248,7 +248,7 @@ For detailed guards, phase timing, check-only mode, and troubleshooting, see the
 
 | Component | Status | Result |
 | --- | --- | --- |
-| MID360 → FAST_LIO | Operational | Approximately 10 Hz odometry and registered point clouds |
+| MID360 → FAST_LIO | Operational | Approximately 50 Hz odometry/vision in current samples; 17–23 ms scans in the recorded timing excerpt |
 | Localization timing | Fixed and deployed | IMU Best Effort subscription removed the observed backlog; recent ground pose ages were approximately 20–35 ms |
 | FAST_LIO → PX4 external vision | Operational | Position, height, and yaw fusion through MAVROS; fresh `vehicle_visual_odometry` and valid local position/velocity |
 | Fixed-position flight | **Successful on aircraft** | Complete automatic takeoff, hover, and landing sequence |

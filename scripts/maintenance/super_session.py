@@ -220,12 +220,13 @@ class Session:
         print(f'{name}: {logfile}')
 
     def core_commands(self):
+        lio_override = ' -p mapping.extrinsic_est_en:=false' if self.args.fixed_lio_extrinsics else ''
         return {
             'lidar': shell_command(['ros2', 'launch', 'livox_ros_driver2', 'msg_MID360_launch.py']),
             'lio': 'ros2 run fast_lio fastlio_mapping --ros-args --params-file '
                    '"$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml" '
                    '-p use_sim_time:=false -p publish.map_en:=false -p publish.path_en:=false '
-                   '-p publish.scan_publish_en:=true -p publish.scan_bodyframe_pub_en:=false',
+                   '-p publish.scan_publish_en:=true -p publish.scan_bodyframe_pub_en:=false'+lio_override,
             'mavros': shell_command(['ros2', 'launch', 'mavros', 'px4.launch',
                        'fcu_url:='+self.args.fcu_url, 'gcs_url:=udp://127.0.0.1:14555@127.0.0.1:14550']),
             'body': shell_command(['python3', '-u', self.scripts/'fastlio_body_debug.py']),
@@ -234,6 +235,8 @@ class Session:
     def start(self):
         if self.exists():
             self.load()
+            if self.args.fixed_lio_extrinsics and not self.config.get('fixed_lio_extrinsics',False):
+                raise RuntimeError('Existing session has no fixed-LIO override. Stop it while grounded/disarmed before starting the comparison.')
             self.status()
             return
         for path in [Path(p).expanduser() for p in SETUPS]+[self.scripts/name for name in SCRIPTS]:
@@ -245,17 +248,22 @@ class Session:
                                '. Stop manual nodes only after landing/disarming; no duplicate launch.')
         logdir = self.scripts/'super_session_logs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         logdir.mkdir(parents=True)
-        self.config = dict(environment=ros_environment(), scripts=str(self.scripts), logs=str(logdir), hover_execute=False)
+        self.config = dict(environment=ros_environment(), scripts=str(self.scripts), logs=str(logdir), hover_execute=False,
+                           fixed_lio_extrinsics=self.args.fixed_lio_extrinsics)
         self.save()
         for index, (name, command) in enumerate(self.core_commands().items()):
             self.launch(name, command, first=index == 0)
         print('Core started. Keep stationary; run align in the command terminal. No vision/control was started.')
+        if self.args.fixed_lio_extrinsics:
+            print('LIO comparison startup override: mapping.extrinsic_est_en=false. YAML unchanged; verify the live parameter.')
 
     def status(self):
         self.load()
         for name, dead in self.windows().items():
             print(f'{name}: '+('EXITED; inspect log' if dead == '1' else 'process active'))
         print('Logs:', self.config['logs'])
+        if self.config.get('fixed_lio_extrinsics',False):
+            print('LIO comparison startup override: mapping.extrinsic_est_en=false (verify the live parameter).')
         print('A process-active status does not establish ROS/FC readiness.')
 
     def interrupt(self, name):
@@ -512,6 +520,7 @@ def arguments(argv=None):
                         help='ground profile; low-speed 0.3/0.5, margin 0.3/0.45, reserved/3d 0.25/0.45; 3d preserves message Z before map relocation')
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
+    parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
@@ -527,6 +536,8 @@ def arguments(argv=None):
         parser.error('--restart is only valid for hover')
     if args.execute and args.action != 'hover':
         parser.error('--execute is only valid for hover')
+    if args.fixed_lio_extrinsics and args.action != 'start':
+        parser.error('--fixed-lio-extrinsics is only valid for start')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':
         parser.error('--planner-profile is only valid for planner')
     if args.goal_height is not None and (args.action!='goal' or not math.isfinite(args.goal_height)
