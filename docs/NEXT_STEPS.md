@@ -49,7 +49,7 @@ Initialization must remain a grounded, disarmed operation. Process restoration m
 
 | Requirement | Remaining work |
 | --- | --- |
-| Laboratory envelope | Implement approximately 0–5 m forward, ±2 m lateral, and FC-centre height ≤2 m using measured axes and origin |
+| Laboratory envelope | Implement −0.10–5 m forward, ±2 m lateral, and FC-centre height ≤2 m using measured axes and origin |
 | Formal venue | Survey the 3×6×3 m space, takeoff position, vehicle envelope, and clearance margins |
 | Planner-to-flight bridge | Consistent coordinates/lever arm, valid targets, endpoint hold, planner-stop behavior, limits, takeover, and landing |
 | Target speed | Final candidate: 2 m/s with 1 m/s² translational acceleration; begin with 0.3 m/s and 0.5 m/s² previews, then staged flight validation |
@@ -64,4 +64,4 @@ The `low-speed-reserved` profile (internal 0.25 m/s / 0.45 m/s² targets) has pa
 
 A separate debug-only bounded reference preview now implements fixed takeoff-floor/forward coordinates, point bounds, polynomial-backed endpoint holding and moving-discontinuity rejection. Its unit, isolated ROS and tmux lifecycle checks pass. Next, validate that ground preview on the aircraft, including any initial-reference relocation by SUPER, then implement the flight-capable control interface and actual restart/terminal transition dynamics. A 0.424264 m reference restart remained present over 20.310 ms despite passing advertised-derivative checks. A flight bridge must reject or explicitly reconcile that discontinuity rather than forwarding the restart. Goal relocation, loss handling and RC takeover must be validated separately before SUPER trajectory execution. The working RViz2 ground view remains a visualization.
 
-The first bounded-preview ground trial rejected an initial reference at forward −0.0552 m while lateral and height values were valid. The pinned rest-start implementation selects a nearby voxel centre even when a nonoccupied current position is available. Apply the reviewed exact-start patch, rebuild only `super_planner` while disarmed planning is stopped, and resample. If the measured start is occupied or corridor generation cannot include it, diagnose mapping/clearance rather than restoring reference relocation or relaxing the point bounds.
+The first bounded-preview ground trial rejected an initial reference at forward −0.0552 m while lateral and height values were valid. The ground envelope now permits 10 cm behind the captured takeoff point, retaining original SUPER rest-start selection. Restore the optional exact-start patch if applied, then resample for TRACK → END_HOLD with the updated preview. Native flight output remains separate.

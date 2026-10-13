@@ -52,6 +52,24 @@ class Tests(unittest.TestCase):
                     m.patch(root,Path(tmp)/'race_backups')
             self.assertEqual(source.read_bytes(),changed)
 
+    def test_restore_applied_requires_matching_backup_and_leaves_original_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)/'repo';backups=Path(tmp)/'backups'
+            source=self.source(root,b'// local edits\n'+m.OLD)
+            original=source.read_bytes()
+            self.assertFalse(m.restore_applied(root,backups))
+            with patch.object(m.subprocess,'run',return_value=subprocess.CompletedProcess([],0,stdout=m.REVISION)):
+                m.patch(root,backups)
+            patched=source.read_bytes()
+            source.write_bytes(patched+b'// later edits\n')
+            with self.assertRaisesRegex(ValueError,'No matching backup'):
+                m.restore_applied(root,backups)
+            self.assertEqual(source.read_bytes(),patched+b'// later edits\n')
+            source.write_bytes(patched)
+            self.assertTrue(m.restore_applied(root,backups))
+            self.assertEqual(source.read_bytes(),original)
+            self.assertFalse(m.restore_applied(root,backups))
+
     def test_compiled_block_preserves_pose_and_rejects_invalid_map_starts(self):
         # Execute the exact patch statements, not a reimplementation. Mock map
         # classifications isolate the boundary logic; this is not a full SUPER build.

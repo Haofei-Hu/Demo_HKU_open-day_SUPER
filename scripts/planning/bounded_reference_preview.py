@@ -37,7 +37,7 @@ class TakeoffFrame:
 
     def check(self, position):
         p = self.coordinates(position)
-        if not np.all(np.isfinite(p)) or not (0 <= p[0] <= 5 and abs(p[1]) <= 2 and 0 <= p[2] <= 2):
+        if not np.all(np.isfinite(p)) or not (-.10 <= p[0] <= 5 and abs(p[1]) <= 2 and 0 <= p[2] <= 2):
             raise ValueError('Outside forward/left/floor-height envelope: '+str(p.round(4).tolist()))
         return p
 
@@ -185,7 +185,7 @@ def node_type():
             self.inputs.append(self.create_subscription(PolynomialTrajectory,'/planning_cmd/poly_traj',
                                                        self.polynomial_received,qos_profile_sensor_data))
             self.output_timer = self.create_timer(.02,self.tick)
-            self.get_logger().info('GROUND REFERENCE ONLY: forward 0..5 m, left +/-2 m, '
+            self.get_logger().info('GROUND REFERENCE ONLY: forward -0.10..5 m, left +/-2 m, '
                                    'FC floor height 0..2 m; first-goal endpoint hold. No native output.')
 
         def feedback_callback(self,name):

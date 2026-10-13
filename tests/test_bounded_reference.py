@@ -35,7 +35,12 @@ class Tests(unittest.TestCase):
         f=TakeoffFrame([2,-1,.3],q)
         np.testing.assert_allclose(f.coordinates([2,0,1.215]),[1,0,1],atol=1e-12)
         np.testing.assert_allclose(f.axes,TakeoffFrame([2,-1,.3],-np.array(q)).axes)
-        for p in ([-.001,0,0],[5.001,0,0],[0,2.001,0],[0,0,-.086],[0,0,1.916]):
+        base=TakeoffFrame([0,0,0],[0,0,0,1])
+        np.testing.assert_allclose(base.check([-.0552,-.0466,.0239]),[-.0552,-.0466,.1089])
+        base.check([-.10,0,0])
+        # Backward allowance is measured along captured yaw, not world X.
+        np.testing.assert_allclose(f.check([2,-1.099,.3]),[-.099,0,.085],atol=1e-12)
+        for p in ([-.100001,0,0],[5.001,0,0],[0,2.001,0],[0,0,-.086],[0,0,1.916]):
             with self.assertRaises(ValueError):TakeoffFrame([0,0,0],[0,0,0,1]).check(p)
 
     def test_piece_coefficients_use_descending_local_seconds(self):

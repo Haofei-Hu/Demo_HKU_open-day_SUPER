@@ -94,13 +94,44 @@ def restore(backup):
     print('Rebuild super_planner before restarting ground planning.')
 
 
+def restore_applied(root, backup_root):
+    """Restore only a matching backed-up patch; leave an original source alone."""
+    source = Path(root).expanduser().resolve()/RELATIVE
+    current = source.read_bytes()
+    if current.count(OLD) == 1 and NEW not in current:
+        print('Original rest-start source present; no files written.')
+        print('Rebuild only if a patched executable was previously built.')
+        return False
+    if current.count(NEW) != 1 or OLD in current:
+        raise ValueError('Unrecognized rest-start source; no files written.')
+    current_hash = hashlib.sha256(current).hexdigest()
+    for backup in sorted(Path(backup_root).expanduser().glob('super_exact_start_backup_*')):
+        try:
+            manifest = json.loads((backup/'manifest.json').read_text())
+            matches = (Path(manifest['source']).resolve() == source
+                       and manifest['revision'] == REVISION
+                       and manifest['after_sha256'] == current_hash)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if matches:
+            restore(backup)  # Also verifies the original file checksum.
+            return True
+    raise ValueError('No matching backup for the current source; no files written. '
+                     'Inspect the original backup and any later source edits.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,default=Path.home()/'super_ws/src/SUPER')
     parser.add_argument('--backup-root',type=Path,default=Path.home()/'Downloads')
-    parser.add_argument('--restore',type=Path,help='restore only if both stored hashes match')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--restore',type=Path,help='restore only if both stored hashes match')
+    mode.add_argument('--restore-applied',action='store_true',
+                      help='find a matching backup and restore; leave unpatched source unchanged')
     args = parser.parse_args()
-    if args.restore is not None:
+    if args.restore_applied:
+        restore_applied(args.root,args.backup_root)
+    elif args.restore is not None:
         restore(args.restore)
     else:
         patch(args.root,args.backup_root)

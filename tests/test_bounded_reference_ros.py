@@ -66,6 +66,12 @@ def run(case):
             poly.type=3;poly.order_pos=7;poly.piece_num_pos=1;poly.start_wt_pos=float(start);poly.time_pos=[2.]
             poly.coef_pos_x=[0.,0.,.01875,-.09375,.125,0.,0.,0.]
             poly.coef_pos_y=poly.coef_pos_z=[0.]*8
+            if case=='hold':
+                # Replay the reported initial backward/lateral/height offset.
+                # Matching raw/converted references must pass without clipping.
+                poly.coef_pos_x[-1]=-.0552
+                poly.coef_pos_y=[0.]*7+[-.0466]
+                poly.coef_pos_z=[0.]*7+[.0239]
             pubs['/planning_cmd/poly_traj'].publish(poly)
             p,v,a=Plan(poly).evaluate(now/1e9-start)
             msg=PositionCommand();msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(now,1000000000)
@@ -97,7 +103,9 @@ def run(case):
                 wait(lambda:preview.reference.restarts_blocked>2)
                 count=len(output);spin(.2)
                 assert len(output)>count,'Held preview not emitted'
-                assert all(.099<msg.pose.position.x<.101 for msg in output[count:]),'Restart leaked through hold'
+                assert all(.0438<msg.pose.position.x<.0458 for msg in output[count:]),'Restart leaked through hold'
+                assert all(abs(msg.pose.position.y+.0466)<1e-9 and abs(msg.pose.position.z-.0239)<1e-9
+                           for msg in output[count:]),'Accepted reference was shifted or clipped'
                 settings['estimator_age']=3.;spin(.15);count=len(output);spin(.1)
                 assert len(output)==count,'Stale estimator leaked output'
                 settings['estimator_age']=0.;wait(lambda:len(output)>count)
