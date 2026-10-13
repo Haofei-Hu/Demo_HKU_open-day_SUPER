@@ -64,6 +64,15 @@ python3 ~/Downloads/super_session.py align
 
 The expected live readback is `Boolean value is: False`. Inspect the new survey before using its quaternion to restore vision. Collect timestamped stationary measurements under comparable conditions; do not reuse a prior quaternion or treat one restarted sample as a confirmed correction.
 
+After restoring vision with that session's survey, the current `ground_pose_snapshot.py` supports a continuous stationary observation:
+
+```bash
+source /opt/ros/humble/setup.zsh
+python3 ~/Downloads/ground_pose_snapshot.py --duration 120
+```
+
+Keep the aircraft stationary throughout. The read-only tool subscribes to aligned and FC poses, records ROS start/end stamps, and reports actual sampled span, receive gaps, source ages, initial/final two-second position means, XYZ ranges and maximum forward/left/up excursions. Each source's axes use its initial mean yaw and position. This detects intermediate excursions that two endpoint readbacks can miss. It makes no parameter/service requests or flight output and does not automatically declare flight readiness. The default remains a five-second observation; durations from 5 to 300 seconds are supported. Closely matching FC/external data are not independent physical-accuracy evidence because the FC fuses the external source. Compare equivalent observation windows before drawing a causal conclusion.
+
 This requires fresh connected/disarmed/on-ground state, pulls MAVROS parameters, sets and reads back EV_CTRL=0, then runs odometry-age and 15-second attitude checks. A quaternion is printed, not automatically saved. Inspect the sample count, ages, pairing gap, and rotation spread; remain stationary. If the survey is stale, inconsistent, or has insufficient matches, diagnose it before enabling vision.
 
 Use this run's four xyzw values, replacing the placeholders:

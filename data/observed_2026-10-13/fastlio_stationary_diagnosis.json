@@ -69,8 +69,43 @@
     "source_patch_required": false,
     "rebuild_required": false,
     "changes": "One LIO startup override only; new grounded ROS session and fresh world-frame survey required.",
-    "aircraft_parameter_readback_observed": false,
-    "drift_result": "Pending fresh aircraft session and timed stationary observations."
+    "aircraft_parameter_readback_observed": true,
+    "drift_result": "Pending fresh vision restoration and timed stationary observations; startup/readback alone do not demonstrate improvement.",
+    "aircraft_parameter_readback_value": false,
+    "log_session": "20261013_220904_825406",
+    "fresh_survey": {
+      "candidate_xyzw": [
+        -0.010701,
+        0.001538,
+        0.957848,
+        0.287072
+      ],
+      "candidate_rpy_deg": [
+        -0.183,
+        1.225,
+        146.631
+      ],
+      "received_body_imu_samples": [
+        751,
+        655
+      ],
+      "matched_samples": 656,
+      "rotation_spread_mean_max_deg": [
+        0.177,
+        0.569
+      ],
+      "pairing_gap_max_s": 0.04,
+      "body_age_mean_max_s": [
+        0.011,
+        0.016
+      ],
+      "odometry_samples": 751,
+      "odometry_age_min_mean_max_s": [
+        0.008,
+        0.01,
+        0.025
+      ]
+    }
   },
   "root_cause": "Not established; extrinsic estimation and coarse filtering/point support are diagnostic hypotheses, not confirmed causes."
 }
