@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 13, 2026:** the complete fixed-position flight sequence has succeeded on the aircraft: **OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor and a 6-second hold, followed by automatic landing**. This establishes the first flight-control milestone. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. Planner-driven trajectory flight and obstacle avoidance are the next integration stage. Ground timing and low-speed advertised-motion checks have passed; the bounded preview rejected a displaced rest-start reference. The ground preview allows 10 cm behind the captured takeoff point and checks initial offsets within 10 cm on each forward/left/up axis against current measured position; the original SUPER rest-start selection is retained. Full-flight tracking accuracy remains unverified. The [rollback guide](docs/EXACT_PLANNER_START.md) covers restoring the optional exact-start patch if it was applied. Physical bounded-reference resampling remains pending.
+**Status — October 13, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. The latest disarmed bounded-reference test reached and held `END_HOLD`, with initial forward/left/up offsets `[0.0013, 0.0022, −0.0537] m`, all within the 10 cm per-axis requirement. Subsequent stationary restart references were suppressed. See the [ground result](data/observed_2026-10-13/bounded_reference_ground.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage.
 
 ## Quick Start: restore the aircraft after reboot
 
@@ -17,13 +17,15 @@ Then use the current measured quaternion with `super_session.py vision QX QY QZ 
 
 ```bash
 python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
-# After a nonempty occupancy map and coordinate-preview readiness:
+# Before a goal, start bounded preview and wait for WAIT_TRAJECTORY:
+python3 ~/Downloads/super_session.py reference-preview
+# After a nonempty occupancy map and preview readiness:
 python3 ~/Downloads/super_session.py goal
 # Stop planning only; localization and vision remain running:
 python3 ~/Downloads/super_session.py planner-stop
 ```
 
-These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed-3d` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. The separate [bounded ground reference preview](docs/BOUNDED_REFERENCE_PREVIEW.md) adds fixed forward/floor coordinates, point-envelope checks and committed-trajectory endpoint holding. Its aircraft validation remains pending. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
+These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed-3d` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. The separate [bounded ground reference preview](docs/BOUNDED_REFERENCE_PREVIEW.md) adds fixed forward/floor coordinates, point-envelope checks and committed-trajectory endpoint holding. A stationary aircraft test reached `END_HOLD` and suppressed restart references; native flight execution remains pending. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
 
 Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
 

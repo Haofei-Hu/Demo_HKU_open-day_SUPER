@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-13",
+  "stage": "disarmed ground reference preview",
+  "result": "END_HOLD observed",
+  "planner_profile": "low-speed-3d",
+  "native_flight_output": false,
+  "requested_planner_xyz_m": [
+    0.213527,
+    0.251365,
+    1.496086
+  ],
+  "accepted_planner_xyz_m": [
+    0.25,
+    0.25,
+    1.45
+  ],
+  "initial_forward_left_up_offset_m": [
+    0.0013,
+    0.0022,
+    -0.0537
+  ],
+  "per_axis_initial_offset_limit_m": 0.1,
+  "accepted_reference_samples": 227,
+  "held_forward_left_fc_floor_height_m": [
+    0.208,
+    0.2161,
+    0.03
+  ],
+  "shown_hold_first_ros_time_s": 1791886597.173121,
+  "shown_hold_last_ros_time_s": 1791886631.1631093,
+  "shown_hold_span_s": 33.99,
+  "blocked_subsequent_reference_samples_first": 6349,
+  "blocked_subsequent_reference_samples_last": 8567,
+  "evidence": "Bounded-reference node logs and accepted-goal logs; no separate DDS subscriber readback in this sample.",
+  "scope": "Initial handover and endpoint hold in a stationary ground preview. Blocked counts are reference samples, not flights or replans. No airborne tracking accuracy, clearance or native trajectory execution is established."
+}

@@ -1,6 +1,6 @@
 # Original SUPER rest-start behavior and patch rollback
 
-The current ground workflow retains SUPER's original rest-start selection and permits references up to 10 cm behind the captured takeoff point. The first bounded-preview trial rejected forward/left/FC-height `[-0.0552, -0.0466, 0.1089]` under a zero-backward allowance. That point is within the revised envelope. Endpoint-hold, polynomial matching, continuity and feedback checks remain active. Physical resampling with the updated preview is pending.
+The current ground workflow retains SUPER's original rest-start selection and permits references up to 10 cm behind the captured takeoff point. The first bounded-preview trial rejected forward/left/FC-height `[-0.0552, -0.0466, 0.1089]` under a zero-backward allowance. That point is within the revised envelope. Endpoint-hold, polynomial matching, continuity and feedback checks remain active. A subsequent same-height stationary aircraft test reached `END_HOLD` with initial offsets within 10 cm per axis; native flight tracking remains pending.
 
 An exact-start source patch was prepared for this result, but is no longer required by the deployment workflow. If it was never applied on the aircraft, no source change or rebuild is needed. Keep the current 50 Hz localization and vision session running while restarting only ground planning/reference preview.
 
