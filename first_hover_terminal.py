@@ -65,12 +65,17 @@ def pose_values(msg):
     return (values[:3], yaw)
 
 class FirstHoverControl(Node):
+    NODE_NAME = 'first_hover'
+    DEBUG_TOPIC = DEBUG
+    START_SERVICE = '/first_hover/start'
+    LAND_SERVICE = '/first_hover/land'
+    RC_IN_CHECK = True
 
     def __init__(self, execute=False, hover_fc_height=0.5, hold_seconds=2.0):
         profile = HoverReference((0.0, 0.0, 0.0), 0.0, hover_fc_height=hover_fc_height, hold_seconds=hold_seconds)
         if hover_fc_height > 1.0:
             raise ValueError('First-hover controller supports FC heights up to 1 m')
-        super().__init__('first_hover')
+        super().__init__(self.NODE_NAME)
         self.execute = execute
         self.hover_fc_height = float(hover_fc_height)
         self.hold_seconds = profile.hold_seconds
@@ -91,18 +96,21 @@ class FirstHoverControl(Node):
         self.last_target = None
         self.confirmed = {}
         self.parameter_futures = {}
-        self.debug_pub = self.create_publisher(PoseStamped, DEBUG, 10)
+        self.debug_pub = self.create_publisher(PoseStamped, self.DEBUG_TOPIC, 10)
         self.native_pub = self.create_publisher(PoseStamped, NATIVE, 10) if execute else None
         for field, msg_type, topic in (('state', State, '/mavros/state'), ('local', PoseStamped, '/mavros/local_position/pose'), ('vision', PoseWithCovarianceStamped, '/mavros/vision_pose/pose_cov'), ('estimator', EstimatorStatus, '/mavros/estimator_status'), ('extended', ExtendedState, '/mavros/extended_state'), ('rc', RCIn, '/mavros/rc/in')):
             self.create_subscription(msg_type, topic, lambda msg, name=field: self.store(name, msg), qos_profile_sensor_data)
         self.parameter_clients = {'fc': self.create_client(GetParameters, '/mavros/param/get_parameters'), 'frame': self.create_client(GetParameters, '/mavros/setpoint_position/get_parameters')}
         self.mode_client = self.create_client(SetMode, '/mavros/set_mode')
         self.arm_client = self.create_client(CommandBool, '/mavros/cmd/arming')
-        self.create_service(Trigger, '/first_hover/start', self.start)
-        self.create_service(Trigger, '/first_hover/land', self.stop_requested)
+        self.create_service(Trigger, self.START_SERVICE, self.start)
+        self.create_service(Trigger, self.LAND_SERVICE, self.stop_requested)
         self.create_timer(1.0, self.poll_parameters)
         self.create_timer(0.05, self.tick)
-        self.get_logger().info(('EXECUTE ENABLED; awaiting explicit /first_hover/start. ' if execute else 'CHECK ONLY; no native setpoints, mode or arming requests. ') + f'Floor FC=0.085 m, hover FC={self.hover_fc_height:g} m, hold={self.hold_seconds:g} s, fixed XY/yaw, then AUTO.LAND; OFFBOARD budget={self.offboard_budget:g} s; one flight only.')
+        self.get_logger().info(self.startup_message())
+
+    def startup_message(self):
+        return (f'EXECUTE ENABLED; awaiting explicit {self.START_SERVICE}. ' if self.execute else 'CHECK ONLY; no native setpoints, mode or arming requests. ') + f'Floor FC=0.085 m, hover FC={self.hover_fc_height:g} m, hold={self.hold_seconds:g} s, fixed XY/yaw, then AUTO.LAND; OFFBOARD budget={self.offboard_budget:g} s; one flight only.'
 
     def store(self, field, msg):
         setattr(self, field, msg)
@@ -167,10 +175,13 @@ class FirstHoverControl(Node):
         for key in ('fc', 'frame'):
             if time.monotonic() - self.confirmed.get(key, -math.inf) > 3:
                 raise ValueError('Waiting for confirmed fusion, speed limits, LAND fallback and LOCAL_NED')
-        for field, limit in (('local', 0.25), ('vision', 0.25), ('estimator', 2), ('extended', 2), ('rc', 0.5)):
+        fields = [('local', 0.25), ('vision', 0.25), ('estimator', 2), ('extended', 2)]
+        if self.execute or self.RC_IN_CHECK:
+            fields.append(('rc', 0.5))
+        for field, limit in fields:
             if not self.fresh(field, limit):
                 raise ValueError('Missing/stale ' + field)
-        if len(self.rc.channels) < 7:
+        if (self.execute or self.RC_IN_CHECK) and len(self.rc.channels) < 7:
             raise ValueError('RC channels unavailable')
         if not (self.estimator.attitude_status_flag and self.estimator.velocity_horiz_status_flag and self.estimator.velocity_vert_status_flag and self.estimator.pos_horiz_rel_status_flag and self.estimator.pos_vert_abs_status_flag) or self.estimator.accel_error_status_flag:
             raise ValueError('FC attitude/local position/velocity estimate invalid')
@@ -181,7 +192,7 @@ class FirstHoverControl(Node):
         if math.dist(xyz, external) > 0.15 or abs(self.angle(yaw - ev_yaw)) > math.radians(5):
             raise ValueError('FC and external localization disagree')
         identities = self.sources()
-        if self.count_publishers(DEBUG) != 1:
+        if self.count_publishers(self.DEBUG_TOPIC) != 1:
             raise ValueError('Another hover controller/preview is publishing')
         if self.execute:
             if self.count_publishers(NATIVE) != 1 or self.native_pub.get_subscription_count() < 1:
@@ -190,10 +201,16 @@ class FirstHoverControl(Node):
                 if self.count_publishers(topic):
                     raise ValueError('Other control publisher: ' + topic)
         if ground:
-            if self.state.armed or self.state.mode != 'POSCTL' or (not self.state.manual_input):
+            rc_required = self.execute or self.RC_IN_CHECK
+            modes = ('POSCTL',) if rc_required else ('POSCTL', 'AUTO.LOITER')
+            if self.state.armed or self.state.mode not in modes or (rc_required and (not self.state.manual_input)):
                 raise ValueError('Initial state must be disarmed POSCTL with RC input')
             if self.extended.landed_state != ExtendedState.LANDED_STATE_ON_GROUND:
                 raise ValueError('FC does not report on ground')
+        self.check_envelope(xyz, yaw, ground)
+        return (xyz, yaw, identities)
+
+    def check_envelope(self, xyz, yaw, ground):
         if self.reference is not None:
             g = self.reference.ground
             if math.hypot(xyz[0] - g[0], xyz[1] - g[1]) > 0.3:
@@ -204,7 +221,12 @@ class FirstHoverControl(Node):
                 raise ValueError('Heading departure exceeds 15 degrees')
             if ground and math.dist(xyz, g) > 0.05:
                 raise ValueError('Aircraft moved after ground capture')
-        return (xyz, yaw, identities)
+
+    def allowed_modes(self):
+        return {'PRESTREAM': ('POSCTL',), 'MODE_REQUEST': ('POSCTL', 'OFFBOARD'), 'ARM_REQUEST': ('OFFBOARD',), 'RISE': ('OFFBOARD',), 'HOLD': ('OFFBOARD',), 'LAND_REQUEST': ('OFFBOARD', 'AUTO.LAND'), 'LANDING': ('AUTO.LAND',)}
+
+    def mission_tick(self, now, xyz, yaw):
+        return False
 
     @staticmethod
     def angle(value):
@@ -298,7 +320,7 @@ class FirstHoverControl(Node):
             return
         try:
             if self.started and self.fresh('state', 2):
-                allowed = {'PRESTREAM': ('POSCTL',), 'MODE_REQUEST': ('POSCTL', 'OFFBOARD'), 'ARM_REQUEST': ('OFFBOARD',), 'RISE': ('OFFBOARD',), 'HOLD': ('OFFBOARD',), 'LAND_REQUEST': ('OFFBOARD', 'AUTO.LAND'), 'LANDING': ('AUTO.LAND',)}[self.phase]
+                allowed = self.allowed_modes()[self.phase]
                 if self.state.mode not in allowed:
                     self.abort('Pilot/FC changed mode to ' + self.state.mode)
                     return
@@ -327,6 +349,8 @@ class FirstHoverControl(Node):
                     self.identities_locked = identities
                     self.change('READY')
                     self.get_logger().info(f'GROUND LOCK xyz={xyz}; fixed hover z={xyz[2] + self.reference.lift:.3f}; FC height above floor={self.hover_fc_height:.3f} m; hold={self.hold_seconds:g} s. Awaiting explicit start; no motion yet.')
+                return
+            if self.mission_tick(now, xyz, yaw):
                 return
             target = list(self.reference.ground)
             if self.phase == 'READY':

@@ -3,6 +3,7 @@ import argparse
 import importlib.util
 from pathlib import Path
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -109,7 +110,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','hover','stop'):
+        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','handover-check','handover-stop','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -217,7 +218,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(FakeGate.writes,[])
 
     def test_wire_commands_source_workspace_setups_without_a_preinitialized_shell(self):
-        for action in ('wire-test','wire-stop'):
+        for action in ('wire-test','wire-stop','handover-check','handover-stop'):
             args=m.arguments([action])
             with patch.object(m,'arguments',return_value=args), \
                  patch.object(m.subprocess,'run',side_effect=[argparse.Namespace(returncode=0),
@@ -241,6 +242,60 @@ class Tests(unittest.TestCase):
         s=self.manager(['hover','--execute']);s.window_state.update(wire_test='0',preview='0',vision='0')
         with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('hover')
         self.assertEqual(s.started,[])
+
+    def test_handover_check_stops_wire_and_launches_without_execute(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for name in ('super_flight_control.py','bounded_reference_preview.py'):
+                (root/name).write_text('# fixture')
+            (root/'first_hover_terminal.py').write_text(
+                'class FirstHoverControl:\n'
+                '    def mission_tick(self): pass\n'
+                '    def allowed_modes(self): pass\n'
+                '    def check_envelope(self): pass\n')
+            s=self.manager(['handover-check','--scripts-dir',directory])
+            s.config.update(planner_profile='low-speed-3d',planner_config_path='/tmp/profile.yaml')
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0',wire_test='0')
+            msg=types.ModuleType('mars_quadrotor_msgs.msg');msg.PolynomialTrajectory=lambda:None
+            with patch.object(m,'GroundGate',FakeGate),patch.dict('sys.modules',{'mars_quadrotor_msgs.msg':msg}):
+                s.mutate('handover-check')
+                self.assertNotIn('wire_test',s.window_state)
+                self.assertEqual([name for name,_ in s.started],['handover_check'])
+                self.assertNotIn('--execute',s.started[0][1])
+                self.assertIn('--planner-config',s.started[0][1])
+                with self.assertRaises(RuntimeError):s.mutate('handover-check')
+                for action in ('goal','wire-test','hover'):
+                    with self.assertRaises(RuntimeError):s.mutate(action)
+                s.mutate('handover-stop')
+            self.assertEqual(FakeGate.writes,[])
+            for name in ('lidar','lio','mavros','body','preview','vision','planner','cmd_preview'):
+                self.assertEqual(s.window_state[name],'0')
+
+    def test_handover_requires_current_helper_and_no_other_native_writer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for name in ('super_flight_control.py','bounded_reference_preview.py'):(root/name).write_text('# fixture')
+            legacy=root/'first_hover_terminal.py';legacy.write_text('class FirstHoverControl: pass\n')
+            s=self.manager(['handover-check','--scripts-dir',directory])
+            s.config.update(planner_profile='low-speed-3d',planner_config_path='/tmp/profile.yaml')
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            with patch.object(m,'GroundGate',FakeGate),self.assertRaisesRegex(RuntimeError,'Update first_hover'):
+                s.mutate('handover-check')
+            legacy.write_text('class FirstHoverControl:\n'
+                '    def mission_tick(self): pass\n    def allowed_modes(self): pass\n'
+                '    def check_envelope(self): pass\n')
+            FakeGate.publisher_counts={'/mavros/setpoint_raw/local':1}
+            with patch.object(m,'GroundGate',FakeGate),self.assertRaisesRegex(RuntimeError,'other native control'):
+                s.mutate('handover-check')
+            self.assertEqual(s.started,[])
+
+    def test_planner_shutdown_stops_handover_auditor_before_planning(self):
+        s=self.manager(['planner-stop'])
+        s.window_state.update(handover_check='0',planner='0',cmd_preview='0',preview='0',vision='0')
+        with patch.object(m,'GroundGate',FakeGate):s.mutate('planner-stop')
+        self.assertEqual([op[1] for op in s.operations if op[0]=='interrupt'],
+                         ['handover_check','cmd_preview','planner'])
+        self.assertEqual(s.window_state['vision'],'0')
 
     def test_hover_only_launches_and_check_only_upgrade(self):
         s=self.manager(['hover']);s.window_state.update(preview='0',vision='0')

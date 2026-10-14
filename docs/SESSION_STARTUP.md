@@ -2,7 +2,7 @@
 
 `super_session.py` groups the localization, ground planning, and hover processes in a private tmux session. One onboard command terminal is enough; a second terminal can show logs. QGC remains a separate application. The original numbered runbook is still available for diagnosis.
 
-This manager has software/isolated-fixture verification. Aircraft localization startup has been checked with current telemetry, fresh alignment, native vision, and valid local position/velocity. Ground planning and hover readiness still require their own checks before use. It does not implement the planned SUPER trajectory bridge.
+This manager has software/isolated-fixture verification. Aircraft localization startup has been checked with current telemetry, fresh alignment, native vision, and valid local position/velocity. The disarmed SUPER-to-PX4 protocol path is verified. A separate [one-goal controller prototype](SUPER_HANDOVER.md) now provides managed `handover-check`/`handover-stop`; the manager exposes its ground audit only. Planner-driven aircraft flight remains unverified.
 
 ## Install once
 

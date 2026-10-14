@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-14",
+  "scope": "Software validation only; simulated ROS telemetry and MAVROS services in isolated localhost domains",
+  "aircraft_handover_audit_verified": false,
+  "aircraft_planner_driven_flight_verified": false,
+  "default_mode": "Disarmed one-goal ground audit; no native setpoints, mode or arming requests",
+  "prototype_profile": {
+    "hover_fc_floor_height_m": 1.0,
+    "initial_hover_s": 2.0,
+    "forward_distance_m": 0.3,
+    "endpoint_hold_s": 6.0,
+    "planner_velocity_acceleration_limits": [0.25, 0.45],
+    "native_position_yaw_rate_hz": 20,
+    "per_axis_reference_endpoint_tracking_tolerance_m": 0.1,
+    "planner_wait_budget_s": 8,
+    "committed_trajectory_duration_limit_s": 20,
+    "offboard_flight_budget_s": 45,
+    "control_timer_gap_limit_s": 0.2
+  },
+  "original_hover_ros_regression": "passed; default diagnostics, explicit one-shot start, height/hold profiles, rejection, loss, deviation, takeover, landing/disarm and no restart",
+  "new_ros_cases_passed": [
+    "audit_hold: no native/control requests; committed endpoint held; restart suppressed; arming latches stop",
+    "audit_restart: moving reference restart rejected with no automatic recovery",
+    "audit_config: changed configuration latches stop",
+    "audit_source: replaced raw publisher identity latches stop",
+    "missing_rc: execution never becomes READY or requests flight",
+    "flight_hold: explicit OFFBOARD/arm, rise, hover, one goal, track, terminal hold, LAND and landed/disarmed confirmation",
+    "flight_pilot: manual mode takeover stops output without overriding pilot",
+    "flight_loss: missing commands stop stream and request LAND",
+    "flight_tracking: estimated departure stops stream and requests LAND"
+  ],
+  "numerical_checks": [
+    "inverse nonidentity world/offset geometry round-trip",
+    "tracking error over 0.10 m per axis rejected",
+    "measured corridor rejects stacked reference/tracking offsets"
+  ],
+  "manager_lifecycle_tests_passed": 30,
+  "repository_layout_tests_passed": 3,
+  "standalone_hover_matches_canonical_source": true,
+  "fixture_corrections": [
+    "Raw header construction changed to avoid aliasing the local-pose frame identifier",
+    "Fault assertions await asynchronous LAND service delivery before checking mock request history"
+  ],
+  "timing_observation": {
+    "one_flight_hold_run_triggered_watchdog": true,
+    "observed_action": "Setpoints stopped; AUTO.LAND requested; no rearm or mode re-entry",
+    "watchdog_threshold_relaxed": false,
+    "stall_root_cause": "not established; observed during RISE before goal processing",
+    "representative_mixed_rate_retest": "flight_hold and flight_tracking passed",
+    "retest_feedback_rates_hz": {"paired_raw_aligned_vision": 50, "local_pose": 25, "status_estimator_landing": 10},
+    "retest_blas_threads": 1,
+    "onboard_callback_timing_verified": false
+  },
+  "limitations": "Fixtures do not model PX4 dynamics or establish physical tracking accuracy, surveyed clearance, complete-session localization stability or flight readiness"
+}

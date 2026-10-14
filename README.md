@@ -8,6 +8,8 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 The managed disarmed SUPER-to-PX4 transport is verified: native position/yaw setpoints publish at approximately 20 Hz and PX4 reports fresh position-control intent. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
 
+The next stage is the [one-goal handover audit](docs/SUPER_HANDOVER.md). `super_session.py handover-check` keeps localization/planning running and launches a default ground checker; after `READY`, `/super_flight/audit` requests a 0.30 m forward trajectory and verifies continuity/endpoint hold without native flight output. The flight-capable prototype has isolated software validation; aircraft auditing and flight are pending.
+
 For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
 
 ```bash
@@ -258,7 +260,7 @@ For detailed guards, phase timing, check-only mode, and troubleshooting, see the
 | Fixed-position flight | **Successful on aircraft** | Complete automatic takeoff, hover, and landing sequence |
 | SUPER mapping and planning | Ground integration complete | Occupancy map, trajectory generation, replanning, and converted command preview |
 | SUPER → PX4 ground transport | Verified on aircraft | Approximately 20 Hz native position/yaw publication and fresh PX4 position-control intent while disarmed |
-| SUPER → flight trajectory execution | Pending | Ground preview is separate from the completed hover controller |
+| SUPER → flight trajectory execution | Prototype under validation | One-goal controller tested with isolated ROS telemetry/services; aircraft auditing and flight pending |
 | Remote operation | Operational | Mac → NoMachine → onboard Ubuntu desktop, including QGC and terminals |
 | Loop recording and XYZ analysis | Tools ready | Bag export, point-cloud inspection, timing gaps, and return-to-marker metrics |
 | Venue limits and 2 m/s demonstration | Pending | Surveyed boundaries, clearance margins, and staged flight validation |

@@ -25,6 +25,11 @@ SCRIPTS = ('fastlio_body_debug.py', 'odom_age_check.py', 'frame_alignment_check.
            'update_preview_alignment.py', 'aligned_pose_preview.py',
            'flight_pose_cov_transport.py', 'first_hover_terminal.py',
            'control_bridge_preview.py')
+NATIVE_CONTROL_TOPICS=('/mavros/setpoint_position/local','/mavros/setpoint_raw/local',
+    '/mavros/setpoint_raw/global','/mavros/setpoint_raw/attitude','/mavros/setpoint_position/global',
+    '/mavros/setpoint_position/global_to_local','/mavros/setpoint_velocity/cmd_vel',
+    '/mavros/setpoint_velocity/cmd_vel_unstamped','/mavros/setpoint_accel/accel',
+    '/mavros/setpoint_attitude/attitude','/mavros/setpoint_attitude/cmd_vel','/mavros/setpoint_attitude/thrust')
 
 
 def ros_environment():
@@ -334,7 +339,7 @@ class Session:
         return target
 
     def stop_planning(self, gate):
-        for name in ('wire_test', 'reference_preview', 'cmd_preview', 'planner'):
+        for name in ('wire_test', 'handover_check', 'reference_preview', 'cmd_preview', 'planner'):
             if name in self.windows():
                 gate.check()
                 self.interrupt(name)
@@ -344,7 +349,7 @@ class Session:
 
     def mutate(self, action):
         self.load()
-        if action not in ('stop', 'planner-stop', 'wire-stop'):
+        if action not in ('stop', 'planner-stop', 'wire-stop', 'handover-stop'):
             self.require_core()
         windows = self.windows()
         gate = GroundGate()
@@ -406,6 +411,8 @@ class Session:
                         '--ros-args','-p','alignment_path:='+str(self.scripts/'aligned_pose_preview.py')]))
                     print('Bounded ground reference preview launched. Wait for GROUND FRAME LOCKED before one goal. No native output.')
                 elif action in ('goal', 'planner-check'):
+                    if action=='goal' and 'handover_check' in windows:
+                        raise RuntimeError('Handover auditor owns one goal; use /super_flight/audit or handover-stop')
                     if windows.get('planner') != '0' or windows.get('cmd_preview') != '0':
                         raise RuntimeError('Start the ground planner and command preview first')
                     height_goal = action == 'goal' and self.args.goal_height is not None
@@ -453,7 +460,7 @@ class Session:
             elif action == 'wire-test':
                 if any(windows.get(name)!='0' for name in ('preview','vision','planner','cmd_preview')):
                     raise RuntimeError('Need managed localization, vision, ground planner and coordinate preview running')
-                if 'hover' in windows or 'wire_test' in windows:
+                if any(name in windows for name in ('hover','wire_test','handover_check')):
                     raise RuntimeError('Hover/wire window exists; stop it explicitly before a ground wire test')
                 gate.wait(gate.localization_ready,'fresh valid ground localization before native wire test')
                 def coordinate_source_ready():
@@ -463,13 +470,7 @@ class Session:
                     return count==1
                 gate.wait(coordinate_source_ready,
                           'one SUPER coordinate-preview source to be discovered (zero found)')
-                controls=('/mavros/setpoint_position/local','/mavros/setpoint_raw/local',
-                          '/mavros/setpoint_raw/global','/mavros/setpoint_raw/attitude',
-                          '/mavros/setpoint_position/global','/mavros/setpoint_position/global_to_local',
-                          '/mavros/setpoint_velocity/cmd_vel','/mavros/setpoint_velocity/cmd_vel_unstamped',
-                          '/mavros/setpoint_accel/accel','/mavros/setpoint_attitude/attitude',
-                          '/mavros/setpoint_attitude/cmd_vel','/mavros/setpoint_attitude/thrust')
-                if any(gate.node.count_publishers(topic) for topic in controls):
+                if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
                     raise RuntimeError('Another native setpoint publisher is present; no wire sender launched')
                 helper=self.scripts/'ground_setpoint_transport.py'
                 if not helper.is_file():raise RuntimeError('Missing ground wire helper: '+str(helper))
@@ -478,6 +479,46 @@ class Session:
                 print('Ground wire sender launched: SUPER coordinate preview -> MAVROS position/yaw, 20 Hz.')
                 print('Disarmed AUTO.LOITER/POSCTL only; arming/OFFBOARD latches output off. No mode or arming requests.')
                 print('This checks transport; bounded-reference/flight tracking approval remains separate.')
+            elif action=='handover-check':
+                if self.config.get('planner_profile')!='low-speed-3d' or any(
+                        windows.get(name)!='0' for name in ('preview','vision','planner','cmd_preview')):
+                    raise RuntimeError('Need the managed low-speed-3d planner and current vision session')
+                if any(name in windows for name in ('hover','reference_preview','handover_check')):
+                    raise RuntimeError('Another hover/reference/handover window exists; stop it first')
+                helper=self.scripts/'super_flight_control.py'
+                if not helper.is_file() or not (self.scripts/'bounded_reference_preview.py').is_file():
+                    raise RuntimeError('Missing handover controller or bounded reference helper')
+                import ast
+                tree=ast.parse((self.scripts/'first_hover_terminal.py').read_text())
+                classes=[n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='FirstHoverControl']
+                if len(classes)!=1 or not {'mission_tick','allowed_modes','check_envelope'}<={
+                        n.name for n in classes[0].body if isinstance(n,ast.FunctionDef)}:
+                    raise RuntimeError('Update first_hover_terminal.py before handover-check')
+                gate.wait(gate.localization_ready,'fresh valid ground localization before handover audit')
+                if 'wire_test' in windows:
+                    gate.check();self.interrupt('wire_test')
+                    gate.wait(gate.grounded,'fresh ground state during wire shutdown')
+                    self.tmux('kill-window','-t',self.name+':wire_test')
+                    gate.wait(lambda:gate.node.count_publishers('/mavros/setpoint_position/local')==0,
+                              'stopped ground sender to disappear from ROS discovery')
+                if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
+                    raise RuntimeError('Stop other native control publishers before handover audit')
+                if gate.node.count_publishers('/super_debug/super_flight_target'):
+                    raise RuntimeError('Another handover controller is present')
+                from mars_quadrotor_msgs.msg import PolynomialTrajectory
+                PolynomialTrajectory()
+                gate.check()
+                self.launch('handover_check',shell_command(['python3','-u',helper,
+                    '--alignment-path',self.scripts/'aligned_pose_preview.py',
+                    '--planner-config',self.config['planner_config_path']]))
+                print('Ground handover auditor launched; managed wire sender stopped if present.')
+                print('Wait for READY, then /super_flight/audit. One ground goal; debug only; no flight output.')
+            elif action=='handover-stop':
+                if 'handover_check' not in windows:raise RuntimeError('No managed handover auditor')
+                gate.check();self.interrupt('handover_check')
+                gate.wait(gate.grounded,'fresh ground state during handover shutdown')
+                self.tmux('kill-window','-t',self.name+':handover_check')
+                print('Handover auditor stopped; localization, vision and planning remain running.')
             elif action == 'wire-stop':
                 if 'wire_test' not in windows:raise RuntimeError('No managed wire-test window')
                 gate.check()
@@ -488,7 +529,7 @@ class Session:
             elif action == 'planner-stop':
                 self.stop_planning(gate)
             elif action == 'hover':
-                if any(name in windows for name in ('planner', 'cmd_preview', 'reference_preview', 'wire_test')):
+                if any(name in windows for name in ('planner', 'cmd_preview', 'reference_preview', 'wire_test', 'handover_check')):
                     raise RuntimeError('Stop ground planning with planner-stop before starting hover')
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed preview and vision relay running')
@@ -511,7 +552,7 @@ class Session:
                 gate.check()
                 # Stop publishers first; keep MAVROS last so ground-state gates
                 # can be checked throughout cooperative Ctrl+C shutdown.
-                for name in ('hover', 'wire_test', 'reference_preview', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
+                for name in ('hover', 'wire_test', 'handover_check', 'reference_preview', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
                     if name in windows:
                         gate.check()
                         self.interrupt(name)
@@ -528,7 +569,7 @@ def unmanaged_processes():
     scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py'}
     scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
                 'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py',
-                'bounded_reference_preview.py'}
+                'bounded_reference_preview.py','super_flight_control.py'}
     found = []
     for path in Path('/proc').glob('[0-9]*/cmdline'):
         try:
@@ -544,7 +585,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -588,7 +629,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)
