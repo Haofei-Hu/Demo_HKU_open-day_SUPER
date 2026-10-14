@@ -405,3 +405,33 @@ python3 ~/Downloads/super_session.py vision QX QY QZ QW
 Keep the aircraft stationary on its takeoff floor through initialization and pairing. If only the FC/sensors reboot while the computer remains running, use grounded `stop`, `start`, `align` before fresh vision initialization. Stop/start clears managed planning/reference state; configuration files persist. Recheck input age, estimator validity and external/FC pose agreement. Each flight still requires explicit initiation and current RC/flight readiness. Cold-start recovery does not establish that localization will remain stable for the complete demonstration.
 
 A clean-session sample on October 13 restored full pose rotation agreement from approximately 35° to 1.75° and odometry maximum age to 27 ms. The underlying cause and complete-run stability remain under investigation.
+
+### Ground corridor floor conflict
+
+In the October 14 disarmed test, a seed at Z `-0.450 m` was outside a corridor whose minimum Z was `-0.400 m`, although the YAML virtual ground was `-1.0 m`. The corner-grid inflation and map quantization move the effective boundary inward before the corridor reserves the robot radius. This prevents trajectory generation and therefore all downstream native transport. A registered sender process alone is not proof of publication.
+
+The following reversible adjustment applies only to the 3D ground diagnostic profile. Keep localization/vision running and the aircraft grounded/disarmed. Preserve the original robot radius, inflation steps, motion limits and reference checks. The virtual plane is not the physical takeoff floor; this override is not a flight configuration or a correction for localization drift.
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+floor_profile="$HOME/super_ws/src/SUPER/super_planner/config/mid360_low_speed_3d_goal_ros2.yaml"
+cp -n "$floor_profile" "$floor_profile.before_wire_floor"
+sed -i 's/^\([[:space:]]*virtual_ground_height:\).*/\1 -1.5/' "$floor_profile"
+grep -n 'virtual_ground_height' "$floor_profile"
+
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d &&
+python3 ~/Downloads/super_session.py wire-test &&
+python3 ~/Downloads/super_session.py goal
+```
+
+Inspect the accepted goal, planner/coordinate/sender logs and native topic frequency. Require actual `SENT ENU` output and PX4 receiver evidence before recording transport success. Moving the synthetic plane excludes the documented boundary conflict but does not guarantee a valid obstacle-free corridor. The override remains in the file across restarts; do not lower it repeatedly to follow an invalid localization estimate. Before preparing a surveyed flight configuration, restore this diagnostic baseline or replace it with a separately validated profile.
+
+Restore the original profile while planning is stopped:
+
+```bash
+python3 ~/Downloads/super_session.py planner-stop
+floor_profile="$HOME/super_ws/src/SUPER/super_planner/config/mid360_low_speed_3d_goal_ros2.yaml"
+cp "$floor_profile.before_wire_floor" "$floor_profile"
+```

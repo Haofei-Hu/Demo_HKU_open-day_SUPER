@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-14",
+  "test_scope": "Remote, grounded, disarmed SUPER-to-MAVROS-to-PX4 transport",
+  "aircraft_transport_verified": false,
+  "session": "20261014_154445_304844",
+  "fixed_lio_extrinsics_requested": true,
+  "alignment": {
+    "quaternion_xyzw": [-0.015192, 0.008409, 0.961343, 0.274805],
+    "odometry_samples": 610,
+    "odometry_age_min_mean_max_s": [0.004, 0.013, 0.037],
+    "rotation_spread_mean_max_deg": [0.355, 1.073]
+  },
+  "goal_requested_planner_xyz_m": [0.317697, -0.041423, -0.426063],
+  "observations": {
+    "vision_planner_coordinate_preview_sender_launched": true,
+    "sender_warning": "Waiting for fresh local pose and debug target",
+    "coordinate_preview_status": "READY coordinates; WAIT: fresh /planning/pos_cmd",
+    "planner_failure": "GeneratePolytopeFromLine failed; SearchPolytopeOnPath for new path failed",
+    "seed_endpoints_xyz_m": [[0.05, -0.05, -0.45], [0.05, -0.05, -0.45]],
+    "corridor_box_min_xyz_m": [-0.95, -1.05, -0.4],
+    "corridor_box_max_xyz_m": [1.05, 0.95, 0.35],
+    "sender_sent_output_observed": false,
+    "px4_offboard_control_mode_readback": "never published"
+  },
+  "reported_profile": {
+    "virtual_ground_height_m": -1.0,
+    "virtual_ceil_height_m": 3.5,
+    "resolution_m": 0.1,
+    "inflation_resolution_m": 0.2,
+    "robot_radius_m": 0.2,
+    "corridor_bound_distance_m": 1.0,
+    "map_size_m": [50, 50, 6],
+    "fix_map_origin_m": [0, 0, 1.5],
+    "map_sliding": {"enable": true, "threshold": 0.3}
+  },
+  "source_reproduction": {
+    "super_revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "grid_origin_mode": "ORIGIN_AT_CORNER",
+    "inflation_steps_for_reproduction": 2,
+    "inflation_steps_provenance": "archived baseline; current runtime initialization readback still required",
+    "original_configured_inflated_probmap_corridor_min_z_m": [-1.0, -0.5, -0.6, -0.4],
+    "prepared_configured_inflated_probmap_corridor_min_z_m": [-1.5, -1.1, -1.1, -0.9],
+    "standalone_cpp_reproduction_passed": true,
+    "isolated_scalar_edit_and_backup_check_passed": true
+  },
+  "prepared_adjustment": {
+    "profile": "mid360_low_speed_3d_goal_ros2.yaml",
+    "only_changed_field": "rog_map.virtual_ground_height",
+    "value_m": -1.5,
+    "original_backup_suffix": ".before_wire_floor",
+    "aircraft_application_and_retest": "pending",
+    "meaning": "Synthetic plane adjustment for ground diagnostics; not a surveyed floor or flight envelope"
+  },
+  "earlier_session_faults": {
+    "stale_paired_localization_and_invalid_horizontal_estimator_observed": true,
+    "planner_ros2run_killed_observed": true,
+    "planner_kill_cause": "not established",
+    "stationary_goal_in_prior_session_xyz_m": [-0.131333, -4.583779, -5.694246],
+    "physical_motion_report": "stationary and level",
+    "localization_failure_root_cause": "unresolved; restarting is not proof of permanent correction"
+  }
+}
