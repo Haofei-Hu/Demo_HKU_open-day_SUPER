@@ -57,7 +57,19 @@ The October 14 disarmed trial progressed through `READY` → `AUDIT_WAIT` → `A
 
 Approximately 0.68 s after reaching `AUDIT_END`, the auditor latched `STOPPED` on `Missing/stale local`. It therefore verifies terminal-reference arrival and brief endpoint hold, not a stable six-second hold. The original generic fault does not distinguish receiver starvation, transport loss or a header-time excursion. A separate later 30-second sample found local-pose receive gaps at most 45 ms and header ages at most 19 ms, with one publisher and no invalid/reordered stamps; this does not establish the cause of the earlier fault. The supplied MAVROS log tail predates that event. Keep the 0.25 s freshness guard and collect event-time evidence before airborne handover. See [the recorded observation](../data/observed_2026-10-14/super_handover_audit.json).
 
-Local-pose freshness faults now include monotonic `receive_age`, ROS `header_age`, the last local stamp and the mission phase. The limits remain 0.25 s for reception/header age and -0.05 s for future-dated headers. To collect an independent view during a new disarmed audit, wait for `READY`, then run the existing read-only sampler alongside the audit in the same command terminal:
+Local and native-vision freshness faults include monotonic `receive_age`, ROS `header_age`, the last source stamp and the mission phase. The limits remain 0.25 s for reception/header age and -0.05 s for future-dated headers. A historical `Phase: READY` log does not establish current readiness: a later input gap can latch `STOPPED` before the audit request, which then rejects the request without sending a goal.
+
+For vision-loss diagnosis, the sampler's optional `--vision-chain` mode observes `/Odometry`, `/super_debug/aligned_pose_cov`, `/mavros/vision_pose/pose_cov` and `/mavros/local_position/pose`. It prints timestamped receive-gap/header-age transitions after an initial three-second discovery period, per-source statistics and the observer's maximum loop gap. It creates subscriptions only. Its report exit status is not a flight-readiness verdict. An independent subscriber can observe healthy input while the controller's own receiver has a gap; compare both event timestamps rather than treating a later healthy window as proof of uninterrupted reception.
+
+```bash
+python3 ~/Downloads/control_chain_age_check.py --vision-chain --seconds 30
+```
+
+The October 14 session `20261014_215344_305294` stopped after 86 accepted ground references on a generic native-vision freshness fault. A fresh session `20261014_222151_860099` reached `READY` approximately 49.5 seconds after auditor startup, then stopped on the same fault before goal acceptance (`accepted=0`). Its audit service rejected the request. Subsequent readiness snapshots do not establish either fault's cause. No aircraft motion or 2 m/s execution was validated by these attempts.
+
+Diagnostic validation passed five metric unit tests, eleven isolated live-DDS sampling cases (including native-only receive loss and stale headers with fresh upstream inputs), and four controller fault-latch cases for local/vision receive loss and future headers. The controller cases retain the 250 ms receive/header limits, report the failed source and reject further audit/start requests after stopping. These fixtures simulate telemetry; they do not establish the aircraft fault's cause or validate PX4 flight dynamics.
+
+To collect the original planning-chain view during a new disarmed audit, wait for current `READY`, then run the read-only sampler alongside the audit in the same command terminal:
 
 ```bash
 source /opt/ros/humble/setup.zsh

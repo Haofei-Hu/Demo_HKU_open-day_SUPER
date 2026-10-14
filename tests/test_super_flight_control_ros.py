@@ -87,12 +87,17 @@ def run(case):
             for name,msg in messages.items():
                 if name=='rc' and not settings['rc']:continue
                 if name=='local' and settings.get('drop_local'):continue
+                if name=='vision' and settings.get('drop_vision'):continue
                 # Representative mixed telemetry rates: paired/vision 50 Hz,
                 # local pose 25 Hz, status/estimator/landing 10 Hz.
                 if name=='local' and telemetry_ticks%2:continue
                 if name in ('state','extended','estimator') and telemetry_ticks%5:continue
                 if name not in ('local','vision','aligned','raw'):stamp(msg)
                 if name=='local' and settings.get('future_local'):
+                    msg=copy.deepcopy(msg)
+                    ns=msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec+100_000_000
+                    msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns,1_000_000_000)
+                if name=='vision' and settings.get('future_vision'):
                     msg=copy.deepcopy(msg)
                     ns=msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec+100_000_000
                     msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns,1_000_000_000)
@@ -275,15 +280,19 @@ def run(case):
                     assert not call(audit_client).success
                     if case=='audit_local_receive_loss':settings['drop_local']=True
                     elif case=='audit_local_future_stamp':settings['future_local']=True
+                    elif case=='audit_vision_receive_loss':settings['drop_vision']=True
+                    elif case=='audit_vision_future_stamp':settings['future_vision']=True
                     else:settings['armed']=True
                     wait(lambda:bridge.phase=='STOPPED')
-                    if case in ('audit_local_receive_loss','audit_local_future_stamp'):
-                        assert 'Missing/stale local' in bridge.fault
+                    if case in ('audit_local_receive_loss','audit_local_future_stamp',
+                                'audit_vision_receive_loss','audit_vision_future_stamp'):
+                        field='vision' if 'vision' in case else 'local'
+                        assert f'Missing/stale {field}' in bridge.fault
                         assert 'receive_age=' in bridge.fault and 'header_age=' in bridge.fault
-                        assert 'local_stamp_ns=' in bridge.fault and 'phase=AUDIT_END' in bridge.fault
+                        assert f'{field}_stamp_ns=' in bridge.fault and 'phase=AUDIT_END' in bridge.fault
                         receipt=float(bridge.fault.split('receive_age=')[1].split('s')[0])
                         age=float(bridge.fault.split('header_age=')[1].split('s')[0])
-                        if case=='audit_local_receive_loss':assert receipt>.25
+                        if case.endswith('receive_loss'):assert receipt>.25
                         else:assert age<-.05 and receipt<.25
             if bridge.phase=='STOPPED':
                 spin(.1);count=len(native);count_debug=len(debug)
@@ -345,6 +354,7 @@ if __name__=='__main__':
     numerical_checks()
     for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin',
                  'audit_local_receive_loss','audit_local_future_stamp','param_value_mismatch','param_frame_type','missing_rc',
+                 'audit_vision_receive_loss','audit_vision_future_stamp',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):
         run(case)
     print('PASS: default no-flight audit; one-goal handover; terminal hold; restart/loss/config/RC/pilot guards.')

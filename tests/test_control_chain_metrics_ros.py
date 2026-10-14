@@ -9,7 +9,7 @@ import rclpy
 from rclpy.context import Context
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped,PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State
 from mars_quadrotor_msgs.msg import PositionCommand
@@ -21,6 +21,8 @@ ctx=Context();rclpy.init(context=ctx)
 probe=Node('metrics_fixture',context=ctx)
 types={'/Odometry':Odometry,'/planning/pos_cmd':PositionCommand,
        '/super_debug/control_target':PoseStamped,'/mavros/local_position/pose':PoseStamped,
+       '/super_debug/aligned_pose_cov':PoseWithCovarianceStamped,
+       '/mavros/vision_pose/pose_cov':PoseWithCovarianceStamped,
        '/mavros/state':State}
 pubs={name:probe.create_publisher(kind,name,10) for name,kind in types.items()}
 duplicate_pub=None
@@ -30,12 +32,18 @@ settings=dict(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='ma
 def publish():
     ns=probe.get_clock().now().nanoseconds-int(settings['age']*1e9)
     for name,kind in types.items():
+        if name=='/mavros/vision_pose/pose_cov' and settings.get('vision_drop'):continue
         msg=kind();msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns,1_000_000_000)
         if name=='/Odometry':msg.header.frame_id='camera_init';msg.child_frame_id='body'
         elif name=='/planning/pos_cmd':
             msg.header.frame_id='world';msg.trajectory_flag=settings['flag']
             msg.velocity.x=settings['speed'];msg.acceleration.x=settings['acceleration']
         elif name=='/super_debug/control_target':msg.header.frame_id='px4_enu_preview'
+        elif name in ('/super_debug/aligned_pose_cov','/mavros/vision_pose/pose_cov'):
+            msg.header.frame_id='px4_enu_preview'
+            if name=='/mavros/vision_pose/pose_cov':
+                stamp_ns=ns-int(settings.get('vision_age',0.)*1e9)
+                msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(stamp_ns,1_000_000_000)
         elif name=='/mavros/local_position/pose':msg.header.frame_id=settings['local_frame']
         else:msg.connected=True;msg.armed=settings['armed']
         pubs[name].publish(msg)
@@ -60,6 +68,26 @@ try:
         assert result==expected,(change,result,output.getvalue())
         assert 'sampled planner motion limits' in output.getvalue()
         if settings['duplicate']:assert 'publisher identities discovered=2' in output.getvalue()
+    for change,event in (({},None),({'vision_drop':True},'receive_gap'),({'vision_age':.4},'header_age')):
+        settings.update(speed=.3,acceleration=.5,armed=False,age=0.,flag=1,local_frame='map',duplicate=False,
+                        vision_drop=False,vision_age=0.)
+        # First allow the observer to receive fresh messages, then inject the fault.
+        def inject():
+            import time
+            time.sleep(3.1)
+            settings.update(change)
+        injection=threading.Thread(target=inject);injection.start()
+        output=io.StringIO()
+        with contextlib.redirect_stdout(output):result=m.monitor(4.,vision_chain=True)
+        injection.join()
+        assert result==0,output.getvalue()  # Read-only report, not motion acceptance.
+        assert '/super_debug/aligned_pose_cov' in output.getvalue()
+        assert 'observer loop gap max=' in output.getvalue()
+        if event is not None:
+            assert f'topic=/mavros/vision_pose/pose_cov state={event}' in output.getvalue(),output.getvalue()
+            assert 'Sampled vision chain fresh: False' in output.getvalue()
+        else:assert 'Sampled vision chain fresh: True' in output.getvalue(),output.getvalue()
+    print('PASS: native vision receive-loss and header-age events identified independently of fresh upstream poses.')
     print('PASS: live DDS sampling accepts bounded fresh references and rejects excessive speed/acceleration, '
           'armed state, stale data, inactive trajectory flags, wrong pose frames and multiple command sources.')
 finally:

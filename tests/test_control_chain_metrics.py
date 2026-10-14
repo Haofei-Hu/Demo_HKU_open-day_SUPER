@@ -10,6 +10,17 @@ spec.loader.exec_module(m)
 
 
 class Tests(unittest.TestCase):
+    def test_receive_loss_and_header_excursion_are_distinguished(self):
+        series=m.Series()
+        self.assertEqual(m.freshness_reason(series,1.,1_000_000_000)[0],'no_messages')
+        series.add(1.,1_000_000_000,0.)
+        self.assertIsNone(m.freshness_reason(series,1.25,1_250_000_000)[0])
+        self.assertEqual(m.freshness_reason(series,1.251,1_251_000_000)[0],'receive_gap')
+        self.assertEqual(m.freshness_reason(series,1.01,1_300_000_000)[0],'header_age')
+        self.assertEqual(m.freshness_reason(series,1.01,900_000_000)[0],'header_age')
+        series.add(1.02,0,0.)
+        self.assertEqual(m.freshness_reason(series,1.03,1_030_000_000)[0],'invalid_stamp')
+
     def motion(self, velocity=(.18,.24,0.), acceleration=(.3,.4,0.)):
         result=m.Motion()
         for i in range(20):

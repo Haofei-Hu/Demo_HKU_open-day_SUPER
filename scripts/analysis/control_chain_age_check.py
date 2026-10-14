@@ -87,11 +87,26 @@ class Motion:
                 and self.speed <= speed+1e-9 and self.acceleration <= acceleration+1e-9)
 
 
-def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
+def freshness_reason(series, received_now, ros_now_ns):
+    """Same receive/header limits as the controller; report each separately."""
+    if series.last_receive is None:
+        return 'no_messages', math.inf, math.inf
+    receipt_age=received_now-series.last_receive
+    header_age=(ros_now_ns-series.last_stamp)/1e9
+    if series.last_stamp <= 0:
+        return 'invalid_stamp',receipt_age,header_age
+    if receipt_age > .25:
+        return 'receive_gap',receipt_age,header_age
+    if not -.05 <= header_age <= .25:
+        return 'header_age',receipt_age,header_age
+    return None,receipt_age,header_age
+
+
+def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, vision_chain=False):
     import rclpy
     from rclpy.qos import QoSProfile, ReliabilityPolicy
     from nav_msgs.msg import Odometry
-    from geometry_msgs.msg import PoseStamped
+    from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
     from mavros_msgs.msg import State
     from mars_quadrotor_msgs.msg import PositionCommand
 
@@ -104,6 +119,14 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
     frames = {'/Odometry':'camera_init', '/planning/pos_cmd':'world',
               '/super_debug/control_target':'px4_enu_preview',
               '/mavros/local_position/pose':'map'}
+    if vision_chain:
+        topics=[('/Odometry',Odometry),
+                ('/super_debug/aligned_pose_cov',PoseWithCovarianceStamped),
+                ('/mavros/vision_pose/pose_cov',PoseWithCovarianceStamped),
+                ('/mavros/local_position/pose',PoseStamped)]
+        frames.update({'/super_debug/aligned_pose_cov':'px4_enu_preview',
+                       '/mavros/vision_pose/pose_cov':'px4_enu_preview'})
+        samples={topic:Series() for topic,_ in topics}
     motion = Motion()
     state = dict(msg=None, receipt=-math.inf, armed_seen=False)
     observation = dict(raw=None)
@@ -145,8 +168,15 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
     try:
         print(f'Read-only control-chain sampling: {seconds:g}s. No goal or flight requests.', flush=True)
         end = time.monotonic()+seconds
+        started=time.monotonic()
+        live_states={topic:None for topic,_ in topics}
+        loop_at=started
+        loop_gap_max=0.
         graph_at = -math.inf
         while time.monotonic() < end:
+            now=time.monotonic()
+            loop_gap_max=max(loop_gap_max,now-loop_at)
+            loop_at=now
             if time.monotonic()-graph_at >= .2:
                 for topic, _ in topics:
                     identities = {bytes(endpoint.endpoint_gid)
@@ -155,11 +185,24 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5):
                     current_sources[topic] = next(iter(identities)) if len(identities) == 1 else None
                 graph_at = time.monotonic()
             rclpy.spin_once(node, timeout_sec=min(.02, max(0., end-time.monotonic())))
+            if vision_chain and time.monotonic()-started >= 3:
+                now=time.monotonic();ros_ns=node.get_clock().now().nanoseconds
+                for topic,_ in topics:
+                    reason,receipt_age,header_age=freshness_reason(samples[topic],now,ros_ns)
+                    if reason!=live_states[topic]:
+                        print(f'VISION EVENT ros_ns={ros_ns} topic={topic} '
+                              f'state={reason or "recovered"} receive_age={receipt_age:.6f}s '
+                              f'header_age={header_age:.6f}s last_stamp_ns={samples[topic].last_stamp}',flush=True)
+                        live_states[topic]=reason
         now = time.monotonic()
         for topic, _ in topics:
             print(topic)
             samples[topic].report(now)
         if not check_motion:
+            if vision_chain:
+                print(f'Sampled vision chain fresh: {all(s.fresh(now) for s in samples.values())}; '
+                      f'observer loop gap max={loop_gap_max:.6f}s')
+                print('Independent subscriber observation; this cannot prove controller reception or physical accuracy.')
             return 0
         print(f'Planner advertised 3D speed max: {motion.speed:.6f} m/s '
               f'(requested <= {max_speed:g})')
@@ -202,14 +245,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--seconds', type=float, default=10.)
     parser.add_argument('--check-motion', action='store_true')
+    parser.add_argument('--vision-chain',action='store_true',
+                        help='sample raw/aligned/native vision/FC pose; print timed receive/header freshness events')
     parser.add_argument('--max-speed', type=float, default=.3)
     parser.add_argument('--max-acceleration', type=float, default=.5)
     args = parser.parse_args()
+    if args.vision_chain and args.check_motion:
+        parser.error('--vision-chain and --check-motion select different topic sets')
     if not math.isfinite(args.seconds) or not 1 <= args.seconds <= 30:
         parser.error('--seconds must be finite and in [1, 30]')
     if not all(math.isfinite(v) and v > 0 for v in (args.max_speed,args.max_acceleration)):
         parser.error('Motion limits must be finite and positive')
-    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration)
+    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration,args.vision_chain)
 
 
 if __name__ == '__main__':
