@@ -18,10 +18,11 @@ class FakeGate:
     bad_localization = False
     values = dict(EKF2_EV_CTRL=0, EKF2_HGT_REF=3, EKF2_EV_POS_X=0., EKF2_EV_POS_Y=0., EKF2_EV_POS_Z=0., EKF2_EV_QMIN=0)
     writes = []
+    publisher_counts = {}
     def __init__(self):
         if self.blocked:
             raise RuntimeError('not grounded')
-        self.node = argparse.Namespace(count_publishers=lambda topic: 0)
+        self.node = argparse.Namespace(count_publishers=lambda topic: self.publisher_counts.get(topic,0))
         self.receipts = {'preview':float('inf'), 'vision':float('inf')}
     def check(self):
         if self.blocked:
@@ -62,6 +63,7 @@ class Tests(unittest.TestCase):
         FakeGate.blocked=FakeGate.stale_preview=FakeGate.bad_localization=False
         FakeGate.values.update(EKF2_EV_CTRL=0,EKF2_HGT_REF=3)
         FakeGate.writes=[]
+        FakeGate.publisher_counts={}
 
     def manager(self, argv): return MemorySession(m.arguments(argv))
 
@@ -107,7 +109,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','planner','goal','planner-check','planner-stop','hover','stop'):
+        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -150,6 +152,48 @@ class Tests(unittest.TestCase):
             with self.assertRaises(RuntimeError): s.mutate('vision')
         self.assertEqual(FakeGate.writes,[])
         self.assertEqual([name for name,_ in s.started],['preview'])
+
+    def test_wire_launch_and_stop_preserve_localization_without_flight_requests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            helper=Path(directory)/'ground_setpoint_transport.py';helper.write_text('# fixture')
+            s=self.manager(['wire-test','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            FakeGate.publisher_counts={'/super_debug/control_target':1}
+            with patch.object(m,'GroundGate',FakeGate):
+                s.mutate('wire-test')
+                self.assertEqual(s.started,[('wire_test',m.shell_command(['python3','-u',helper]))])
+                with self.assertRaises(RuntimeError):s.mutate('wire-test')
+                s.mutate('wire-stop')
+            self.assertNotIn('wire_test',s.window_state)
+            for name in ('lidar','lio','mavros','body','preview','vision','planner','cmd_preview'):
+                self.assertEqual(s.window_state[name],'0')
+            self.assertEqual(FakeGate.writes,[])
+
+    def test_wire_rejects_missing_or_duplicate_sources_and_other_control_writers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory)/'ground_setpoint_transport.py').write_text('# fixture')
+            for counts in ({},{'/super_debug/control_target':2},
+                           {'/super_debug/control_target':1,'/mavros/setpoint_position/local':1},
+                           {'/super_debug/control_target':1,'/mavros/setpoint_raw/local':1}):
+                s=self.manager(['wire-test','--scripts-dir',directory])
+                s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+                FakeGate.publisher_counts=counts
+                with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('wire-test')
+                self.assertEqual(s.started,[])
+            s=self.manager(['wire-test','--scripts-dir',directory])
+            with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('wire-test')
+            self.assertEqual(s.started,[])
+
+    def test_planner_stop_stops_native_wire_first_and_hover_excludes_wire(self):
+        s=self.manager(['planner-stop'])
+        s.window_state.update(wire_test='0',reference_preview='0',cmd_preview='0',planner='0',preview='0',vision='0')
+        with patch.object(m,'GroundGate',FakeGate):s.mutate('planner-stop')
+        interrupts=[op[1] for op in s.operations if op[0]=='interrupt']
+        self.assertEqual(interrupts,['wire_test','reference_preview','cmd_preview','planner'])
+        self.assertEqual(s.window_state['vision'],'0')
+        s=self.manager(['hover','--execute']);s.window_state.update(wire_test='0',preview='0',vision='0')
+        with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('hover')
+        self.assertEqual(s.started,[])
 
     def test_hover_only_launches_and_check_only_upgrade(self):
         s=self.manager(['hover']);s.window_state.update(preview='0',vision='0')

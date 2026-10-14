@@ -113,11 +113,32 @@ class Tests(unittest.TestCase):
 
     def test_moving_jump_and_stamp_reorder_are_rejected(self):
         r=self.reference();self.sample(r,0.)
-        with self.assertRaisesRegex(ValueError,'discontinuity'):self.sample(r,.02,(.06,0,0))
+        previous=r.last[1].copy()
+        with self.assertRaisesRegex(ValueError,'discontinuity') as raised:self.sample(r,.02,(.06,0,0))
+        details=str(raised.exception)
+        self.assertIn('(position step)',details)
+        self.assertIn('dt=0.020000s',details)
+        self.assertIn('allowed 0.021000m',details)
+        self.assertIn('previous/current raw xyz=',details)
+        self.assertIn('previous raw endpoint distance=',details)
+        np.testing.assert_array_equal(r.last[1],previous)
+        self.assertEqual(r.accepted,1)
         with self.assertRaisesRegex(ValueError,'Nonincreasing'):self.sample(r,0.)
         r.fault('jump')
         self.assertFalse(self.sample(r,.02))
         self.assertEqual(r.phase,'FAULT')
+
+    def test_gap_diagnostic_is_distinct_and_cannot_accept_or_hold(self):
+        r=self.reference();self.sample(r,0.)
+        with self.assertRaisesRegex(ValueError,'discontinuity') as raised:self.sample(r,.3)
+        details=str(raised.exception)
+        self.assertIn('(stamp gap)',details)
+        self.assertIn('dt=0.300000s',details)
+        self.assertIn('max 0.250000s',details)
+        self.assertNotIn('(stamp gap, position step)',details)
+        self.assertEqual(r.accepted,1)
+        self.assertEqual(r.phase,'TRACK')
+        self.assertEqual(r.last[0],100000000000)
 
     def test_caps_and_changed_goal_are_not_silently_accepted(self):
         r=self.reference();self.sample(r,0.)

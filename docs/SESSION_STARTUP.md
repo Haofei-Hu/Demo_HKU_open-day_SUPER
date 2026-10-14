@@ -13,6 +13,8 @@ sudo apt update
 sudo apt install tmux
 ```
 
+The optional managed `wire-test` also requires `ground_setpoint_transport.py` in the same flat script directory. It adds a disarmed native position/yaw sender; it is separate from flight execution.
+
 From a checkout, `python3 scripts/maintenance/install_scripts.py` installs the manager without replacing existing files. To download only the manager:
 
 ```bash
@@ -363,6 +365,31 @@ python3 ~/Downloads/super_session.py reference-preview
 The manager creates `mid360_low_speed_3d_goal_ros2.yaml` separately from the reserved profile. Only `fsm.click_height` changes to −6, disabling the pinned planner's fixed-height override; this is a sentinel, not a six-metre goal. Motion limits, map settings and original profiles remain unchanged. The goal helper sends the current raw Z and prints requested XYZ. Wait for `WAIT_TRAJECTORY` before one goal, then compare the accepted `Get goal at` position and bounded status. Map goal/start relocation can still displace the result, so the existing per-axis offset and continuity gates remain active.
 
 A recorded aircraft sample had raw odometry Z 1.494 m while the accepted goal Z was 0.150 m under `click_height=-0.05`. Those values are planner coordinates, not floor height. A subsequent same-height test accepted goal Z 1.450 m and reached `END_HOLD`; its initial offsets were within 10 cm per axis. Map snapping remains active, so each new start and goal still needs inspection. Fault status now includes the first fault's phase and accepted command count.
+
+### Managed disarmed transport test
+
+With localization, vision, SUPER and `cmd_preview` already running, use a short same-height diagnostic goal before starting the wire sender:
+
+```bash
+python3 ~/Downloads/super_session.py goal
+python3 ~/Downloads/super_session.py wire-test
+source /opt/ros/humble/setup.zsh
+timeout 10s ros2 topic hz /mavros/setpoint_position/local
+```
+
+The goal remains +0.30 m along planner X, preserving current raw Z under the low-speed-3d profile. It is a diagnostic displacement, not a surveyed forward flight. The sender subscribes to `/super_debug/control_target` and publishes ENU position/yaw to `/mavros/setpoint_position/local` at 20 Hz. MAVROS performs its LOCAL_NED conversion. The sender polls the plugin frame parameter, retains target stamps, requires fresh connected/disarmed AUTO.LOITER or POSCTL and fresh target/local pose, and limits targets to a 1 m radius and 30° heading difference. Arming or OFFBOARD observation permanently blocks that sender. There are no mode/arming requests.
+
+The manager requires the existing managed planner/coordinate-preview windows, one diagnostic target source and no other native setpoint writer before launch. The test log is `wire_test.log` in the current session directory. This transport check uses the diagnostic coordinate preview, independently of the bounded preview's status. A bounded-reference fault remains a recorded reference-validation failure; native trajectory approval is not inferred from this test.
+
+In QGC MAVLink Console, `listener offboard_control_mode 1` checks the receiver's recent position-control intent. A fresh message with `position: True` is receipt evidence; it does not mean the aircraft entered OFFBOARD or executed a trajectory. Confirm ROS `/mavros/state` remains disarmed in its existing ground mode.
+
+Stop just the sender:
+
+```bash
+python3 ~/Downloads/super_session.py wire-stop
+```
+
+`planner-stop` stops the wire sender before the reference/coordinate/planner windows, preserving localization and vision. Full `stop` also stops it before localization. Hover launch excludes an active wire window. The sender must be stopped before a separate flight controller is started.
 
 ### Battery changes and fresh-session recovery
 

@@ -93,6 +93,7 @@ class Reference:
         self.phase = 'WAIT_TRAJECTORY'
         self.reason = ''
         self.last = None
+        self.last_evidence = None
         self.endpoint = None
         self.initial_offset = None
         self.accepted = self.restarts_blocked = 0
@@ -140,10 +141,29 @@ class Reference:
             self.initial_offset = offset.copy()
         else:
             dt = (stamp-self.last[0])/1e9
-            if dt > .25 or norm(position-self.last[1]) > .015+.3*dt:
-                raise ValueError('Reference gap or discontinuity; no automatic reconciliation')
+            step = norm(position-self.last[1])
+            allowed_step = .015+.3*dt
+            if dt > .25 or step > allowed_step:
+                triggers = []
+                if dt > .25:triggers.append('stamp gap')
+                if step > allowed_step:triggers.append('position step')
+                before = self.frame.coordinates(self.last[1]).round(4).tolist()
+                after = self.frame.coordinates(position).round(4).tolist()
+                previous = self.last_evidence
+                details = (f'Reference gap or discontinuity ({", ".join(triggers)}): '
+                           f'dt={dt:.6f}s (max 0.250000s); step={step:.6f}m (allowed {allowed_step:.6f}m); '
+                           f'previous/current forward-left-FC-height={before}/{after}; '
+                           f'previous/current stamp_ns={self.last[0]}/{stamp}')
+                if previous is not None:
+                    details += (f'; previous/current raw xyz={previous["raw"].round(4).tolist()}/{raw.round(4).tolist()}; '
+                                f'previous speed/acc={norm(previous["velocity"]):.6f}/{norm(previous["acceleration"]):.6f}; '
+                                f'previous/current plan time remaining={previous["end"]-self.last[0]/1e9:.6f}/{plan.end-stamp/1e9:.6f}s; '
+                                f'previous raw endpoint distance={norm(previous["raw"]-previous["endpoint"]):.6f}m')
+                raise ValueError(details+'; no automatic reconciliation')
         self.endpoint = plan.endpoint.copy()
         self.last = stamp, position.copy(), np.array(quaternion,dtype=float,copy=True)
+        self.last_evidence = dict(raw=raw.copy(),velocity=velocity.copy(),acceleration=acceleration.copy(),
+                                  end=plan.end,endpoint=plan.endpoint.copy())
         self.phase = 'TRACK'
         self.accepted += 1
         # Use planned end time AND raw endpoint/terminal derivatives. A zero-speed

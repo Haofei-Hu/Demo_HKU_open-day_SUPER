@@ -334,7 +334,7 @@ class Session:
         return target
 
     def stop_planning(self, gate):
-        for name in ('reference_preview', 'cmd_preview', 'planner'):
+        for name in ('wire_test', 'reference_preview', 'cmd_preview', 'planner'):
             if name in self.windows():
                 gate.check()
                 self.interrupt(name)
@@ -344,7 +344,7 @@ class Session:
 
     def mutate(self, action):
         self.load()
-        if action not in ('stop', 'planner-stop'):
+        if action not in ('stop', 'planner-stop', 'wire-stop'):
             self.require_core()
         windows = self.windows()
         gate = GroundGate()
@@ -450,10 +450,40 @@ class Session:
                         '--ros-args', '-p', 'alignment_path:='+str(self.scripts/'aligned_pose_preview.py')]))
                     print('Ground planner and coordinate preview launched. No native setpoints, mode or arming requests.')
                     print('Wait for map/preview readiness, then use goal for a disarmed diagnostic target.')
+            elif action == 'wire-test':
+                if any(windows.get(name)!='0' for name in ('preview','vision','planner','cmd_preview')):
+                    raise RuntimeError('Need managed localization, vision, ground planner and coordinate preview running')
+                if 'hover' in windows or 'wire_test' in windows:
+                    raise RuntimeError('Hover/wire window exists; stop it explicitly before a ground wire test')
+                gate.wait(gate.localization_ready,'fresh valid ground localization before native wire test')
+                if gate.node.count_publishers('/super_debug/control_target')!=1:
+                    raise RuntimeError('Need one SUPER coordinate-preview source')
+                controls=('/mavros/setpoint_position/local','/mavros/setpoint_raw/local',
+                          '/mavros/setpoint_raw/global','/mavros/setpoint_raw/attitude',
+                          '/mavros/setpoint_position/global','/mavros/setpoint_position/global_to_local',
+                          '/mavros/setpoint_velocity/cmd_vel','/mavros/setpoint_velocity/cmd_vel_unstamped',
+                          '/mavros/setpoint_accel/accel','/mavros/setpoint_attitude/attitude',
+                          '/mavros/setpoint_attitude/cmd_vel','/mavros/setpoint_attitude/thrust')
+                if any(gate.node.count_publishers(topic) for topic in controls):
+                    raise RuntimeError('Another native setpoint publisher is present; no wire sender launched')
+                helper=self.scripts/'ground_setpoint_transport.py'
+                if not helper.is_file():raise RuntimeError('Missing ground wire helper: '+str(helper))
+                gate.check()
+                self.launch('wire_test',shell_command(['python3','-u',helper]))
+                print('Ground wire sender launched: SUPER coordinate preview -> MAVROS position/yaw, 20 Hz.')
+                print('Disarmed AUTO.LOITER/POSCTL only; arming/OFFBOARD latches output off. No mode or arming requests.')
+                print('This checks transport; bounded-reference/flight tracking approval remains separate.')
+            elif action == 'wire-stop':
+                if 'wire_test' not in windows:raise RuntimeError('No managed wire-test window')
+                gate.check()
+                self.interrupt('wire_test')
+                gate.wait(gate.grounded,'fresh ground state during wire shutdown')
+                self.tmux('kill-window','-t',self.name+':wire_test')
+                print('Ground wire sender stopped; planning/localization/vision remain running.')
             elif action == 'planner-stop':
                 self.stop_planning(gate)
             elif action == 'hover':
-                if any(name in windows for name in ('planner', 'cmd_preview', 'reference_preview')):
+                if any(name in windows for name in ('planner', 'cmd_preview', 'reference_preview', 'wire_test')):
                     raise RuntimeError('Stop ground planning with planner-stop before starting hover')
                 if windows.get('preview') != '0' or windows.get('vision') != '0':
                     raise RuntimeError('Need the managed preview and vision relay running')
@@ -476,7 +506,7 @@ class Session:
                 gate.check()
                 # Stop publishers first; keep MAVROS last so ground-state gates
                 # can be checked throughout cooperative Ctrl+C shutdown.
-                for name in ('hover', 'reference_preview', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
+                for name in ('hover', 'wire_test', 'reference_preview', 'cmd_preview', 'planner', 'vision', 'preview', 'body', 'lio', 'lidar', 'mavros'):
                     if name in windows:
                         gate.check()
                         self.interrupt(name)
@@ -509,7 +539,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')

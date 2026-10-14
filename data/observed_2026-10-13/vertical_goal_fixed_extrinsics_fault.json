@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-13",
+  "log_session": "20261013_220904_825406",
+  "stage": "fixed-extrinsic disarmed vertical reference retest",
+  "requested_fc_floor_height_m": 1.0,
+  "requested_lift_m": 0.915,
+  "requested_aligned_fc_xyz_m": [
+    -0.002526,
+    0.004828,
+    0.902273
+  ],
+  "requested_planner_xyz_m": [
+    -0.031221,
+    0.005281,
+    1.017642
+  ],
+  "accepted_map_snapped_goal_xyz_m": null,
+  "bounded_result": "FAULT",
+  "phase_before_fault": "TRACK",
+  "accepted_reference_samples": 409,
+  "reason_observed": "Reference gap or discontinuity; no automatic reconciliation",
+  "native_flight_output": false,
+  "measured_forward_left_fc_floor_height_at_fault_m": [
+    0.0009,
+    0.0044,
+    0.083
+  ],
+  "subsequent_fault_log_excerpt_first_last_ros_time_s": [
+    1791901882.57125,
+    1791901896.571305
+  ],
+  "fault_trigger_time": "Not captured by the supplied excerpt; displayed reports repeat the latched first cause.",
+  "planner_followup": {
+    "observations": [
+      "FOLLOW_TRAJ with successful replans",
+      "Traj finish",
+      "FOLLOW_TRAJ to GENERATE_TRAJ",
+      "Successful PlanFromRest then FOLLOW_TRAJ"
+    ],
+    "latest_shown_generation_ros_s": 1791901896.600463,
+    "latest_shown_optimized_duration_s": 6.797456848711843,
+    "correlation_limit": "Logs show subsequent planner cycles, not the command transition at the original fault."
+  },
+  "classification": "Not determined: source stamp gap over 0.25 s, converted position step over 0.015 + 0.3*dt m, or both.",
+  "diagnostic_update": "Fault reports now include separate trigger labels, dt, step and limit, previous/current positions and source stamps, preceding command derivatives, polynomial remaining times and endpoint distance. Rejection thresholds and endpoint-hold conditions unchanged.",
+  "scope": "Prior two-minute stationary coordinate result remains separate evidence. This reference retest did not reach END_HOLD; no aircraft motion or native execution established."
+}
