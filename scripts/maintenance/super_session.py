@@ -452,9 +452,17 @@ class Session:
                     raise RuntimeError('Stop hover/wire/handover/reference windows before replacing the vision source')
                 if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
                     raise RuntimeError('Stop native control writers before vision restart')
-                if any(gate.node.count_publishers(topic)!=1 for topic in
-                       ('/Odometry','/super_debug/aligned_pose_cov')):
-                    raise RuntimeError('Need one raw and one aligned localization source')
+                source_counts={}
+                def paired_sources_ready():
+                    source_counts.update({topic:gate.node.count_publishers(topic) for topic in
+                                          ('/Odometry','/super_debug/aligned_pose_cov')})
+                    if any(count>1 for count in source_counts.values()):
+                        raise RuntimeError('Multiple raw/aligned localization publishers; restart blocked')
+                    return all(count==1 for count in source_counts.values())
+                try:
+                    gate.wait(paired_sources_ready,'one raw and one aligned localization source to be discovered')
+                except RuntimeError as exc:
+                    raise RuntimeError(f'{exc}; observed publishers={source_counts}') from exc
                 if gate.node.count_publishers('/mavros/vision_pose/pose_cov')>1:
                     raise RuntimeError('Multiple native vision sources; restart blocked')
                 geometry=self.scripts/'aligned_pose_preview.py'

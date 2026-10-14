@@ -193,6 +193,39 @@ class Tests(unittest.TestCase):
                 self.assertEqual(s.operations,[]);self.assertEqual(s.started,[])
             self.assertEqual(FakeGate.writes,[])
 
+    def test_vision_restart_waits_for_zero_sources_and_rejects_missing_or_multiple_before_shutdown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory)/'aligned_pose_preview.py').write_text('# fixed geometry\n')
+            (Path(directory)/'flight_pose_cov_transport.py').write_text('# fixture\n')
+            for case in ('discovered_later','never_discovered','duplicate'):
+                s=self.manager(['vision-restart','--scripts-dir',directory])
+                s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+                FakeGate.values['EKF2_EV_CTRL']=11
+                FakeGate.publisher_counts={'/Odometry':2 if case=='duplicate' else 0,
+                                           '/super_debug/aligned_pose_cov':1,
+                                           '/mavros/vision_pose/pose_cov':1}
+                waits=[]
+                class DiscoveryGate(FakeGate):
+                    def wait(self,predicate,description):
+                        if 'source to be discovered' in description:
+                            waits.append(description)
+                            if not predicate() and case=='discovered_later':
+                                # No old publisher may be stopped before discovery completes.
+                                assert not s.operations
+                                FakeGate.publisher_counts['/Odometry']=1
+                        super().wait(predicate,description)
+                interrupt=s.interrupt
+                def stop(name):
+                    interrupt(name);FakeGate.publisher_counts['/mavros/vision_pose/pose_cov']=0
+                with patch.object(m,'GroundGate',DiscoveryGate),patch.object(s,'interrupt',side_effect=stop):
+                    if case=='discovered_later':s.mutate('vision-restart')
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,'observed publishers=.*Odometry'):
+                            s.mutate('vision-restart')
+                        self.assertEqual(s.operations,[]);self.assertEqual(s.started,[])
+                self.assertEqual(len(waits),1)
+                self.assertEqual(FakeGate.writes,[])
+
     def test_bad_configuration_or_stale_preview_blocks_fusion(self):
         FakeGate.values['EKF2_HGT_REF']=1
         s=self.manager(['vision','0','0','0','1'])
