@@ -36,7 +36,9 @@
     "audit_overlap: previous-goal commands with fresh stamps after goal issuance but before the new committed start are discarded; the matched new trajectory reaches AUDIT_END without native/control requests",
     "audit_corridor: a matched new reference 0.11 m left of the captured axis still stops before any accepted reference",
     "audit_local_receive_loss: post-AUDIT_END reception loss latches STOPPED with receive_age > 0.25 s and frozen event-time stamp/phase diagnostics; no native/control requests",
-    "audit_local_future_stamp: post-AUDIT_END future local header latches STOPPED with header_age < -0.05 s despite receive_age < 0.25 s; no native/control requests"
+    "audit_local_future_stamp: post-AUDIT_END future local header latches STOPPED with header_age < -0.05 s despite receive_age < 0.25 s; no native/control requests",
+    "param_value_mismatch: incorrect MPC_XY_VEL_MAX remains CHECKING; diagnostic identifies actual/required value and type; no goal/native/control requests",
+    "param_frame_type: integer mav_frame remains CHECKING; diagnostic identifies required LOCAL_NED string and service path; no goal/native/control requests"
   ],
   "numerical_checks": [
     "inverse nonidentity world/offset geometry round-trip",
@@ -98,5 +100,13 @@
       "local_stamp_ns",
       "phase"
     ]
+  },
+  "parameter_confirmation_diagnostics": {
+    "strict_validation_changed": false,
+    "timeouts_changed": false,
+    "isolated_mismatch_cases_passed": 2,
+    "normal_audit_hold_regression_passed": true,
+    "status_contains_named_wait_reason": true,
+    "aircraft_confirmation_failure_cause_established": false
   }
 }

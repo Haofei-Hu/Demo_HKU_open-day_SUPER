@@ -16,6 +16,7 @@ from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State,ExtendedState,EstimatorStatus,RCIn
 from mavros_msgs.srv import SetMode,CommandBool
 from std_srvs.srv import Trigger
+from std_msgs.msg import String
 from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -37,16 +38,18 @@ def run(case):
         config.write_text(yaml.safe_dump(cfg))
         rclpy.init()
         params=Node('param',namespace='/mavros')
-        for key,value in PARAMETERS.items():params.declare_parameter(key,value)
+        for key,value in PARAMETERS.items():
+            if case=='param_value_mismatch' and key=='MPC_XY_VEL_MAX':value=.6
+            params.declare_parameter(key,value)
         frame=Node('setpoint_position',namespace='/mavros')
-        frame.declare_parameter('mav_frame','LOCAL_NED')
+        frame.declare_parameter('mav_frame',1 if case=='param_frame_type' else 'LOCAL_NED')
         probe=Node('super_handover_fixture')
         execute=case.startswith('flight') or case=='missing_rc'
         ground=np.array([.12,-.08,-.74]);yaw=.6
         settings=dict(mode='POSCTL' if execute else 'AUTO.LOITER',armed=False,pose=ground.copy(),
                       landed=ExtendedState.LANDED_STATE_ON_GROUND,plan=None,drop_commands=False,
                       restart=False,rc=case!='missing_rc',departure=0.)
-        requests=[];native=[];debug=[];goals=[]
+        requests=[];native=[];debug=[];goals=[];statuses=[]
         kinds={
             'state':(State,'/mavros/state'), 'local':(PoseStamped,'/mavros/local_position/pose'),
             'vision':(PoseWithCovarianceStamped,'/mavros/vision_pose/pose_cov'),
@@ -163,6 +166,8 @@ def run(case):
         probe.create_service(CommandBool,'/mavros/cmd/arming',arm)
         probe.create_subscription(PoseStamped,NATIVE,target,10)
         probe.create_subscription(PoseStamped,bridge.DEBUG_TOPIC,debug.append,10)
+        probe.create_subscription(String,'/super_debug/super_flight_status',
+                                  lambda msg:statuses.append(msg.data),10)
         probe.create_subscription(PoseStamped,'/goal_pose',goal_received,10)
         probe.create_timer(.02,telemetry);probe.create_timer(.01,planning)
         start_client=probe.create_client(Trigger,'/super_flight/start')
@@ -181,6 +186,18 @@ def run(case):
             future=client.call_async(Trigger.Request());wait(future.done)
             return future.result()
         try:
+            if case in ('param_value_mismatch','param_frame_type'):
+                spin(4.5)
+                assert bridge.phase=='CHECKING' and not call(audit_client).success
+                assert not requests and not native and not goals
+                key='fc' if case=='param_value_mismatch' else 'frame'
+                name='MPC_XY_VEL_MAX' if key=='fc' else 'mav_frame'
+                assert name in bridge.parameter_errors[key]
+                detail=bridge.parameter_wait_detail()
+                assert 'get_parameters' in detail and 'actual=' in detail and 'expected=' in detail
+                assert any('parameter_wait=' in status and name in status for status in statuses)
+                print('PASS:',case,bridge.parameter_errors[key])
+                return
             if case=='missing_rc':
                 spin(4.5)
                 assert bridge.phase=='CHECKING' and not call(start_client).success
@@ -327,7 +344,7 @@ def numerical_checks():
 if __name__=='__main__':
     numerical_checks()
     for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin',
-                 'audit_local_receive_loss','audit_local_future_stamp','missing_rc',
+                 'audit_local_receive_loss','audit_local_future_stamp','param_value_mismatch','param_frame_type','missing_rc',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):
         run(case)
     print('PASS: default no-flight audit; one-goal handover; terminal hold; restart/loss/config/RC/pilot guards.')

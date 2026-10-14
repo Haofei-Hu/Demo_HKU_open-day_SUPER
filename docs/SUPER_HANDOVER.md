@@ -20,6 +20,8 @@ timeout 12s ros2 topic echo \
 
 Wait for `READY`. The checker requires fresh, valid FC/external poses and estimator status, confirmed fusion/low-speed/LAND-fallback parameters and LOCAL_NED, ten identical-stamp raw/aligned geometry pairs, fixed publisher identities, unchanged geometry/configuration files and a three-second stationary capture. Check-only operation accepts disarmed POSCTL or AUTO.LOITER without RC. It creates no native setpoint publisher and does not call mode or arming services.
 
+While parameter confirmation is incomplete, `CHECKING` status and warnings identify the unconfirmed `/mavros/param/get_parameters` or `/mavros/setpoint_position/get_parameters` service, its availability, pending request age, last confirmation age and any named value/type mismatch or response error. Individual CLI reads can match the required configuration while the controller still lacks a recent accepted batch response. Diagnose that distinction before changing FC parameters. Strict value/type matching, the original two-second pending-call deadline and three-second confirmation freshness remain unchanged; the auditor refuses a goal until `READY`.
+
 After capture, the handover controller permits estimated ground offsets up to 0.10 m on each captured forward/left/up axis. It does not use the original hover controller's 0.05 m total-distance ground check. Exceeding the margin latches `STOPPED` and reports the signed axis offsets; estimated movement alone does not prove physical aircraft movement. A stopped checker must be stopped through the manager before a fresh audit can launch. Repeating the download does not reset the running checker.
 
 Request one forward goal at the captured ground height:

@@ -136,5 +136,47 @@
     "freshness_threshold_relaxed": false,
     "mavros_log_tail_covers_fault_time": false,
     "post_endpoint_fault_cause_established": false
+  },
+  "later_readiness_attempt": {
+    "controller_revision": "9a6dd10e3803fc6cd331f873956f5f0e0340de36",
+    "phase": "CHECKING",
+    "audit_trigger_success": false,
+    "audit_trigger_message": "Audit requires unused check-only READY session",
+    "goal_issued": false,
+    "accepted_references": 0,
+    "blocking_warning": "Waiting for confirmed fusion, speed limits, LAND fallback and LOCAL_NED",
+    "read_only_30_second_sample": {
+      "odometry_n": 1502,
+      "odometry_age_max_s": 0.052,
+      "odometry_receive_gap_max_s": 0.038,
+      "local_pose_n": 846,
+      "local_pose_age_max_s": 0.02,
+      "local_pose_receive_gap_max_s": 0.046,
+      "planning_commands_received": 0,
+      "coordinate_preview_commands_received": 0,
+      "invalid_or_nonincreasing_stamps": 0,
+      "unexpected_frames": 0,
+      "interpretation": "Localization samples were fresh; no planning goal was issued during this window"
+    },
+    "individual_cli_parameter_readbacks": {
+      "EKF2_EV_CTRL": 11,
+      "EKF2_HGT_REF": 3,
+      "EKF2_EV_POS_X": 0.0,
+      "EKF2_EV_POS_Y": 0.0,
+      "EKF2_EV_POS_Z": 0.0,
+      "EKF2_EV_QMIN": 0,
+      "MPC_XY_VEL_ALL": -1.0,
+      "MPC_Z_VEL_ALL": -1.0,
+      "MPC_XY_VEL_MAX": 0.5,
+      "MPC_Z_VEL_MAX_UP": 0.5,
+      "MPC_Z_VEL_MAX_DN": 0.5,
+      "COM_OF_LOSS_T": 0.5,
+      "COM_OBL_RC_ACT": 4,
+      "mav_frame": "LOCAL_NED"
+    },
+    "individual_values_and_reported_types_match_required_configuration": true,
+    "controller_batch_confirmation_failure_cause_established": false,
+    "parameter_changes_made": false,
+    "diagnostics_added": "Unconfirmed parameter group, full service path, availability, pending request age, last confirmation age and named response mismatch/error; original validation and timeouts retained"
   }
 }

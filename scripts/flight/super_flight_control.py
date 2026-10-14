@@ -24,7 +24,7 @@ from rclpy.qos import qos_profile_sensor_data
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 
-from first_hover_terminal import FirstHoverControl, NATIVE
+from first_hover_terminal import FirstHoverControl, NATIVE, PARAMETERS
 from control_bridge_preview import Mapping, arrays, load_converter, quaternion_rpy
 from bounded_reference_preview import Reference, Plan, TakeoffFrame
 
@@ -96,6 +96,7 @@ class SuperFlightControl(FirstHoverControl):
         self.endpoint_since=None
         self.audit_used=False
         self.preplan_commands_discarded=0
+        self.parameter_errors={}
         self.goal_pub=self.create_publisher(PoseStamped,'/goal_pose',10)
         self.status_pub=self.create_publisher(String,'/super_debug/super_flight_status',10)
         self.create_subscription(Odometry,'/Odometry',self.raw_received,qos_profile_sensor_data)
@@ -147,12 +148,52 @@ class SuperFlightControl(FirstHoverControl):
         if self.phase in ('WAIT_PLAN','TRACK','AUDIT_WAIT','AUDIT_TRACK'):
             self.pending.append(msg)
 
+    def parameter_result(self,key,future):
+        # Keep the original strict confirmation behavior; add its missing
+        # rejection evidence instead of treating an unconfirmed reply as valid.
+        super().parameter_result(key,future)
+        if key in self.confirmed:
+            self.parameter_errors.pop(key,None)
+            return
+        expected=PARAMETERS if key=='fc' else {'mav_frame':'LOCAL_NED'}
+        try:
+            if future.cancelled():raise ValueError('Request cancelled after response timeout')
+            response=future.result()
+            if response is None:raise ValueError('Empty parameter service response')
+            if len(response.values)!=len(expected):
+                raise ValueError(f'Expected {len(expected)} values, received {len(response.values)}')
+            details=[]
+            for (name,target),value in zip(expected.items(),response.values):
+                kind=4 if isinstance(target,str) else (2 if isinstance(target,int) else 3)
+                actual={2:value.integer_value,3:value.double_value,4:value.string_value}.get(value.type)
+                good=(value.type==kind and (actual==target if kind==4 else
+                      math.isfinite(actual) and abs(actual-target)<=1e-6))
+                if not good:details.append(f'{name}: actual={actual!r}, type={value.type}; expected={target!r}, type={kind}')
+            self.parameter_errors[key]='; '.join(details) or 'Response failed strict confirmation'
+        except Exception as exc:
+            self.parameter_errors[key]=str(exc)
+
+    def parameter_wait_detail(self):
+        now=time.monotonic();details=[]
+        for key,client in self.parameter_clients.items():
+            age=now-self.confirmed.get(key,-math.inf)
+            if age<=3:continue
+            pending=self.parameter_futures.get(key)
+            pending_age=now-pending[1] if pending is not None and not pending[0].done() else None
+            pending_text=f'{pending_age:.3f}s' if pending_age is not None else 'none'
+            service='/mavros/param/get_parameters' if key=='fc' else '/mavros/setpoint_position/get_parameters'
+            details.append(f'{service}: ready={client.service_is_ready()}, confirmation_age={age:.3f}s, '
+                f'pending_age={pending_text}, last_error={self.parameter_errors.get(key,"No valid response yet")}')
+        return '; '.join(details)
+
     def validate(self,ground=False):
         if not self.execute and self.state is not None and (self.state.armed or self.state.mode=='OFFBOARD'):
             raise ValueError('Arming/OFFBOARD observed; audit permanently disabled')
         try:
             xyz,yaw,identities=super().validate(ground=ground)
         except ValueError as exc:
+            if str(exc)=='Waiting for confirmed fusion, speed limits, LAND fallback and LOCAL_NED':
+                raise ValueError(str(exc)+'; '+self.parameter_wait_detail()) from exc
             if str(exc)=='Missing/stale local':
                 receipt_age=time.monotonic()-self.receipts.get('local',-math.inf)
                 stamp_ns=self.stamp(self.local) if self.local is not None else 0
@@ -348,10 +389,12 @@ class SuperFlightControl(FirstHoverControl):
         coordinates=(self.frame.coordinates(self.follower.last[1]).round(4).tolist()
                      if self.frame is not None and self.follower is not None and self.follower.last is not None else None)
         mode='EXECUTE' if self.execute else 'DEBUG ONLY'
+        parameter_wait=self.parameter_wait_detail() if self.phase=='CHECKING' else ''
         self.status_pub.publish(String(data=f'{self.phase}: forward/left/FC-height={coordinates}; '
             f'accepted={accepted}; preplan commands discarded={self.preplan_commands_discarded}; '
             f'{mode}; callback max={self.max_callback_runtime:.4f}s; '
-            f'timer gap max={self.max_timer_gap:.4f}s; fault={self.fault}'))
+            f'timer gap max={self.max_timer_gap:.4f}s; fault={self.fault}'+
+            (f'; parameter_wait={parameter_wait}' if parameter_wait else '')))
 
 
 def main():
