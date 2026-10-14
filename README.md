@@ -6,7 +6,7 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 ## Quick Start: restore the aircraft after reboot
 
-The managed disarmed SUPER-to-MAVROS transport now publishes native position/yaw setpoints at approximately 20 Hz on the aircraft. PX4 receiver confirmation is the next check. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
+The managed disarmed SUPER-to-PX4 transport is verified: native position/yaw setpoints publish at approximately 20 Hz and PX4 reports fresh position-control intent. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
 
 For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
 
@@ -257,6 +257,7 @@ For detailed guards, phase timing, check-only mode, and troubleshooting, see the
 | FAST_LIO → PX4 external vision | Operational | Position, height, and yaw fusion through MAVROS; fresh `vehicle_visual_odometry` and valid local position/velocity |
 | Fixed-position flight | **Successful on aircraft** | Complete automatic takeoff, hover, and landing sequence |
 | SUPER mapping and planning | Ground integration complete | Occupancy map, trajectory generation, replanning, and converted command preview |
+| SUPER → PX4 ground transport | Verified on aircraft | Approximately 20 Hz native position/yaw publication and fresh PX4 position-control intent while disarmed |
 | SUPER → flight trajectory execution | Pending | Ground preview is separate from the completed hover controller |
 | Remote operation | Operational | Mac → NoMachine → onboard Ubuntu desktop, including QGC and terminals |
 | Loop recording and XYZ analysis | Tools ready | Bag export, point-cloud inspection, timing gaps, and return-to-marker metrics |

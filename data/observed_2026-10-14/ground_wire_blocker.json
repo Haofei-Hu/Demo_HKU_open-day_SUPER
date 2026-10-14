@@ -1,7 +1,7 @@
 {
   "date": "2026-10-14",
   "test_scope": "Remote, grounded, disarmed SUPER-to-MAVROS-to-PX4 transport",
-  "aircraft_transport_verified": false,
+  "aircraft_transport_verified": true,
   "ros_native_transport_verified": true,
   "session": "20261014_154445_304844",
   "fixed_lio_extrinsics_requested": true,
@@ -49,7 +49,7 @@
     "only_changed_field": "rog_map.virtual_ground_height",
     "value_m": -1.5,
     "original_backup_suffix": ".before_wire_floor",
-    "aircraft_application_and_retest": "value -1.5 read back; first launch blocked by discovery; later updated-manager launch and native 20 Hz publication verified; PX4 receiver confirmation pending",
+    "aircraft_application_and_retest": "value -1.5 read back; first launch blocked by discovery; later updated-manager launch, native 20 Hz publication and fresh PX4 receiver position intent verified",
     "meaning": "Synthetic plane adjustment for ground diagnostics; not a surveyed floor or flight envelope"
   },
   "sender_discovery_retest": {
@@ -93,8 +93,19 @@
       {"stamp_s": 1791965339.366872883, "xyz_m": [-0.029, 0.034, -0.022], "yaw_deg": 103.1},
       {"stamp_s": 1791965340.371514243, "xyz_m": [-0.233, 0.161, -0.031], "yaw_deg": 103.1}
     ],
-    "px4_receiver_readback_after_success": "pending",
-    "meaning": "Actual aircraft-side ROS native publication; does not verify PX4 reception, active OFFBOARD, flight or tracking accuracy"
+    "px4_receiver_readback_after_success": {
+      "topic": "offboard_control_mode",
+      "timestamp_us": 162152863276,
+      "age_s": 0.029639,
+      "position": true,
+      "velocity": false,
+      "acceleration": false,
+      "attitude": false,
+      "body_rate": false,
+      "thrust_and_torque": false,
+      "direct_actuator": false
+    },
+    "meaning": "Actual aircraft-side ROS native publication and PX4 receiver intent while disarmed; does not verify active OFFBOARD, flight or tracking accuracy"
   },
   "earlier_session_faults": {
     "stale_paired_localization_and_invalid_horizontal_estimator_observed": true,
