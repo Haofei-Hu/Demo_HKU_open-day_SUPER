@@ -13,7 +13,8 @@
   "other_managed_processes_modified": false,
   "actual_planner_config_limits_inspected": true,
   "execute_flag_accepted": false,
-  "aircraft_readiness_command_retest_verified": false,
+  "aircraft_readiness_command_retest_verified": true,
   "on_site_supervision_and_clearance_assessed": false,
-  "planner_driven_aircraft_flight_verified": false
+  "planner_driven_aircraft_flight_verified": false,
+  "aircraft_observation": "../observed_2026-10-14/remote_flight_readiness.json; remote checks passed, RC/POSCTL remained expected supervised-flight blockers"
 }

@@ -86,6 +86,12 @@ python3 ~/Downloads/super_session.py flight-check
 
 The JSON includes `checks`, `blockers`, `remote_preparation_checks_passed` and `sampled_software_prerequisites_passed`. During remote preparation, missing fresh RC or disarmed POSCTL/manual input should remain visible as blockers for later supervised execution. The snapshot does not assess on-site supervision, physical clearance, complete-flight tracking or the PX4 `commander check`; no flight is initiated even if all sampled checks pass. Existing airborne or stale/non-grounded FC state prevents the grounded check from running. Its normal exit means a report was produced; use the JSON booleans to inspect prerequisite results.
 
+### Aircraft remote preparation result
+
+The aircraft snapshot returned `remote_preparation_checks_passed=true`, no errors, all required parameter matches, fresh valid localization, LOCAL_NED, single localization sources, active managed processes and the reserved 3D profile. FC/vision position separation was 0.00712434 m and yaw difference 0.0114514°. The aircraft was connected/disarmed in AUTO.LOITER with manual input false and no native control publishers. One RC publisher was advertised, but no fresh RC data/channels were received; publisher presence alone does not establish a live transmitter.
+
+Only `posctl_with_manual_input` and `fresh_rc_with_seven_channels` blocked the full sampled prerequisites. These are retained on-site input requirements. Continue with supervised 1 m takeoff, one 0.30 m low-speed forward handover, six-second endpoint hold and landing after on-site RC/manual mode and PX4 preflight are verified. The current remote session remains grounded. See [the aircraft readiness snapshot](../data/observed_2026-10-14/remote_flight_readiness.json).
+
 ## Experimental flight lifecycle
 
 The controller's explicit execution mode reuses the verified hover lifecycle through extension hooks. The original hover controller retains its own services, default RC gates and reference/envelope behavior. The manager currently exposes only the new ground-check lifecycle.
@@ -121,6 +127,6 @@ The status topic includes maximum control callback runtime and timer gap. A test
 - The original hover ROS regression passed its complete lifecycle, low-rate feedback, height/hold profiles, rejection, loss, takeover and no-restart cases.
 - Nine new isolated ROS scenarios verified default no-flight auditing and endpoint hold, restart rejection, configuration/source latches, missing-RC flight blocking, successful one-goal flight lifecycle, pilot takeover, command-loss landing and tracking/position departure handling. The asynchronous LAND assertion was corrected to await service delivery; control thresholds were not relaxed.
 - Numerical checks verified inverse nonidentity session geometry, per-axis tracking rejection, measured corridor protection against stacked offsets and captured ground offsets in rotated axes. A further ROS ground-margin case verified that 0.06 m offsets on each axis retain `READY`, while 0.101 m on captured forward latches `STOPPED` without control requests; the ground endpoint-hold fixture also passed after this change.
-- Thirty manager lifecycle checks and three repository-layout checks passed. The standalone hover artifact matches its canonical source.
+- Thirty-two manager lifecycle checks and three repository-layout checks passed. Three isolated read-only readiness cases passed without any mode, arming, parameter-write, goal or native requests. The standalone hover artifact matches its canonical source.
 
-These are software results. The next aircraft result to record is `READY` → `AUDIT_TRACK` → `AUDIT_END` with default check-only output, followed by supervised staged flight validation when RC and an on-site pilot are available.
+The sustained default ground audit and aircraft read-only readiness snapshot are recorded separately from these software results. The next physical result is supervised staged flight validation when RC and an on-site pilot are available.
