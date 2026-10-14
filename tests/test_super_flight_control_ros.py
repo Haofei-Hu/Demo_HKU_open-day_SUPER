@@ -168,6 +168,17 @@ def run(case):
                 return
             wait(lambda:bridge.phase=='READY')
             assert not requests and not native and not goals,'Initialization caused motion'
+            if case=='audit_ground_margin':
+                settings['pose']=ground+bridge.frame.axes.T@np.array([.06,.06,.06])
+                spin(.6)
+                assert bridge.phase=='READY',(bridge.phase,bridge.fault)
+                settings['pose']=ground+bridge.frame.axes.T@np.array([.101,0.,0.])
+                wait(lambda:bridge.phase=='STOPPED')
+                assert 'ground offset' in bridge.fault and 'forward/left/up=' in bridge.fault
+                assert not call(audit_client).success
+                assert not requests and not native and not goals
+                print('PASS:',case,bridge.phase)
+                return
             if not execute:
                 assert bridge.count_publishers(NATIVE)==0
                 assert not call(start_client).success
@@ -253,11 +264,30 @@ def numerical_checks():
     try:control.check_envelope([.3,0.,1.025],0.,False)
     except ValueError:pass
     else:raise AssertionError('Physical corridor allowed stacked reference/tracking offsets')
+    # Ground capture uses the requested per-axis margin, not a 5 cm sphere.
+    control.execute=False;control.phase='READY'
+    control.check_envelope([.06,.06,.06],0.,True)
+    control.check_envelope([.10,-.10,.10],0.,True)
+    for axis in range(3):
+        for sign in (-1.,1.):
+            offset=np.zeros(3);offset[axis]=sign*.101
+            try:control.check_envelope(offset,0.,True)
+            except ValueError as exc:
+                assert 'ground offset' in str(exc) and 'forward/left/up=' in str(exc)
+            else:raise AssertionError('Ground per-axis offset guard missing')
+    yaw=.7
+    control.reference=HoverReference([0.,0.,0.],yaw,hover_fc_height=1.,hold_seconds=6.)
+    control.frame=__import__('bounded_reference_preview').TakeoffFrame(
+        [0.,0.,0.],quaternion_rpy(0.,0.,yaw))
+    control.check_envelope(control.frame.axes.T@np.array([.09,.09,.09]),yaw,True)
+    try:control.check_envelope(control.frame.axes.T@np.array([.11,0.,0.]),yaw,True)
+    except ValueError as exc:assert 'ground offset' in str(exc)
+    else:raise AssertionError('Ground offset checked in the wrong axes')
 
 
 if __name__=='__main__':
     numerical_checks()
-    for case in ('audit_hold','audit_restart','audit_config','audit_source','missing_rc',
+    for case in ('audit_hold','audit_restart','audit_config','audit_source','audit_ground_margin','missing_rc',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):
         run(case)
     print('PASS: default no-flight audit; one-goal handover; terminal hold; restart/loss/config/RC/pilot guards.')

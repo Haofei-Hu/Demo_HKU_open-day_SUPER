@@ -176,13 +176,16 @@ class SuperFlightControl(FirstHoverControl):
 
     def check_envelope(self,xyz,yaw,ground):
         if self.reference is None:return
+        if ground:
+            offset=self.frame.axes@(np.asarray(xyz)-np.asarray(self.reference.ground))
+            if np.any(np.abs(offset)>.10):
+                raise ValueError('Estimated ground offset exceeds 0.10 m per axis; '
+                                 'forward/left/up='+str(offset.round(4).tolist()))
         if self.frame is not None:self.frame.check(xyz)
         if self.execute and self.phase in ('HOLD','WAIT_PLAN','TRACK','END_HOLD'):
             self.target_ok(xyz,label='Measured position')
         if abs(self.angle(yaw-self.reference.yaw))>math.radians(15):
             raise ValueError('Heading departure exceeds 15 degrees')
-        if ground and math.dist(xyz,self.reference.ground)>.05:
-            raise ValueError('Aircraft moved after ground capture')
 
     def change(self,phase):
         super().change(phase)

@@ -9,13 +9,17 @@
     "initial_hover_s": 2.0,
     "forward_distance_m": 0.3,
     "endpoint_hold_s": 6.0,
-    "planner_velocity_acceleration_limits": [0.25, 0.45],
+    "planner_velocity_acceleration_limits": [
+      0.25,
+      0.45
+    ],
     "native_position_yaw_rate_hz": 20,
     "per_axis_reference_endpoint_tracking_tolerance_m": 0.1,
     "planner_wait_budget_s": 8,
     "committed_trajectory_duration_limit_s": 20,
     "offboard_flight_budget_s": 45,
-    "control_timer_gap_limit_s": 0.2
+    "control_timer_gap_limit_s": 0.2,
+    "handover_ground_capture_tolerance_per_axis_m": 0.1
   },
   "original_hover_ros_regression": "passed; default diagnostics, explicit one-shot start, height/hold profiles, rejection, loss, deviation, takeover, landing/disarm and no restart",
   "new_ros_cases_passed": [
@@ -27,12 +31,14 @@
     "flight_hold: explicit OFFBOARD/arm, rise, hover, one goal, track, terminal hold, LAND and landed/disarmed confirmation",
     "flight_pilot: manual mode takeover stops output without overriding pilot",
     "flight_loss: missing commands stop stream and request LAND",
-    "flight_tracking: estimated departure stops stream and requests LAND"
+    "flight_tracking: estimated departure stops stream and requests LAND",
+    "audit_ground_margin: 0.06 m per-axis estimated offset retains READY; 0.101 m captured-forward offset latches STOPPED with signed diagnostics and no goal/native/control requests"
   ],
   "numerical_checks": [
     "inverse nonidentity world/offset geometry round-trip",
     "tracking error over 0.10 m per axis rejected",
-    "measured corridor rejects stacked reference/tracking offsets"
+    "measured corridor rejects stacked reference/tracking offsets",
+    "captured forward/left/up ground margin accepts each axis within 0.10 m, including diagonal offsets, and rejects either sign beyond 0.10 m"
   ],
   "manager_lifecycle_tests_passed": 30,
   "repository_layout_tests_passed": 3,
@@ -47,9 +53,26 @@
     "watchdog_threshold_relaxed": false,
     "stall_root_cause": "not established; observed during RISE before goal processing",
     "representative_mixed_rate_retest": "flight_hold and flight_tracking passed",
-    "retest_feedback_rates_hz": {"paired_raw_aligned_vision": 50, "local_pose": 25, "status_estimator_landing": 10},
+    "retest_feedback_rates_hz": {
+      "paired_raw_aligned_vision": 50,
+      "local_pose": 25,
+      "status_estimator_landing": 10
+    },
     "retest_blas_threads": 1,
     "onboard_callback_timing_verified": false
   },
-  "limitations": "Fixtures do not model PX4 dynamics or establish physical tracking accuracy, surveyed clearance, complete-session localization stability or flight readiness"
+  "limitations": "Fixtures do not model PX4 dynamics or establish physical tracking accuracy, surveyed clearance, complete-session localization stability or flight readiness",
+  "aircraft_ground_audit_observation": {
+    "session": "20261014_154445_304844",
+    "phase": "STOPPED",
+    "accepted_references": 0,
+    "fault": "Aircraft moved after ground capture",
+    "callback_max_s": 0.0083,
+    "timer_gap_max_s": 0.0544,
+    "cause": "The handover controller inherited a 0.05 m total-distance ground capture guard, inconsistent with the requested 0.10 m per-axis margin",
+    "physical_movement_established": false,
+    "replacement_guard": "0.10 m per captured forward/left/up axis, with signed offset diagnostics",
+    "replacement_aircraft_retest_verified": false
+  },
+  "ground_margin_change_retests": "numerical axis/sign/rotated-frame cases, audit_ground_margin and audit_hold passed; original standalone hover remains unchanged"
 }

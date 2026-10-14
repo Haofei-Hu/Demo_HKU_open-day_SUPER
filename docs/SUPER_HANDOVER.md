@@ -20,6 +20,8 @@ timeout 12s ros2 topic echo \
 
 Wait for `READY`. The checker requires fresh, valid FC/external poses and estimator status, confirmed fusion/low-speed/LAND-fallback parameters and LOCAL_NED, ten identical-stamp raw/aligned geometry pairs, fixed publisher identities, unchanged geometry/configuration files and a three-second stationary capture. Check-only operation accepts disarmed POSCTL or AUTO.LOITER without RC. It creates no native setpoint publisher and does not call mode or arming services.
 
+After capture, the handover controller permits estimated ground offsets up to 0.10 m on each captured forward/left/up axis. It does not use the original hover controller's 0.05 m total-distance ground check. Exceeding the margin latches `STOPPED` and reports the signed axis offsets; estimated movement alone does not prove physical aircraft movement. A stopped checker must be stopped through the manager before a fresh audit can launch. Repeating the download does not reset the running checker.
+
 Request one forward goal at the captured ground height:
 
 ```bash
@@ -75,7 +77,7 @@ The status topic includes maximum control callback runtime and timer gap. A test
 
 - The original hover ROS regression passed its complete lifecycle, low-rate feedback, height/hold profiles, rejection, loss, takeover and no-restart cases.
 - Nine new isolated ROS scenarios verified default no-flight auditing and endpoint hold, restart rejection, configuration/source latches, missing-RC flight blocking, successful one-goal flight lifecycle, pilot takeover, command-loss landing and tracking/position departure handling. The asynchronous LAND assertion was corrected to await service delivery; control thresholds were not relaxed.
-- Numerical checks verified inverse nonidentity session geometry, per-axis tracking rejection and measured corridor protection against stacked offsets.
+- Numerical checks verified inverse nonidentity session geometry, per-axis tracking rejection, measured corridor protection against stacked offsets and captured ground offsets in rotated axes. A further ROS ground-margin case verified that 0.06 m offsets on each axis retain `READY`, while 0.101 m on captured forward latches `STOPPED` without control requests; the ground endpoint-hold fixture also passed after this change.
 - Thirty manager lifecycle checks and three repository-layout checks passed. The standalone hover artifact matches its canonical source.
 
 These are software results. The next aircraft result to record is `READY` → `AUDIT_TRACK` → `AUDIT_END` with default check-only output, followed by supervised staged flight validation when RC and an on-site pilot are available.
