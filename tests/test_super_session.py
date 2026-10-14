@@ -184,6 +184,53 @@ class Tests(unittest.TestCase):
             with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('wire-test')
             self.assertEqual(s.started,[])
 
+    def test_wire_waits_for_delayed_discovery_and_rejects_duplicate_or_missing_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory)/'ground_setpoint_transport.py').write_text('# fixture')
+            for counts, succeeds, error in (([0,0,1],True,None),
+                                            ([0,2],False,'discovered 2'),
+                                            ([0,0,0],False,'zero found')):
+                class DiscoveringGate(FakeGate):
+                    def __init__(self):
+                        super().__init__()
+                        self.counts=iter(counts)
+                        self.last_count=0
+                        self.node.count_publishers=self.count_publishers
+                    def count_publishers(self,topic):
+                        if topic=='/super_debug/control_target':
+                            self.last_count=next(self.counts,self.last_count)
+                            return self.last_count
+                        return 0
+                    def wait(self,predicate,description):
+                        for _ in range(4):
+                            if predicate():return
+                        raise RuntimeError(description)
+                s=self.manager(['wire-test','--scripts-dir',directory])
+                s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+                with patch.object(m,'GroundGate',DiscoveringGate):
+                    if succeeds:
+                        s.mutate('wire-test')
+                        self.assertEqual([name for name,_ in s.started],['wire_test'])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,error):s.mutate('wire-test')
+                        self.assertEqual(s.started,[])
+                self.assertEqual(FakeGate.writes,[])
+
+    def test_wire_commands_source_workspace_setups_without_a_preinitialized_shell(self):
+        for action in ('wire-test','wire-stop'):
+            args=m.arguments([action])
+            with patch.object(m,'arguments',return_value=args), \
+                 patch.object(m.subprocess,'run',side_effect=[argparse.Namespace(returncode=0),
+                                                            argparse.Namespace(returncode=17)]) as execute, \
+                 patch.object(m,'Session') as session:
+                with self.assertRaises(SystemExit) as result:m.main()
+                self.assertEqual(result.exception.code,17)
+                command=execute.call_args_list[1].args[0]
+                self.assertEqual(command[:3],['bash','--noprofile','--norc'])
+                self.assertIn('setup.bash',command[-1])
+                self.assertIn('--ros-env',command[-1])
+                session.assert_not_called()
+
     def test_planner_stop_stops_native_wire_first_and_hover_excludes_wire(self):
         s=self.manager(['planner-stop'])
         s.window_state.update(wire_test='0',reference_preview='0',cmd_preview='0',planner='0',preview='0',vision='0')

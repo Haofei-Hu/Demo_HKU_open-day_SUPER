@@ -13,7 +13,7 @@ sudo apt update
 sudo apt install tmux
 ```
 
-The optional managed `wire-test` also requires `ground_setpoint_transport.py` in the same flat script directory. It adds a disarmed native position/yaw sender; it is separate from flight execution.
+The optional managed `wire-test` also requires `ground_setpoint_transport.py` in the same flat script directory. It adds a disarmed native position/yaw sender; it is separate from flight execution. `wire-test` and `wire-stop` source the same standard workspace setup files as the other ROS actions. Sender launch waits up to 12 seconds for a single coordinate-preview publisher to be discovered; multiple sources are rejected immediately. A discovery timeout does not start a sender or imply that the planner generated a trajectory.
 
 From a checkout, `python3 scripts/maintenance/install_scripts.py` installs the manager without replacing existing files. To download only the manager:
 

@@ -48,8 +48,23 @@
     "only_changed_field": "rog_map.virtual_ground_height",
     "value_m": -1.5,
     "original_backup_suffix": ".before_wire_floor",
-    "aircraft_application_and_retest": "pending",
+    "aircraft_application_and_retest": "value -1.5 read back; planner launched; sender discovery check rejected launch before goal execution; trajectory and transport retest pending",
     "meaning": "Synthetic plane adjustment for ground diagnostics; not a surveyed floor or flight envelope"
+  },
+  "sender_discovery_retest": {
+    "initial_manager_error": "Need one SUPER coordinate-preview source",
+    "subsequent_publisher_count": 1,
+    "publisher_node": "control_bridge_preview",
+    "subscription_count": 0,
+    "managed_wire_window_present": false,
+    "localization_vision_planning_processes_active": true,
+    "later_goal_executed": false,
+    "previous_wire_log_retained": true,
+    "manager_change": "wait up to 12 seconds for zero-to-one source discovery; reject multiple sources immediately; initialize ROS setups for both wire commands",
+    "lifecycle_tests_passed": 27,
+    "live_ros_delayed_source_fixture_elapsed_s": 1.159,
+    "fixture_native_sender_launch": "mocked; no actual flight output",
+    "updated_manager_aircraft_deployment": "pending"
   },
   "earlier_session_faults": {
     "stale_paired_localization_and_invalid_horizontal_estimator_observed": true,

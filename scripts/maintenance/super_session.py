@@ -456,8 +456,13 @@ class Session:
                 if 'hover' in windows or 'wire_test' in windows:
                     raise RuntimeError('Hover/wire window exists; stop it explicitly before a ground wire test')
                 gate.wait(gate.localization_ready,'fresh valid ground localization before native wire test')
-                if gate.node.count_publishers('/super_debug/control_target')!=1:
-                    raise RuntimeError('Need one SUPER coordinate-preview source')
+                def coordinate_source_ready():
+                    count=gate.node.count_publishers('/super_debug/control_target')
+                    if count>1:
+                        raise RuntimeError(f'Need one SUPER coordinate-preview source; discovered {count}')
+                    return count==1
+                gate.wait(coordinate_source_ready,
+                          'one SUPER coordinate-preview source to be discovered (zero found)')
                 controls=('/mavros/setpoint_position/local','/mavros/setpoint_raw/local',
                           '/mavros/setpoint_raw/global','/mavros/setpoint_raw/attitude',
                           '/mavros/setpoint_position/global','/mavros/setpoint_position/global_to_local',
@@ -583,7 +588,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)
