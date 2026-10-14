@@ -150,7 +150,18 @@ class SuperFlightControl(FirstHoverControl):
     def validate(self,ground=False):
         if not self.execute and self.state is not None and (self.state.armed or self.state.mode=='OFFBOARD'):
             raise ValueError('Arming/OFFBOARD observed; audit permanently disabled')
-        xyz,yaw,identities=super().validate(ground=ground)
+        try:
+            xyz,yaw,identities=super().validate(ground=ground)
+        except ValueError as exc:
+            if str(exc)=='Missing/stale local':
+                receipt_age=time.monotonic()-self.receipts.get('local',-math.inf)
+                stamp_ns=self.stamp(self.local) if self.local is not None else 0
+                header_age=(self.get_clock().now().nanoseconds-stamp_ns)/1e9 if stamp_ns>0 else math.inf
+                raise ValueError('Missing/stale local; '
+                    f'receive_age={receipt_age:.6f}s (max 0.250000s); '
+                    f'header_age={header_age:.6f}s (range -0.050000..0.250000s); '
+                    f'local_stamp_ns={stamp_ns}; phase={self.phase}') from exc
+            raise
         if not self.execute and self.extended.landed_state!=self.extended.LANDED_STATE_ON_GROUND:
             raise ValueError('Audit requires grounded aircraft')
         try:

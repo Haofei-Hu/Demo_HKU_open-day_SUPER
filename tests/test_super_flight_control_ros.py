@@ -1,5 +1,6 @@
 """Isolated SUPER handover fixture. All telemetry/command services are simulated."""
 import math
+import copy
 from pathlib import Path
 import sys
 import tempfile
@@ -82,11 +83,16 @@ def run(case):
                           extended=extended,estimator=estimator,rc=RCIn(channels=[1500]*16))
             for name,msg in messages.items():
                 if name=='rc' and not settings['rc']:continue
+                if name=='local' and settings.get('drop_local'):continue
                 # Representative mixed telemetry rates: paired/vision 50 Hz,
                 # local pose 25 Hz, status/estimator/landing 10 Hz.
                 if name=='local' and telemetry_ticks%2:continue
                 if name in ('state','extended','estimator') and telemetry_ticks%5:continue
                 if name not in ('local','vision','aligned','raw'):stamp(msg)
+                if name=='local' and settings.get('future_local'):
+                    msg=copy.deepcopy(msg)
+                    ns=msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec+100_000_000
+                    msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns,1_000_000_000)
                 pubs[name].publish(msg)
 
         def make_plan(start,end,when):
@@ -250,8 +256,18 @@ def run(case):
                     assert not requests and not native and bridge.count_publishers(NATIVE)==0
                     if case=='audit_overlap':assert bridge.preplan_commands_discarded>0
                     assert not call(audit_client).success
-                    settings['armed']=True
+                    if case=='audit_local_receive_loss':settings['drop_local']=True
+                    elif case=='audit_local_future_stamp':settings['future_local']=True
+                    else:settings['armed']=True
                     wait(lambda:bridge.phase=='STOPPED')
+                    if case in ('audit_local_receive_loss','audit_local_future_stamp'):
+                        assert 'Missing/stale local' in bridge.fault
+                        assert 'receive_age=' in bridge.fault and 'header_age=' in bridge.fault
+                        assert 'local_stamp_ns=' in bridge.fault and 'phase=AUDIT_END' in bridge.fault
+                        receipt=float(bridge.fault.split('receive_age=')[1].split('s')[0])
+                        age=float(bridge.fault.split('header_age=')[1].split('s')[0])
+                        if case=='audit_local_receive_loss':assert receipt>.25
+                        else:assert age<-.05 and receipt<.25
             if bridge.phase=='STOPPED':
                 spin(.1);count=len(native);count_debug=len(debug)
                 settings['drop_commands']=False;settings['armed']=False
@@ -310,7 +326,8 @@ def numerical_checks():
 
 if __name__=='__main__':
     numerical_checks()
-    for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin','missing_rc',
+    for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin',
+                 'audit_local_receive_loss','audit_local_future_stamp','missing_rc',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):
         run(case)
     print('PASS: default no-flight audit; one-goal handover; terminal hold; restart/loss/config/RC/pilot guards.')

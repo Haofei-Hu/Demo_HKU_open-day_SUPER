@@ -1,7 +1,7 @@
 {
   "date": "2026-10-14",
   "scope": "Software validation only; simulated ROS telemetry and MAVROS services in isolated localhost domains",
-  "aircraft_handover_audit_verified": false,
+  "aircraft_handover_audit_verified": true,
   "aircraft_planner_driven_flight_verified": false,
   "default_mode": "Disarmed one-goal ground audit; no native setpoints, mode or arming requests",
   "prototype_profile": {
@@ -34,7 +34,9 @@
     "flight_tracking: estimated departure stops stream and requests LAND",
     "audit_ground_margin: 0.06 m per-axis estimated offset retains READY; 0.101 m captured-forward offset latches STOPPED with signed diagnostics and no goal/native/control requests",
     "audit_overlap: previous-goal commands with fresh stamps after goal issuance but before the new committed start are discarded; the matched new trajectory reaches AUDIT_END without native/control requests",
-    "audit_corridor: a matched new reference 0.11 m left of the captured axis still stops before any accepted reference"
+    "audit_corridor: a matched new reference 0.11 m left of the captured axis still stops before any accepted reference",
+    "audit_local_receive_loss: post-AUDIT_END reception loss latches STOPPED with receive_age > 0.25 s and frozen event-time stamp/phase diagnostics; no native/control requests",
+    "audit_local_future_stamp: post-AUDIT_END future local header latches STOPPED with header_age < -0.05 s despite receive_age < 0.25 s; no native/control requests"
   ],
   "numerical_checks": [
     "inverse nonidentity world/offset geometry round-trip",
@@ -84,5 +86,17 @@
     "audit_restart passed",
     "flight_hold passed",
     "flight_loss passed"
-  ]
+  ],
+  "aircraft_handover_evidence": "../observed_2026-10-14/super_handover_audit.json; one default disarmed trial reached AUDIT_END, then latched a local-pose freshness fault about 0.68 s later; six-second sustained hold and aircraft trajectory flight remain unverified",
+  "local_pose_freshness_diagnostics": {
+    "isolated_ros_cases_passed": 2,
+    "thresholds_changed": false,
+    "aircraft_event_time_cause_established": false,
+    "fields": [
+      "receive_age",
+      "header_age",
+      "local_stamp_ns",
+      "phase"
+    ]
+  }
 }

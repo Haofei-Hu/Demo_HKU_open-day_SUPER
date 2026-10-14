@@ -1,6 +1,6 @@
 # One-goal SUPER handover
 
-The disarmed SUPER → MAVROS → PX4 protocol path is verified on the aircraft. `super_flight_control.py` adds a separate one-goal controller prototype. Its default mode audits a ground trajectory and emits debug poses only. Aircraft handover auditing and planner-driven flight remain unverified; isolated ROS fixtures use simulated telemetry and MAVROS command services, not a PX4 dynamics simulation.
+The disarmed SUPER → MAVROS → PX4 protocol path is verified on the aircraft. `super_flight_control.py` adds a separate one-goal controller prototype. Its default mode audits a ground trajectory and emits debug poses only. One aircraft ground audit reached `AUDIT_END`; a post-endpoint local-pose freshness fault and planner-driven aircraft flight remain unresolved; isolated ROS fixtures use simulated telemetry and MAVROS command services, not a PX4 dynamics simulation.
 
 ## Ground audit
 
@@ -44,6 +44,31 @@ python3 ~/Downloads/super_session.py handover-stop
 ```
 
 `planner-stop` and full `stop` also stop the auditor. A fault or completed audit cannot silently start another goal; stop the auditor and create a fresh grounded check session for a new trial.
+
+## Aircraft ground result
+
+The October 14 disarmed trial progressed through `READY` → `AUDIT_WAIT` → `AUDIT_TRACK` → `AUDIT_END`, accepting 218 references. Its held forward/left/FC-floor-height was `[0.3172, 0.0106, 0.0941] m`. These are reference coordinates, not physical aircraft displacement. No native output or mode/arming request was made.
+
+Approximately 0.68 s after reaching `AUDIT_END`, the auditor latched `STOPPED` on `Missing/stale local`. It therefore verifies terminal-reference arrival and brief endpoint hold, not a stable six-second hold. The original generic fault does not distinguish receiver starvation, transport loss or a header-time excursion. A separate later 30-second sample found local-pose receive gaps at most 45 ms and header ages at most 19 ms, with one publisher and no invalid/reordered stamps; this does not establish the cause of the earlier fault. The supplied MAVROS log tail predates that event. Keep the 0.25 s freshness guard and collect event-time evidence before airborne handover. See [the recorded observation](../data/observed_2026-10-14/super_handover_audit.json).
+
+Local-pose freshness faults now include monotonic `receive_age`, ROS `header_age`, the last local stamp and the mission phase. The limits remain 0.25 s for reception/header age and -0.05 s for future-dated headers. To collect an independent view during a new disarmed audit, wait for `READY`, then run the existing read-only sampler alongside the audit in the same command terminal:
+
+```bash
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+audit_sample_log=$(mktemp "$HOME/Downloads/handover_sample_XXXXXX")
+python3 ~/Downloads/control_chain_age_check.py --seconds 30 > "$audit_sample_log" 2>&1 &
+audit_sampler_pid=$!
+timeout 8s ros2 service call /super_flight/audit std_srvs/srv/Trigger '{}'
+timeout 20s ros2 topic echo \
+  /super_debug/super_flight_status std_msgs/msg/String \
+  --no-daemon --qos-reliability best_effort \
+  --qos-durability volatile --full-length --field data
+wait "$audit_sampler_pid"
+cat "$audit_sample_log"
+```
+
+Only the explicit audit call requests a ground planning goal. Sampling and status inspection do not emit flight requests. Evaluate the independent sampler together with the controller's fault-time ages; a later healthy window alone cannot explain an earlier latch.
 
 ## Experimental flight lifecycle
 

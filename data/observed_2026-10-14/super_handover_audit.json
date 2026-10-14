@@ -2,7 +2,7 @@
   "date": "2026-10-14",
   "session": "20261014_154445_304844",
   "scope": "On-aircraft disarmed ground handover audit; no planner-driven flight",
-  "audit_completed": false,
+  "audit_completed": true,
   "native_flight_output": false,
   "ground_margin_retest": {
     "ready_observed": true,
@@ -42,6 +42,99 @@
   "observed_reference_goal_provenance": "Not established from the captured logs; failure timing and previously active goals are consistent with old-goal overlap",
   "repair": "Wait for committed polynomial, discard pre-start commands, require polynomial match before corridor check; preserve all per-axis and post-start continuity limits",
   "software_reproduction": "Previous-goal overlap fixture reaches AUDIT_END after repair; matched lateral violations and moving restarts still stop",
-  "repair_aircraft_retest_verified": false,
-  "planner_driven_flight_verified": false
+  "repair_aircraft_retest_verified": true,
+  "planner_driven_flight_verified": false,
+  "latest_goal_audit_retest": {
+    "controller_revision": "f4bfceb44d5bc40e8f168e578051c8734ce1c4f5",
+    "phase_sequence": [
+      "READY",
+      "AUDIT_WAIT",
+      "AUDIT_TRACK",
+      "AUDIT_END",
+      "STOPPED"
+    ],
+    "ready_stamp_s": 1791975829.4971507,
+    "goal_issued_stamp_s": 1791975845.4853609,
+    "track_stamp_s": 1791975845.537207,
+    "audit_end_stamp_s": 1791975847.7526884,
+    "post_endpoint_fault_stamp_s": 1791975848.4325118,
+    "requested_aligned_fc_xyz_m": [
+      -0.0621,
+      0.2847,
+      -0.0391
+    ],
+    "requested_planner_xyz_m": [
+      0.2307,
+      -0.2454,
+      -0.4598
+    ],
+    "held_reference_forward_left_fc_floor_height_m": [
+      0.3172,
+      0.0106,
+      0.0941
+    ],
+    "accepted_references": 218,
+    "preplan_commands_discarded": 0,
+    "callback_max_s": 0.0259,
+    "timer_gap_max_s": 0.056,
+    "post_endpoint_fault": "Missing/stale local",
+    "observed_endpoint_hold_before_fault_s_approx": 0.68,
+    "six_second_stable_hold_verified": false,
+    "fault_subtype": "Unknown: the original fault does not distinguish receive age from ROS header age",
+    "native_output": false,
+    "mode_or_arming_requests": false,
+    "physical_aircraft_tracking_verified": false
+  },
+  "subsequent_read_only_30_second_sample": {
+    "scope": "Separate later sampling window; does not reconstruct the prior fault",
+    "topics": {
+      "/Odometry": {
+        "n": 1500,
+        "age_min_avg_max_s": [
+          0.004,
+          0.016,
+          0.03
+        ],
+        "receive_gap_max_s": 0.039,
+        "last_receive_age_s": 0.009
+      },
+      "/planning/pos_cmd": {
+        "n": 2988,
+        "age_min_avg_max_s": [
+          0.0,
+          0.002,
+          0.012
+        ],
+        "receive_gap_max_s": 0.027,
+        "last_receive_age_s": 0.005
+      },
+      "/super_debug/control_target": {
+        "n": 2988,
+        "age_min_avg_max_s": [
+          0.001,
+          0.004,
+          0.017
+        ],
+        "receive_gap_max_s": 0.028,
+        "last_receive_age_s": 0.001
+      },
+      "/mavros/local_position/pose": {
+        "n": 873,
+        "age_min_avg_max_s": [
+          0.0,
+          0.007,
+          0.019
+        ],
+        "receive_gap_max_s": 0.045,
+        "last_receive_age_s": 0.02
+      }
+    },
+    "all_topics_invalid_stamps": 0,
+    "all_topics_nonincreasing_stamps": 0,
+    "all_topics_unexpected_frames": 0,
+    "publisher_identities_per_topic": 1,
+    "freshness_threshold_relaxed": false,
+    "mavros_log_tail_covers_fault_time": false,
+    "post_endpoint_fault_cause_established": false
+  }
 }
