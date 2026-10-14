@@ -269,8 +269,11 @@ def run(case):
             else:
                 wait(lambda:bridge.phase=='END_HOLD' if execute else bridge.phase=='AUDIT_END')
                 held=bridge.follower.last[1].copy()
-                spin(.4)
+                spin(6.2 if case=='audit_sustained_hold' else .4)
                 assert np.array_equal(held,bridge.follower.last[1]),'Restart altered terminal reference'
+                if case=='audit_sustained_hold':
+                    assert bridge.phase=='AUDIT_END' and bridge.fault is None
+                    assert sum(status.startswith('AUDIT_END:') for status in statuses)>=6
                 if execute:
                     wait(lambda:bridge.phase=='DONE')
                     assert requests==['OFFBOARD','ARM','AUTO.LAND']
@@ -352,7 +355,7 @@ def numerical_checks():
 
 if __name__=='__main__':
     numerical_checks()
-    for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin',
+    for case in ('audit_hold','audit_sustained_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin',
                  'audit_local_receive_loss','audit_local_future_stamp','param_value_mismatch','param_frame_type','missing_rc',
                  'audit_vision_receive_loss','audit_vision_future_stamp',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):

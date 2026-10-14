@@ -51,6 +51,8 @@ def run(argv, **kwargs):
 
 class GroundGate:
     """Read-only telemetry plus bounded parameter calls; no mode/arming client."""
+    READ_RESPONSE_BUDGET=12.
+    READ_ATTEMPTS=3
     def __init__(self):
         import rclpy
         from rclpy.qos import qos_profile_sensor_data
@@ -109,17 +111,41 @@ class GroundGate:
 
     def call(self, kind, topic, request):
         client = self.node.create_client(kind, topic)
+        future = None
         try:
             self.wait(client.service_is_ready, topic)
-            self.check()
-            future = client.call_async(request)
-            self.wait(future.done, topic+' response')
-            self.check()
-            result = future.result()
-            if result is None:
-                raise RuntimeError('Empty service response: '+topic)
-            return result
+            # Fast DDS can lose a reply while a new client's response endpoint
+            # is being discovered. Reuse that client for idempotent reads only;
+            # no write, ParamPull or flight command is replayed.
+            attempts=self.READ_ATTEMPTS if kind is self.GetParameters else 1
+            deadline=time.monotonic()+self.READ_RESPONSE_BUDGET
+            for attempt in range(attempts):
+                self.check()
+                future=client.call_async(request)
+                remaining=deadline-time.monotonic()
+                budget=remaining/(attempts-attempt)
+                try:
+                    self.wait(future.done,topic+' response',timeout=max(0.,budget))
+                except RuntimeError:
+                    if future.done():raise
+                    future.cancel()
+                    client.remove_pending_request(future)
+                    self.check()
+                    if attempt+1==attempts:
+                        raise RuntimeError(f'Timed out waiting for {topic} response; '
+                            f'{attempts} attempt(s) within {self.READ_RESPONSE_BUDGET:g}s; '
+                            'no response accepted')
+                    self.node.get_logger().warning(
+                        f'No reply from {topic}; retrying read-only request {attempt+2}/{attempts} '
+                        'on the same client; no parameter writes')
+                    continue
+                self.check()
+                result=future.result()
+                if result is None:raise RuntimeError('Empty service response: '+topic)
+                return result
         finally:
+            if future is not None and not future.done():
+                future.cancel();client.remove_pending_request(future)
             self.node.destroy_client(client)
 
     def pull(self):

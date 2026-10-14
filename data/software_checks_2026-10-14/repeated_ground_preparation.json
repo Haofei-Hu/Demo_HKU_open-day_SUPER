@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-14",
+  "scope": "Isolated ROS 2 telemetry/service and dummy-process tmux fixtures; no aircraft or PX4 dynamics",
+  "known_faults_addressed": [
+    "Exact-stamp join starvation from independent depth-one readers",
+    "Zero publisher counts during DDS discovery incorrectly rejected immediately",
+    "Single lost or delayed GetParameters response aborted ground preparation"
+  ],
+  "get_parameters_recovery": {
+    "request_limit": 3,
+    "total_response_budget_s": 12,
+    "same_client_reused": true,
+    "late_cancelled_replies_not_accepted": true,
+    "parameter_writes_retried": false,
+    "force_pulls_retried": false,
+    "ground_state_rechecked": true
+  },
+  "service_fixtures": {
+    "healthy_read": true,
+    "delayed_first_reply": true,
+    "all_replies_timeout_rejected": true,
+    "write_sent_once": true,
+    "arming_during_wait_rejected": true,
+    "fixture_response_budget_s": 1.2,
+    "telemetry_rate_hz": 50
+  },
+  "manager_unit_tests_passed": 35,
+  "repeated_real_tmux_lifecycle_trials_passed": 3,
+  "repeated_ros_ground_audit_trials_passed": 3,
+  "ground_endpoint_hold_per_trial_s": 6.2,
+  "fault_injection_after_nominal_hold": "Arming telemetry is deliberately injected after each healthy hold to verify permanent audit shutdown and rejection of further start/audit requests",
+  "pair_queue_retest": {
+    "original_depth_one_starvation_gap_s": 1.154,
+    "patched_depth": 16,
+    "forwarded_identical_poses": 52,
+    "maximum_output_gap_s": 0.073,
+    "stale_queued_inputs_rejected": true
+  },
+  "original_relay_protection_regression_passed": true,
+  "original_ground_service_gates_regression_passed": true,
+  "freshness_guards_relaxed": false,
+  "physical_aircraft_retest_complete": false,
+  "arbitrary_hardware_fault_free_operation_guaranteed": false,
+  "validation_sources": [
+    "tests/test_ground_service_retry_ros.py",
+    "tests/test_super_session.py",
+    "tests/test_super_session_tmux.py",
+    "tests/test_super_flight_control_ros.py",
+    "tests/test_vision_pair_queue_ros.py"
+  ]
+}

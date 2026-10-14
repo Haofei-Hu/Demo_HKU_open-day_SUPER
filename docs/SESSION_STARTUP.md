@@ -8,6 +8,8 @@ This manager has software/isolated-fixture verification. Aircraft localization s
 
 For a grounded update of the visual relay, `vision-restart` replaces only that managed process while preserving localization, the active alignment and planning. Stop dependent hover/wire/reference/audit windows first. It verifies ground state, existing fusion parameters and unique sources and waits for fresh replacement output; it performs no parameter writes or flight requests. See [vision pairing and relay recovery](SUPER_HANDOVER.md#exact-stamp-vision-pairing-under-callback-bursts). Replacing a relay changes its publisher identity, so an existing controller must be stopped and recreated rather than resumed.
 
+The manager's parameter reads use one client and at most three requests within the original 12-second response budget. A missing first reply can recover after response-endpoint discovery; cancelled requests cannot supply later accepted values. Parameter writes and force-pull calls are sent once. Read retries recheck ground state, do not extend the response budget and do not accept an empty or mismatched response. A persistent service failure remains a blocking error.
+
 Install tmux on onboard Ubuntu:
 
 ```bash
