@@ -1,6 +1,6 @@
 # One-goal SUPER handover
 
-The disarmed SUPER → MAVROS → PX4 protocol path is verified on the aircraft. `super_flight_control.py` adds a separate one-goal controller prototype. Its default mode audits a ground trajectory and emits debug poses only. One aircraft ground audit reached `AUDIT_END`; a post-endpoint local-pose freshness fault and planner-driven aircraft flight remain unresolved; isolated ROS fixtures use simulated telemetry and MAVROS command services, not a PX4 dynamics simulation.
+The disarmed SUPER → MAVROS → PX4 protocol path is verified on the aircraft. `super_flight_control.py` adds a separate one-goal controller prototype. Its default mode audits a ground trajectory and emits debug poses only. The latest aircraft ground audit retained `AUDIT_END` beyond six seconds with fresh concurrent sampling. Planner-driven aircraft flight and the cause of an earlier local-pose freshness fault remain unresolved; isolated ROS fixtures use simulated telemetry and MAVROS command services, not a PX4 dynamics simulation.
 
 ## Ground audit
 
@@ -49,6 +49,10 @@ python3 ~/Downloads/super_session.py handover-stop
 
 ## Aircraft ground result
 
+The latest trial accepted 217 references, reached `AUDIT_END` and retained the same endpoint in 18 successive status reports within a 20-second observation window, exceeding the six-second ground hold requirement. The held forward/left/FC-floor-height was `[0.2967, 0.0055, 0.1052] m`, with forward/left/up endpoint offsets `[-0.0033, 0.0055, 0.0202] m` from the requested same-height forward target. Concurrent 30-second sampling found all four chain topics fresh, with single publishers and no invalid/reordered stamps or unexpected frames. Local-pose maximum receive gap/header age were 44/22 ms. No native output or mode/arming requests were made. This verifies a sustained ground reference hold; physical tracking and airborne handover remain separate.
+
+### Earlier terminal/freshness trial
+
 The October 14 disarmed trial progressed through `READY` → `AUDIT_WAIT` → `AUDIT_TRACK` → `AUDIT_END`, accepting 218 references. Its held forward/left/FC-floor-height was `[0.3172, 0.0106, 0.0941] m`. These are reference coordinates, not physical aircraft displacement. No native output or mode/arming request was made.
 
 Approximately 0.68 s after reaching `AUDIT_END`, the auditor latched `STOPPED` on `Missing/stale local`. It therefore verifies terminal-reference arrival and brief endpoint hold, not a stable six-second hold. The original generic fault does not distinguish receiver starvation, transport loss or a header-time excursion. A separate later 30-second sample found local-pose receive gaps at most 45 ms and header ages at most 19 ms, with one publisher and no invalid/reordered stamps; this does not establish the cause of the earlier fault. The supplied MAVROS log tail predates that event. Keep the 0.25 s freshness guard and collect event-time evidence before airborne handover. See [the recorded observation](../data/observed_2026-10-14/super_handover_audit.json).
@@ -71,6 +75,16 @@ cat "$audit_sample_log"
 ```
 
 Only the explicit audit call requests a ground planning goal. Sampling and status inspection do not emit flight requests. Evaluate the independent sampler together with the controller's fault-time ages; a later healthy window alone cannot explain an earlier latch.
+
+## Read-only preparation snapshot
+
+`flight-check` consolidates grounded state, fresh local/vision/estimator telemetry, pose agreement, typed parameter readbacks, LOCAL_NED, RC input, native publisher conflicts, managed processes and the actual reserved 3D planner configuration. It creates only telemetry subscriptions and parameter-read clients; it starts no process, publishes no goal/setpoint and calls no mode, arming or parameter-write service. Existing localization, planning and the completed auditor remain running.
+
+```bash
+python3 ~/Downloads/super_session.py flight-check
+```
+
+The JSON includes `checks`, `blockers`, `remote_preparation_checks_passed` and `sampled_software_prerequisites_passed`. During remote preparation, missing fresh RC or disarmed POSCTL/manual input should remain visible as blockers for later supervised execution. The snapshot does not assess on-site supervision, physical clearance, complete-flight tracking or the PX4 `commander check`; no flight is initiated even if all sampled checks pass. Existing airborne or stale/non-grounded FC state prevents the grounded check from running. Its normal exit means a report was produced; use the JSON booleans to inspect prerequisite results.
 
 ## Experimental flight lifecycle
 

@@ -1,6 +1,9 @@
 """Lifecycle checks without real aircraft or ROS publishers."""
 import argparse
+from contextlib import redirect_stdout
 import importlib.util
+import io
+import json
 from pathlib import Path
 import tempfile
 import types
@@ -36,6 +39,8 @@ class FakeGate:
     def wait(self, predicate, description):
         if not predicate(): raise RuntimeError(description)
     def localization_ready(self): return not self.bad_localization
+    def flight_check(self):
+        return {'checks':{'fresh_rc_with_seven_channels':False,'posctl_with_manual_input':False},'errors':[]}
     def close(self): pass
 
 
@@ -70,7 +75,7 @@ class Tests(unittest.TestCase):
 
     def test_invalid_quaternions_and_execution_action(self):
         for argv in (['vision'],['vision','0','0','0','nan'],['vision','0','0','0','2'],
-                     ['start','--execute'],['start','--session','bad;touch'],['hover','--hover-height','2'],
+                     ['start','--execute'],['flight-check','--execute'],['start','--session','bad;touch'],['hover','--hover-height','2'],
                      ['hover','--planner-profile','low-speed']):
             with self.assertRaises(SystemExit): m.arguments(argv)
         self.assertEqual(m.arguments(['vision','0','0','0','1']).quaternion,[0.,0.,0.,1.])
@@ -110,7 +115,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','handover-check','handover-stop','hover','stop'):
+        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','handover-check','handover-stop','flight-check','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -218,7 +223,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(FakeGate.writes,[])
 
     def test_wire_commands_source_workspace_setups_without_a_preinitialized_shell(self):
-        for action in ('wire-test','wire-stop','handover-check','handover-stop'):
+        for action in ('wire-test','wire-stop','handover-check','handover-stop','flight-check'):
             args=m.arguments([action])
             with patch.object(m,'arguments',return_value=args), \
                  patch.object(m.subprocess,'run',side_effect=[argparse.Namespace(returncode=0),
@@ -231,6 +236,45 @@ class Tests(unittest.TestCase):
                 self.assertIn('setup.bash',command[-1])
                 self.assertIn('--ros-env',command[-1])
                 session.assert_not_called()
+
+    def test_flight_check_is_read_only_and_reports_remote_blockers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)/'planner.yaml'
+            profile.write_text('fsm:\n  click_height: -6.0\n  click_goal_topic: /goal_pose\n'
+                '  cmd_topic: /planning/pos_cmd\n  click_goal_en: true\n'
+                'traj_opt:\n  boundary:\n    max_vel: 0.25\n    max_acc: 0.45\n')
+            before=profile.read_bytes()
+            s=self.manager(['flight-check'])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0',handover_check='0')
+            s.config.update(planner_profile='low-speed-3d',planner_config_path=str(profile))
+            output=io.StringIO()
+            with patch.object(m,'GroundGate',FakeGate),patch.object(FakeGate,'pull') as pull, \
+                    patch.object(m,'run') as run,redirect_stdout(output):
+                s.mutate('flight-check')
+            report=json.loads(output.getvalue())
+            self.assertFalse(report['sampled_software_prerequisites_passed'])
+            self.assertTrue(report['remote_preparation_checks_passed'])
+            self.assertEqual(set(report['blockers']),{'fresh_rc_with_seven_channels','posctl_with_manual_input'})
+            self.assertTrue(report['checks']['reserved_3d_planner'])
+            pull.assert_not_called();run.assert_not_called()
+            self.assertEqual(FakeGate.writes,[])
+            self.assertEqual(s.started,[]);self.assertEqual(s.operations,[])
+            self.assertEqual(profile.read_bytes(),before)
+
+    def test_flight_check_reads_actual_planner_limits_and_reports_missing_processes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)/'planner.yaml'
+            profile.write_text('fsm:\n  click_height: -6.0\n  click_goal_topic: /goal_pose\n'
+                '  cmd_topic: /planning/pos_cmd\n  click_goal_en: true\n'
+                'traj_opt:\n  boundary:\n    max_vel: 2.0\n    max_acc: 1.0\n')
+            s=self.manager(['flight-check'])
+            s.config.update(planner_profile='low-speed-3d',planner_config_path=str(profile))
+            output=io.StringIO()
+            with patch.object(m,'GroundGate',FakeGate),redirect_stdout(output):s.mutate('flight-check')
+            report=json.loads(output.getvalue())
+            self.assertIn('reserved_3d_planner',report['blockers'])
+            self.assertIn('managed_processes_active',report['blockers'])
+            self.assertEqual(s.started,[]);self.assertEqual(s.operations,[])
 
     def test_planner_stop_stops_native_wire_first_and_hover_excludes_wire(self):
         s=self.manager(['planner-stop'])

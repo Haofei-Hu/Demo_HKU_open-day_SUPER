@@ -435,3 +435,13 @@ python3 ~/Downloads/super_session.py planner-stop
 floor_profile="$HOME/super_ws/src/SUPER/super_planner/config/mid360_low_speed_3d_goal_ros2.yaml"
 cp "$floor_profile.before_wire_floor" "$floor_profile"
 ```
+
+## Read-only flight preparation
+
+After the core, vision and reserved 3D planning session are running, inspect the next supervised-flight prerequisites without starting a flight controller or changing the aircraft:
+
+```bash
+python3 ~/Downloads/super_session.py flight-check
+```
+
+This action preserves every managed process and the completed ground auditor. It reads the FC state, local/vision/estimator telemetry, required parameter values/types, LOCAL_NED, RC input, native control publisher counts and active planner YAML. The JSON separates `remote_preparation_checks_passed` from `sampled_software_prerequisites_passed`; absent RC/manual POSCTL can block the latter while other preparation checks pass. On-site supervision/clearance and actual flight performance are not measured by this snapshot. The action requires fresh connected/disarmed/on-ground state and does not accept `--execute`.

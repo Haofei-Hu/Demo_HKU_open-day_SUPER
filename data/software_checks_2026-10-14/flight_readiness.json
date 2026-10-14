@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-14",
+  "scope": "Isolated software validation; simulated ROS telemetry/services",
+  "action": "super_session.py flight-check",
+  "read_only": true,
+  "manager_lifecycle_tests_passed": 32,
+  "isolated_ros_cases_passed": [
+    "remote: valid localization/parameters with RC/manual mode blockers reported",
+    "rc_present: valid sampled software inputs reported without flight requests",
+    "native_writer: existing native publisher reported as a conflict without altering it"
+  ],
+  "observed_mode_arming_parameter_write_goal_native_requests": 0,
+  "other_managed_processes_modified": false,
+  "actual_planner_config_limits_inspected": true,
+  "execute_flag_accepted": false,
+  "aircraft_readiness_command_retest_verified": false,
+  "on_site_supervision_and_clearance_assessed": false,
+  "planner_driven_aircraft_flight_verified": false
+}

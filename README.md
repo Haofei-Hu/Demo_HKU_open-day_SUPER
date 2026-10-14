@@ -8,7 +8,7 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 The managed disarmed SUPER-to-PX4 transport is verified: native position/yaw setpoints publish at approximately 20 Hz and PX4 reports fresh position-control intent. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
 
-The [one-goal handover audit](docs/SUPER_HANDOVER.md) has reached `AUDIT_END` on the aircraft with 218 accepted references. `super_session.py handover-check` keeps localization/planning running and launches a default ground checker; after `READY`, `/super_flight/audit` requests a 0.30 m forward trajectory and verifies continuity/endpoint hold without native flight output. The ground reference reached the terminal point, then stopped on a local-pose freshness fault about 0.68 s later. A separate later 30-second sample was fresh; the fault cause and sustained endpoint hold remain unresolved. The flight-capable prototype has isolated software validation; planner-driven aircraft flight remains pending.
+The [one-goal handover audit](docs/SUPER_HANDOVER.md) has passed a sustained aircraft ground trial: 217 references accepted, `AUDIT_END` retained for more than six seconds, and concurrent 30-second input sampling fresh. The held forward/left/FC-floor-height reference was `[0.2967, 0.0055, 0.1052] m`. The auditor emits debug output only; planner-driven aircraft flight remains pending. `super_session.py handover-check` preserves localization/planning, and `/super_flight/audit` explicitly requests the one ground goal after `READY`. Use `super_session.py flight-check` for a separate read-only readiness snapshot; missing RC/POSCTL inputs remain expected blockers during remote preparation.
 
 For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
 
@@ -260,7 +260,7 @@ For detailed guards, phase timing, check-only mode, and troubleshooting, see the
 | Fixed-position flight | **Successful on aircraft** | Complete automatic takeoff, hover, and landing sequence |
 | SUPER mapping and planning | Ground integration complete | Occupancy map, trajectory generation, replanning, and converted command preview |
 | SUPER → PX4 ground transport | Verified on aircraft | Approximately 20 Hz native position/yaw publication and fresh PX4 position-control intent while disarmed |
-| SUPER → flight trajectory execution | Prototype under validation | Aircraft ground audit reached AUDIT_END; post-endpoint pose freshness fault unresolved; airborne handover pending |
+| SUPER → flight trajectory execution | Prototype under validation | Aircraft ground audit held AUDIT_END beyond six seconds with fresh concurrent sampling; airborne handover pending |
 | Remote operation | Operational | Mac → NoMachine → onboard Ubuntu desktop, including QGC and terminals |
 | Loop recording and XYZ analysis | Tools ready | Bag export, point-cloud inspection, timing gaps, and return-to-marker metrics |
 | Venue limits and 2 m/s demonstration | Pending | Surveyed boundaries, clearance margins, and staged flight validation |

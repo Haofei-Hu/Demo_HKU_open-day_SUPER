@@ -89,7 +89,7 @@
     "flight_hold passed",
     "flight_loss passed"
   ],
-  "aircraft_handover_evidence": "../observed_2026-10-14/super_handover_audit.json; one default disarmed trial reached AUDIT_END, then latched a local-pose freshness fault about 0.68 s later; six-second sustained hold and aircraft trajectory flight remain unverified",
+  "aircraft_handover_evidence": "../observed_2026-10-14/super_handover_audit.json; latest default disarmed trial reached AUDIT_END with 217 references, sustained ground terminal hold beyond six seconds and concurrent fresh 30-second sampling; aircraft trajectory flight remains unverified",
   "local_pose_freshness_diagnostics": {
     "isolated_ros_cases_passed": 2,
     "thresholds_changed": false,

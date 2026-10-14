@@ -178,5 +178,87 @@
     "controller_batch_confirmation_failure_cause_established": false,
     "parameter_changes_made": false,
     "diagnostics_added": "Unconfirmed parameter group, full service path, availability, pending request age, last confirmation age and named response mismatch/error; original validation and timeouts retained"
+  },
+  "sustained_endpoint_retest": {
+    "controller_revision": "b1e9749e6d120616d60bbcfc8330cafcf250f8c6",
+    "trigger_success": true,
+    "displayed_phases": [
+      "AUDIT_TRACK",
+      "AUDIT_END"
+    ],
+    "accepted_references": 217,
+    "preplan_commands_discarded": 0,
+    "held_reference_forward_left_fc_floor_height_m": [
+      0.2967,
+      0.0055,
+      0.1052
+    ],
+    "endpoint_error_forward_left_up_m": [
+      -0.0033,
+      0.0055,
+      0.0202
+    ],
+    "endpoint_status_reports": 18,
+    "status_observation_window_s": 20,
+    "six_second_ground_reference_hold_verified": true,
+    "exact_hold_duration_from_timestamps_available": false,
+    "callback_max_s": 0.0276,
+    "timer_gap_max_s": 0.0572,
+    "fault_observed": null,
+    "stopped_phase_observed": false,
+    "native_output": false,
+    "mode_or_arming_requests": false,
+    "physical_aircraft_tracking_verified": false,
+    "concurrent_sampling": {
+      "duration_s": 30,
+      "topics": {
+        "/Odometry": {
+          "n": 1501,
+          "age_min_avg_max_s": [
+            0.004,
+            0.011,
+            0.032
+          ],
+          "receive_gap_max_s": 0.043,
+          "last_receive_age_s": 0.018
+        },
+        "/planning/pos_cmd": {
+          "n": 2978,
+          "age_min_avg_max_s": [
+            0.0,
+            0.001,
+            0.016
+          ],
+          "receive_gap_max_s": 0.024,
+          "last_receive_age_s": 0.002
+        },
+        "/super_debug/control_target": {
+          "n": 2978,
+          "age_min_avg_max_s": [
+            0.001,
+            0.003,
+            0.018
+          ],
+          "receive_gap_max_s": 0.027,
+          "last_receive_age_s": 0.0
+        },
+        "/mavros/local_position/pose": {
+          "n": 876,
+          "age_min_avg_max_s": [
+            0.0,
+            0.008,
+            0.022
+          ],
+          "receive_gap_max_s": 0.044,
+          "last_receive_age_s": 0.006
+        }
+      },
+      "all_topics_invalid_stamps": 0,
+      "all_topics_nonincreasing_stamps": 0,
+      "all_topics_unexpected_frames": 0,
+      "publisher_identities_per_topic": 1
+    },
+    "earlier_freshness_fault_cause_established": false,
+    "limits_or_freshness_guards_relaxed": false
   }
 }

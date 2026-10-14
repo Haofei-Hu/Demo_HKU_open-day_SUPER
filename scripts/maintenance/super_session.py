@@ -161,6 +161,67 @@ class GroundGate:
         return (valid and self.messages['local'].header.frame_id == 'map'
                 and self.pose_ready('preview') and self.pose_ready('vision'))
 
+    def flight_check(self):
+        """Sample prerequisites without creating a control publisher/client."""
+        from first_hover_terminal import PARAMETERS
+        from geometry_msgs.msg import PoseStamped
+        from ground_setpoint_transport import pose_values
+        from mavros_msgs.msg import RCIn
+        from rclpy.qos import qos_profile_sensor_data
+        rc_subscription=self.node.create_subscription(RCIn,'/mavros/rc/in',
+            lambda msg:self.store('rc',msg),qos_profile_sensor_data)
+        report={'scope':'Read-only grounded software prerequisites; no flight requests',
+                'parameters':{},'errors':[]}
+        try:
+            end=time.monotonic()+1.5
+            while time.monotonic()<end:self.ros.spin_once(self.node,timeout_sec=.05)
+            try:
+                actual=self.parameters(list(PARAMETERS))
+                report['parameters']={name:{'actual':actual[name],'expected':expected,
+                    'matches':type(actual[name]) is type(expected) and actual[name]==expected}
+                    for name,expected in PARAMETERS.items()}
+            except RuntimeError as exc:report['errors'].append(str(exc))
+            frame=None
+            try:
+                values=self.call(self.GetParameters,'/mavros/setpoint_position/get_parameters',
+                    self.GetParameters.Request(names=['mav_frame'])).values
+                if len(values)==1 and values[0].type==4:frame=values[0].string_value
+            except RuntimeError as exc:report['errors'].append(str(exc))
+            self.check()
+            state=self.messages['state'];rc=self.messages.get('rc')
+            report['state']={'connected':state.connected,'armed':state.armed,
+                'mode':state.mode,'manual_input':state.manual_input}
+            report['rc']={'fresh':self.fresh('rc',.5),
+                'channel_count':len(rc.channels) if rc is not None else 0}
+            report['mav_frame']=frame
+            report['native_publishers']={topic:self.node.count_publishers(topic)
+                for topic in NATIVE_CONTROL_TOPICS if self.node.count_publishers(topic)}
+            pose_agreement=False
+            if self.localization_ready():
+                try:
+                    local,yaw=pose_values(self.messages['local'])
+                    external,ev_yaw=pose_values(PoseStamped(pose=self.messages['vision'].pose.pose))
+                    heading=abs((yaw-ev_yaw+math.pi)%(2*math.pi)-math.pi)
+                    distance=math.dist(local,external)
+                    pose_agreement=distance<=.15 and heading<=math.radians(5)
+                    report['pose_agreement']={'distance_m':distance,'yaw_difference_deg':math.degrees(heading)}
+                except ValueError as exc:report['errors'].append(str(exc))
+            report['checks']={
+                'connected_disarmed_on_ground':self.grounded(),
+                'fresh_valid_localization':self.localization_ready(),
+                'fc_vision_pose_agreement':pose_agreement,
+                'required_parameters':len(report['parameters'])==len(PARAMETERS) and
+                    all(value['matches'] for value in report['parameters'].values()),
+                'local_ned':frame=='LOCAL_NED',
+                'posctl_with_manual_input':state.mode=='POSCTL' and state.manual_input,
+                'fresh_rc_with_seven_channels':report['rc']['fresh'] and report['rc']['channel_count']>=7,
+                'no_native_control_publishers':not report['native_publishers'],
+                'single_localization_sources':all(self.node.count_publishers(topic)==1 for topic in
+                    ('/Odometry','/super_debug/aligned_pose_cov','/mavros/vision_pose/pose_cov','/mavros/local_position/pose')),
+                'single_rc_source':self.node.count_publishers('/mavros/rc/in')==1}
+            return report
+        finally:self.node.destroy_subscription(rc_subscription)
+
     def close(self):
         self.node.destroy_node()
         self.ros.shutdown()
@@ -354,7 +415,29 @@ class Session:
         windows = self.windows()
         gate = GroundGate()
         try:
-            if action == 'align':
+            if action == 'flight-check':
+                report=gate.flight_check()
+                required=(*CORE,'preview','vision','planner','cmd_preview')
+                report['checks']['managed_processes_active']=all(windows.get(name)=='0' for name in required)
+                report['checks']['reserved_3d_planner']=False
+                try:
+                    import yaml
+                    profile=yaml.safe_load(Path(self.config['planner_config_path']).read_text())
+                    boundary=profile['traj_opt']['boundary'];fsm=profile['fsm']
+                    report['checks']['reserved_3d_planner']=(self.config.get('planner_profile')=='low-speed-3d' and
+                        boundary['max_vel']==.25 and boundary['max_acc']==.45 and
+                        fsm['click_height']==-6. and fsm['click_goal_topic']=='/goal_pose' and
+                        fsm['cmd_topic']=='/planning/pos_cmd' and fsm['click_goal_en'])
+                except (OSError,KeyError,TypeError,ValueError) as exc:
+                    report['errors'].append('Planner configuration: '+str(exc))
+                report['blockers']=[name for name,passed in report['checks'].items() if not passed]
+                report['sampled_software_prerequisites_passed']=not report['blockers']
+                site_inputs={'posctl_with_manual_input','fresh_rc_with_seven_channels','single_rc_source'}
+                report['remote_preparation_checks_passed']=all(passed for name,passed in
+                    report['checks'].items() if name not in site_inputs)
+                report['on_site_supervision_and_clearance']='Not assessed by this read-only command'
+                print(json.dumps(report,indent=2))
+            elif action == 'align':
                 if any(name in windows for name in ('preview', 'vision', 'hover')):
                     raise RuntimeError('Alignment requires a fresh core-only session; do not rebase a running relay')
                 gate.pull()
@@ -585,7 +668,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -629,7 +712,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)
