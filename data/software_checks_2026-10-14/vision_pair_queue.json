@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-14",
+  "scope": "Isolated ROS 2 DDS and dummy-process tmux validation; no aircraft or PX4 flight dynamics",
+  "regression": "Independent depth-one readers retain different stamps and starve the exact-stamp visual pose join during callback bursts",
+  "input_pattern": "50 Hz-equivalent batches of three raw poses; aligned poses trail by one sample; 5 ms reader pause per burst",
+  "baseline": {
+    "reader_depth": 1,
+    "both_inputs_fresh": true,
+    "paired_outputs_during_bursts": 0,
+    "output_gap_s": 1.162
+  },
+  "patched": {
+    "reader_depth": 16,
+    "paired_outputs_during_bursts": 52,
+    "maximum_output_gap_s": 0.06,
+    "original_pose_covariance_stamp_preserved": true,
+    "strictly_increasing_output_stamps": true,
+    "stale_queued_measurements_rejected": true
+  },
+  "full_relay_protection_regression_passed": true,
+  "retained_guards": [
+    "250 ms input header-age limit",
+    "50 ms future-stamp limit",
+    "connected FC state",
+    "strict fusion parameter confirmation",
+    "covariance validation",
+    "source/geometry/origin fault latch",
+    "sole native vision writer"
+  ],
+  "manager_lifecycle_tests": {
+    "passed": 34,
+    "failed": 0
+  },
+  "real_tmux_restart_fixture": {
+    "passed": true,
+    "ground_telemetry_stubbed": true,
+    "only_vision_process_id_changed": true,
+    "core_preview_planner_process_ids_preserved": true,
+    "alignment_file_preserved": true,
+    "no_leaked_dummy_processes": true
+  },
+  "aircraft_retest_verified": false,
+  "earlier_aircraft_fault_cause_established": false,
+  "freshness_threshold_relaxed": false,
+  "test_files": [
+    "tests/test_vision_pair_queue_ros.py",
+    "tests/test_flight_pose_cov_transport.py",
+    "tests/test_super_session.py",
+    "tests/test_super_session_tmux.py"
+  ]
+}

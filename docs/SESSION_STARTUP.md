@@ -6,6 +6,8 @@ This manager has software/isolated-fixture verification. Aircraft localization s
 
 ## Install once
 
+For a grounded update of the visual relay, `vision-restart` replaces only that managed process while preserving localization, the active alignment and planning. Stop dependent hover/wire/reference/audit windows first. It verifies ground state, existing fusion parameters and unique sources and waits for fresh replacement output; it performs no parameter writes or flight requests. See [vision pairing and relay recovery](SUPER_HANDOVER.md#exact-stamp-vision-pairing-under-callback-bursts). Replacing a relay changes its publisher identity, so an existing controller must be stopped and recreated rather than resumed.
+
 Install tmux on onboard Ubuntu:
 
 ```bash

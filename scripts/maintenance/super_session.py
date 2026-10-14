@@ -445,6 +445,45 @@ class Session:
                 run(['python3', '-u', self.scripts/'odom_age_check.py'])
                 run(['python3', '-u', self.scripts/'frame_alignment_check.py'])
                 print('Use this survey: super_session.py vision QX QY QZ QW. No quaternion was auto-saved.')
+            elif action == 'vision-restart':
+                if windows.get('preview')!='0' or 'vision' not in windows:
+                    raise RuntimeError('Need the managed aligned preview and existing vision window')
+                if any(name in windows for name in ('hover','wire_test','handover_check','reference_preview')):
+                    raise RuntimeError('Stop hover/wire/handover/reference windows before replacing the vision source')
+                if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
+                    raise RuntimeError('Stop native control writers before vision restart')
+                if any(gate.node.count_publishers(topic)!=1 for topic in
+                       ('/Odometry','/super_debug/aligned_pose_cov')):
+                    raise RuntimeError('Need one raw and one aligned localization source')
+                if gate.node.count_publishers('/mavros/vision_pose/pose_cov')>1:
+                    raise RuntimeError('Multiple native vision sources; restart blocked')
+                geometry=self.scripts/'aligned_pose_preview.py'
+                geometry_bytes=geometry.read_bytes()
+                helper=self.scripts/'flight_pose_cov_transport.py'
+                if not helper.is_file():raise RuntimeError('Missing vision relay helper')
+                gate.wait(lambda:gate.pose_ready('preview'),'fresh unchanged aligned preview')
+                names=['EKF2_EV_CTRL','EKF2_HGT_REF','EKF2_EV_POS_X','EKF2_EV_POS_Y','EKF2_EV_POS_Z','EKF2_EV_QMIN']
+                values=gate.parameters(names)
+                expected=[11,3,0.,0.,0.,0]
+                if any(type(values[name]) is not type(value) or values[name]!=value
+                       for name,value in zip(names,expected)):
+                    raise RuntimeError('Need existing EV_CTRL=11, HGT_REF=3, EV_POS=0, QMIN=0; no parameter writes')
+                gate.check();self.interrupt('vision')
+                gate.wait(gate.grounded,'fresh ground state during vision shutdown')
+                self.tmux('kill-window','-t',self.name+':vision')
+                gate.wait(lambda:gate.node.count_publishers('/mavros/vision_pose/pose_cov')==0,
+                          'old native vision publisher to disappear')
+                gate.check()
+                if geometry.read_bytes()!=geometry_bytes:
+                    raise RuntimeError('Alignment changed during vision restart; no relay launched')
+                started=time.monotonic()
+                self.launch('vision',shell_command(['python3','-u',helper,'--ros-args',
+                    '-p','publish_to_mavros:=true','-p','alignment_path:='+str(geometry)]))
+                gate.wait(lambda:gate.pose_ready('vision') and gate.receipts['vision']>=started,
+                          'fresh output from restarted vision relay')
+                gate.wait(gate.localization_ready,'valid FC localization after vision restart')
+                gate.check()
+                print('Vision relay restarted while grounded/disarmed; core, alignment and planner preserved. No parameter writes, mode or arming requests.')
             elif action == 'vision':
                 if any(name in windows for name in ('preview', 'vision', 'hover')):
                     raise RuntimeError('Preview/vision/control already exists; no session restart')
@@ -668,7 +707,7 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
@@ -712,7 +751,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)

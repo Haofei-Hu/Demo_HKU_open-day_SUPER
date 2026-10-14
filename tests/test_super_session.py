@@ -115,7 +115,7 @@ class Tests(unittest.TestCase):
 
     def test_existing_flight_blocks_mutations(self):
         FakeGate.blocked=True
-        for action in ('align','vision','planner','goal','planner-check','planner-stop','wire-test','wire-stop','handover-check','handover-stop','flight-check','hover','stop'):
+        for action in ('align','vision','vision-restart','planner','goal','planner-check','planner-stop','wire-test','wire-stop','handover-check','handover-stop','flight-check','hover','stop'):
             args=[action]+(['0','0','0','1'] if action=='vision' else [])
             s=self.manager(args)
             with patch.object(m,'GroundGate',FakeGate), self.assertRaises(RuntimeError): s.mutate(action)
@@ -145,6 +145,53 @@ class Tests(unittest.TestCase):
             self.assertNotIn('--execute',str(s.started))
             with self.assertRaises(RuntimeError): s.mutate('vision')
         self.assertEqual(FakeGate.writes,[11])
+
+    def test_vision_restart_preserves_core_geometry_and_planner_without_parameter_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            geometry=Path(directory)/'aligned_pose_preview.py';geometry.write_text('# fixed geometry\n')
+            (Path(directory)/'flight_pose_cov_transport.py').write_text('# relay fixture\n')
+            s=self.manager(['vision-restart','--scripts-dir',directory])
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            FakeGate.values['EKF2_EV_CTRL']=11
+            FakeGate.publisher_counts={'/Odometry':1,'/super_debug/aligned_pose_cov':1,
+                                       '/mavros/vision_pose/pose_cov':1}
+            interrupt=s.interrupt;launch=s.launch
+            def stop(name):
+                interrupt(name);FakeGate.publisher_counts['/mavros/vision_pose/pose_cov']=0
+            def start(name,command):
+                launch(name,command);FakeGate.publisher_counts['/mavros/vision_pose/pose_cov']=1
+            with patch.object(m,'GroundGate',FakeGate),patch.object(s,'interrupt',side_effect=stop), \
+                 patch.object(s,'launch',side_effect=start),patch.object(m,'run') as run:
+                s.mutate('vision-restart');run.assert_not_called()
+            self.assertEqual([name for name,_ in s.started],['vision'])
+            self.assertEqual([op for op in s.operations if op[0]=='interrupt'],[('interrupt','vision')])
+            self.assertEqual(geometry.read_text(),'# fixed geometry\n')
+            self.assertTrue(all(value=='0' for value in s.window_state.values()))
+            self.assertEqual(FakeGate.writes,[])
+
+    def test_vision_restart_rejects_busy_writers_bad_parameters_and_stale_preview_before_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory)/'aligned_pose_preview.py').write_text('# fixed geometry\n')
+            (Path(directory)/'flight_pose_cov_transport.py').write_text('# fixture\n')
+            for condition in ('hover','handover_check','reference_preview','wire_test','native_writer',
+                              'duplicate_vision','duplicate_raw','bad_parameters','stale_preview'):
+                s=self.manager(['vision-restart','--scripts-dir',directory])
+                s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+                FakeGate.values['EKF2_EV_CTRL']=11
+                FakeGate.stale_preview=False
+                FakeGate.publisher_counts={'/Odometry':1,'/super_debug/aligned_pose_cov':1,
+                                           '/mavros/vision_pose/pose_cov':1}
+                if condition in ('hover','handover_check','reference_preview','wire_test'):
+                    s.window_state[condition]='0'
+                elif condition=='native_writer':FakeGate.publisher_counts['/mavros/setpoint_position/local']=1
+                elif condition=='duplicate_vision':FakeGate.publisher_counts['/mavros/vision_pose/pose_cov']=2
+                elif condition=='duplicate_raw':FakeGate.publisher_counts['/Odometry']=2
+                elif condition=='bad_parameters':FakeGate.values['EKF2_EV_CTRL']=0
+                else:FakeGate.stale_preview=True
+                with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):
+                    s.mutate('vision-restart')
+                self.assertEqual(s.operations,[]);self.assertEqual(s.started,[])
+            self.assertEqual(FakeGate.writes,[])
 
     def test_bad_configuration_or_stale_preview_blocks_fusion(self):
         FakeGate.values['EKF2_HGT_REF']=1

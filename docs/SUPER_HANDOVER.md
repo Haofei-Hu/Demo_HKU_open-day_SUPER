@@ -53,6 +53,23 @@ Session `20261014_222151_860099` completed a new disarmed audit after the freshn
 
 Concurrent 30-second `--vision-chain` sampling covered raw odometry, aligned pose, native vision and FC local pose. Native vision received 1,500 messages, with maximum header age 47 ms and receive gap 51 ms. FC local-pose maxima were 21/44 ms; all four topics had one discovered publisher, valid increasing stamps and expected frames. The observer loop gap peaked at 24.746 ms and the sampled chain was fresh. This confirms a sustained ground reference hold with concurrent native-vision observation; the prior intermittent freshness faults remain unexplained. Aircraft tracking, airborne handover and 2 m/s flight remain unverified. See [the structured result](../data/observed_2026-10-14/super_handover_vision_audit.json).
 
+## Exact-stamp vision pairing under callback bursts
+
+The visual-pose relay originally used independent depth-one DDS readers for raw and aligned poses while requiring identical timestamps to join them. During a short callback pause, each reader can retain a different latest timestamp. Fresh inputs alone then do not guarantee a matched pair or native vision output. An isolated real-DDS regression reproduces this condition with 50 Hz-equivalent batches and a one-sample aligned-stream delay: both inputs remain fresh but the original queue produces no paired output for 1.162 seconds.
+
+The relay now uses bounded depth-16 readers, covering the 250 ms freshness window at 50 Hz with headroom. In the same regression it forwards 52 identical input poses with a maximum output gap of 60 ms. Every queued input still passes the original timestamp-age checks; measurements are never retimed or republished to bridge a gap. Original source, geometry, parameter, covariance and writer-conflict gates remain active. An output-gap warning additionally reports raw/aligned receive ages, header ages and unmatched cache sizes. This fixes the reproduced join-starvation defect; the original aircraft faults lack event-time evidence establishing that defect as their cause, so aircraft confirmation is still required.
+
+To load an updated relay into an existing grounded session, stop dependent audit/control windows first and use the explicitly requested `vision-restart` action:
+
+```bash
+python3 ~/Downloads/super_session.py handover-stop
+python3 ~/Downloads/super_session.py vision-restart
+python3 ~/Downloads/super_session.py handover-check
+python3 ~/Downloads/control_chain_age_check.py --vision-chain --seconds 30
+```
+
+The restart requires fresh connected/disarmed/on-ground telemetry, one raw/aligned source, fresh aligned preview, the existing fusion parameter contract and absence of control writers or dependent hover/wire/reference/audit windows. It replaces only the vision process, waits for the old publisher to disappear, preserves the alignment file and core/planner processes, and verifies new vision output and FC localization. It performs no parameter writes, mode or arming requests. It is not an automatic recovery path and must not be used in flight.
+
 ## Earlier aircraft ground result
 
 The latest trial accepted 217 references, reached `AUDIT_END` and retained the same endpoint in 18 successive status reports within a 20-second observation window, exceeding the six-second ground hold requirement. The held forward/left/FC-floor-height was `[0.2967, 0.0055, 0.1052] m`, with forward/left/up endpoint offsets `[-0.0033, 0.0055, 0.0202] m` from the requested same-height forward target. Concurrent 30-second sampling found all four chain topics fresh, with single publishers and no invalid/reordered stamps or unexpected frames. Local-pose maximum receive gap/header age were 44/22 ms. No native output or mode/arming requests were made. This verifies a sustained ground reference hold; physical tracking and airborne handover remain separate.

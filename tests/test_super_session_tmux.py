@@ -22,7 +22,14 @@ def wait(predicate):
 
 
 class Ground:
-    def __init__(self): self.node=argparse.Namespace(count_publishers=lambda topic:0)
+    def __init__(self):
+        self.node=argparse.Namespace(count_publishers=lambda topic:
+            1 if topic in ('/Odometry','/super_debug/aligned_pose_cov') else 0)
+        self.receipts={'vision':float('inf')}
+    def pose_ready(self,name): return True
+    def parameters(self,names):
+        values=dict(EKF2_EV_CTRL=11,EKF2_HGT_REF=3,EKF2_EV_POS_X=0.,EKF2_EV_POS_Y=0.,EKF2_EV_POS_Z=0.,EKF2_EV_QMIN=0)
+        return {name:values[name] for name in names}
     def localization_ready(self): return True
     def check(self): pass
     def grounded(self): return True
@@ -84,14 +91,26 @@ except KeyboardInterrupt: print('DUMMY NODE STOPPED',flush=True)
                 planner=next(json.loads(line) for line in ledger.read_text().splitlines() if 'fsm_node' in line)
                 assert 'config_name:=mid360_low_speed_reserved_ros2.yaml' in planner
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision','planner','cmd_preview'),'0')
-                session.mutate('reference-preview')
+                def pid(name):
+                    return session.tmux('display-message','-p','-t',session.name+':'+name,
+                                        '#{pane_pid}',capture=True).stdout.strip()
+                preserved=(*m.CORE,'preview','planner','cmd_preview')
+                pids={name:pid(name) for name in preserved}
+                old_vision=pid('vision')
+                geometry=(scripts/'aligned_pose_preview.py').read_bytes()
+                session.mutate('vision-restart')
                 wait(lambda:len(ledger.read_text().splitlines())==10)
+                assert pid('vision')!=old_vision,'Old vision process was reused'
+                assert {name:pid(name) for name in preserved}==pids,'Vision restart replaced unrelated processes'
+                assert (scripts/'aligned_pose_preview.py').read_bytes()==geometry
+                session.mutate('reference-preview')
+                wait(lambda:len(ledger.read_text().splitlines())==11)
                 assert session.windows()['reference_preview']=='0'
                 session.mutate('planner-stop')
                 assert session.windows()==dict.fromkeys((*m.CORE,'preview','vision'),'0'),'planning stop interrupted localization'
                 session.mutate('stop')
             assert not session.exists()
             assert not m.unmanaged_processes(),'dummy node leaked after cooperative stop'
-            print('PASS: real tmux core windows, shell/path quoting, startup logs, idempotent start, ground planning windows/local stop, cooperative shutdown, no leaked nodes.')
+            print('PASS: real tmux core windows, shell/path quoting, startup logs, idempotent start, vision-only restart preserving process IDs and geometry, ground planning windows/local stop, cooperative shutdown, no leaked nodes.')
         finally:
             if session.exists(): session.tmux('kill-session','-t',session.name)

@@ -32,6 +32,12 @@ PARAMETERS = ['EKF2_EV_CTRL', 'EKF2_HGT_REF', 'EKF2_EV_POS_X',
 
 
 class FlightPoseCovTransport(Node):
+    # Raw and aligned messages must both survive until their identical stamps
+    # can be joined. Depth 1 independently drops different stamps during a
+    # callback burst. Cover the 250 ms / 50 Hz freshness window with headroom;
+    # each retained message still passes the original timestamp-age check.
+    PAIR_QUEUE_DEPTH = 16
+
     def __init__(self, **kwargs):
         super().__init__('flight_pose_cov_transport', **kwargs)
         immutable = ParameterDescriptor(read_only=True)
@@ -47,6 +53,9 @@ class FlightPoseCovTransport(Node):
         self.fault = None
         self.ever_sent = False
         self.sent = 0
+        self.last_output_at = -math.inf
+        self.input_receipts = {}
+        self.input_stamps = {}
         self.last_stamp = 0
         self.raw, self.aligned = {}, {}
         self.state = None
@@ -58,15 +67,16 @@ class FlightPoseCovTransport(Node):
         self.last_warning = -math.inf
         self.publisher = self.create_publisher(
             PoseWithCovarianceStamped, NATIVE_TOPIC if self.native else DEBUG_TOPIC, 10)
-        latest = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        paired = QoSProfile(depth=self.PAIR_QUEUE_DEPTH, reliability=ReliabilityPolicy.BEST_EFFORT)
         self.inputs = [
-            self.create_subscription(Odometry, '/Odometry', self.raw_received, latest),
+            self.create_subscription(Odometry, '/Odometry', self.raw_received, paired),
             self.create_subscription(PoseWithCovarianceStamped, '/super_debug/aligned_pose_cov',
-                                     self.aligned_received, latest),
+                                     self.aligned_received, paired),
             self.create_subscription(State, '/mavros/state', self.state_received, qos_profile_sensor_data),
         ]
         self.client = self.create_client(GetParameters, '/mavros/param/get_parameters')
         self.parameter_timer = self.create_timer(1., self.poll_parameter)
+        self.health_timer = self.create_timer(.1, self.report_output_gap)
         self.get_logger().info(
             f'SESSION VISION {"MAVROS" if self.native else "DEBUG"}: '
             'initialize disarmed; continue after arming; fixed geometry/origin/source IDs. '
@@ -139,16 +149,37 @@ class FlightPoseCovTransport(Node):
         return tuple(ids)
 
     def raw_received(self, msg):
+        self.input_receipts['raw'] = time.monotonic()
+        self.input_stamps['raw'] = self.stamp(msg)
         if msg.header.frame_id != 'camera_init' or msg.child_frame_id != 'body':
             self.warn('Unexpected raw odometry frames; no output')
             return
         self.store(self.raw, msg)
 
     def aligned_received(self, msg):
+        self.input_receipts['aligned'] = time.monotonic()
+        self.input_stamps['aligned'] = self.stamp(msg)
         if msg.header.frame_id != 'px4_enu_preview':
             self.warn('Unexpected aligned pose frame; no output')
             return
         self.store(self.aligned, msg)
+
+    def report_output_gap(self):
+        # Diagnostics only: never synthesize output, retime or clear a fault.
+        now = time.monotonic()
+        if not self.ever_sent or now - self.last_output_at <= .25:
+            return
+        ros_ns = self.get_clock().now().nanoseconds
+        details = []
+        for name in ('raw', 'aligned'):
+            receive_age = now - self.input_receipts.get(name, -math.inf)
+            stamp = self.input_stamps.get(name, 0)
+            header_age = (ros_ns - stamp) / 1e9 if stamp > 0 else math.inf
+            details.append(f'{name}_receive_age={receive_age:.6f}s '
+                           f'{name}_header_age={header_age:.6f}s')
+        self.warn(f'Vision output gap={now-self.last_output_at:.6f}s; ' + '; '.join(details) +
+                  f'; unmatched raw/aligned={len(self.raw)}/{len(self.aligned)}; '
+                  f'configuration_ok={self.configuration_ok}; fault={self.fault}')
 
     def store(self, bucket, msg):
         stamp = self.stamp(msg)
@@ -211,6 +242,7 @@ class FlightPoseCovTransport(Node):
             out = PoseWithCovarianceStamped()
             out.header, out.pose = aligned.header, aligned.pose
             self.publisher.publish(out)
+            self.last_output_at = time.monotonic()
             self.ever_sent = True
             self.sent += 1
             if self.sent == 1:
