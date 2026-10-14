@@ -95,6 +95,7 @@ class SuperFlightControl(FirstHoverControl):
         self.pending=deque(maxlen=64);self.poly_pending=deque(maxlen=24)
         self.endpoint_since=None
         self.audit_used=False
+        self.preplan_commands_discarded=0
         self.goal_pub=self.create_publisher(PoseStamped,'/goal_pose',10)
         self.status_pub=self.create_publisher(String,'/super_debug/super_flight_status',10)
         self.create_subscription(Odometry,'/Odometry',self.raw_received,qos_profile_sensor_data)
@@ -268,12 +269,18 @@ class SuperFlightControl(FirstHoverControl):
         while self.pending:
             msg=self.pending[0];ns=self.stamp(msg)
             if ns<self.goal_issued_ns:self.pending.popleft();continue
+            # A previous goal may still emit freshly stamped commands while
+            # SUPER plans the new goal. They cannot be judged as its reference.
+            if not self.follower.plans:break
+            if self.follower.last is None and ns<min(p.start for p in self.follower.plans)*1e9:
+                self.pending.popleft();self.preplan_commands_discarded+=1;continue
             if not self.fresh_ns(ns):raise ValueError('Stale command awaiting committed polynomial')
             if msg.trajectory_flag!=1:raise ValueError('Only regular initial handover trajectories supported')
-            p,q=self.mapping.command(msg)
-            self.target_ok(p)
             vectors=[np.array([getattr(getattr(msg,name),a) for a in ('x','y','z')])
                      for name in ('position','velocity','acceleration')]
+            if not any(plan.matches(ns,*vectors) for plan in self.follower.plans):break
+            p,q=self.mapping.command(msg)
+            self.target_ok(p)
             accepted=self.follower.command(ns,*vectors,p,q,measured_position=xyz)
             if accepted is None:break
             self.pending.popleft()
@@ -331,7 +338,8 @@ class SuperFlightControl(FirstHoverControl):
                      if self.frame is not None and self.follower is not None and self.follower.last is not None else None)
         mode='EXECUTE' if self.execute else 'DEBUG ONLY'
         self.status_pub.publish(String(data=f'{self.phase}: forward/left/FC-height={coordinates}; '
-            f'accepted={accepted}; {mode}; callback max={self.max_callback_runtime:.4f}s; '
+            f'accepted={accepted}; preplan commands discarded={self.preplan_commands_discarded}; '
+            f'{mode}; callback max={self.max_callback_runtime:.4f}s; '
             f'timer gap max={self.max_timer_gap:.4f}s; fault={self.fault}'))
 
 

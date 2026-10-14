@@ -102,13 +102,28 @@ def run(case):
         def goal_received(msg):
             goals.append(msg)
             end=np.array([msg.pose.position.x,msg.pose.position.y,msg.pose.position.z])
-            plan=make_plan(settings['pose'].copy(),end,probe.get_clock().now().nanoseconds/1e9+.1)
-            settings['plan']=plan;pubs['plan'].publish(plan)
+            start=settings['pose'].copy()
+            if case=='audit_corridor':start+=bridge.frame.axes.T@np.array([0.,.11,0.])
+            delay=.4 if case=='audit_overlap' else .1
+            plan=make_plan(start,end,probe.get_clock().now().nanoseconds/1e9+delay)
+            settings['plan']=plan
+            if case!='audit_overlap':pubs['plan'].publish(plan)
 
         def planning():
             poly=settings['plan']
             if poly is None or settings['drop_commands']:return
             now=probe.get_clock().now().nanoseconds/1e9
+            if case=='audit_overlap' and now<poly.start_wt_pos:
+                if now>=poly.start_wt_pos-.05 and not settings.get('poly_sent'):
+                    stamp(poly);pubs['plan'].publish(poly);settings['poly_sent']=True
+                # Old-goal output is freshly stamped after the new goal was
+                # requested, before the new committed trajectory starts.
+                old=PositionCommand();stamp(old);old.header.frame_id='world'
+                old.trajectory_flag=1;old.yaw=yaw;old.attitude.z=yaw
+                position=ground+bridge.frame.axes.T@np.array([.2166,.189,.0128])
+                old.position.x,old.position.y,old.position.z=map(float,position)
+                pubs['command'].publish(old)
+                return
             if now<poly.start_wt_pos:return
             plan=Plan(poly)
             if settings['restart'] or now>plan.end+.06:
@@ -186,6 +201,13 @@ def run(case):
             else:
                 assert not call(audit_client).success
                 assert call(start_client).success
+            if case=='audit_corridor':
+                wait(lambda:bridge.phase=='STOPPED')
+                assert 'outside initial straight-line handover corridor' in bridge.fault
+                assert bridge.follower.accepted==0
+                assert not requests and not native and len(goals)==1
+                print('PASS:',case,bridge.phase)
+                return
             wait(lambda:bridge.phase in ('TRACK','AUDIT_TRACK'),seconds=24)
             assert len(goals)==1
             if case=='audit_restart':
@@ -226,6 +248,7 @@ def run(case):
                     assert requests==['OFFBOARD','ARM','AUTO.LAND']
                 else:
                     assert not requests and not native and bridge.count_publishers(NATIVE)==0
+                    if case=='audit_overlap':assert bridge.preplan_commands_discarded>0
                     assert not call(audit_client).success
                     settings['armed']=True
                     wait(lambda:bridge.phase=='STOPPED')
@@ -287,7 +310,7 @@ def numerical_checks():
 
 if __name__=='__main__':
     numerical_checks()
-    for case in ('audit_hold','audit_restart','audit_config','audit_source','audit_ground_margin','missing_rc',
+    for case in ('audit_hold','audit_overlap','audit_corridor','audit_restart','audit_config','audit_source','audit_ground_margin','missing_rc',
                  'flight_hold','flight_pilot','flight_loss','flight_tracking'):
         run(case)
     print('PASS: default no-flight audit; one-goal handover; terminal hold; restart/loss/config/RC/pilot guards.')

@@ -35,6 +35,8 @@ timeout 15s ros2 topic echo \
 
 The requested movement is 0.30 m along captured FC forward, retaining heading; it is not planner-world X. The goal uses the inverse session world/mount/terminal lever conversion. Expected phases are `AUDIT_WAIT` → `AUDIT_TRACK` → `AUDIT_END`. A matched polynomial and verified terminal sample are required before endpoint hold. The debug target is `/super_debug/super_flight_target`; no native commands are emitted. Do not issue an additional manager/RViz goal during this one-goal session. Another `/goal_pose` publisher blocks goal initiation; an endpoint/source/configuration change or discontinuity latches `STOPPED` with its reason.
 
+During goal handover, SUPER may continue emitting freshly stamped references for its previous goal until the new trajectory starts. The auditor waits for the committed polynomial and discards queued commands stamped before its start, then requires polynomial position/velocity/acceleration matching before checking the command corridor. The status includes `preplan commands discarded`. Commands after the new start that cannot be matched remain subject to the freshness timeout; a matched reference outside the 0.10 m lateral margin still stops the audit. This does not reconcile a jump after tracking has started.
+
 Stop the auditor without restarting localization:
 
 ```bash

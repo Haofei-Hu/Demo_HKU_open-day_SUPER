@@ -32,7 +32,9 @@
     "flight_pilot: manual mode takeover stops output without overriding pilot",
     "flight_loss: missing commands stop stream and request LAND",
     "flight_tracking: estimated departure stops stream and requests LAND",
-    "audit_ground_margin: 0.06 m per-axis estimated offset retains READY; 0.101 m captured-forward offset latches STOPPED with signed diagnostics and no goal/native/control requests"
+    "audit_ground_margin: 0.06 m per-axis estimated offset retains READY; 0.101 m captured-forward offset latches STOPPED with signed diagnostics and no goal/native/control requests",
+    "audit_overlap: previous-goal commands with fresh stamps after goal issuance but before the new committed start are discarded; the matched new trajectory reaches AUDIT_END without native/control requests",
+    "audit_corridor: a matched new reference 0.11 m left of the captured axis still stops before any accepted reference"
   ],
   "numerical_checks": [
     "inverse nonidentity world/offset geometry round-trip",
@@ -74,5 +76,13 @@
     "replacement_guard": "0.10 m per captured forward/left/up axis, with signed offset diagnostics",
     "replacement_aircraft_retest_verified": false
   },
-  "ground_margin_change_retests": "numerical axis/sign/rotated-frame cases, audit_ground_margin and audit_hold passed; original standalone hover remains unchanged"
+  "ground_margin_change_retests": "numerical axis/sign/rotated-frame cases, audit_ground_margin and audit_hold passed; original standalone hover remains unchanged",
+  "goal_handover_change_retests": [
+    "numerical geometry and ground margins passed",
+    "audit_overlap passed",
+    "audit_corridor passed",
+    "audit_restart passed",
+    "flight_hold passed",
+    "flight_loss passed"
+  ]
 }

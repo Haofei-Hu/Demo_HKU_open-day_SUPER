@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-14",
+  "session": "20261014_154445_304844",
+  "scope": "On-aircraft disarmed ground handover audit; no planner-driven flight",
+  "audit_completed": false,
+  "native_flight_output": false,
+  "ground_margin_retest": {
+    "ready_observed": true,
+    "fault_before_goal": null
+  },
+  "goal_audit": {
+    "trigger_success": true,
+    "goal_issued_stamp_s": 1791973727.2064586,
+    "requested_aligned_fc_xyz_m": [
+      -0.093,
+      0.301,
+      -0.0447
+    ],
+    "requested_planner_xyz_m": [
+      0.2656,
+      -0.2429,
+      -0.4642
+    ],
+    "accepted_planner_goal_xyz_m": [
+      0.25,
+      -0.25,
+      -0.45
+    ],
+    "stop_stamp_s": 1791973727.2639642,
+    "elapsed_to_stop_s": 0.057505845,
+    "reported_reference_forward_left_fc_floor_height_m": [
+      0.2166,
+      0.189,
+      0.0978
+    ],
+    "accepted_references": 0,
+    "fault": "Reference outside initial straight-line handover corridor",
+    "callback_max_s": 0.0056,
+    "timer_gap_max_s": 0.0541
+  },
+  "code_finding": "Command corridor was checked before matching the new committed polynomial; an unverified previous-goal command could cause an immediate stop",
+  "observed_reference_goal_provenance": "Not established from the captured logs; failure timing and previously active goals are consistent with old-goal overlap",
+  "repair": "Wait for committed polynomial, discard pre-start commands, require polynomial match before corridor check; preserve all per-axis and post-start continuity limits",
+  "software_reproduction": "Previous-goal overlap fixture reaches AUDIT_END after repair; matched lateral violations and moving restarts still stop",
+  "repair_aircraft_retest_verified": false,
+  "planner_driven_flight_verified": false
+}
