@@ -2,6 +2,7 @@
   "date": "2026-10-14",
   "test_scope": "Remote, grounded, disarmed SUPER-to-MAVROS-to-PX4 transport",
   "aircraft_transport_verified": false,
+  "ros_native_transport_verified": true,
   "session": "20261014_154445_304844",
   "fixed_lio_extrinsics_requested": true,
   "alignment": {
@@ -48,7 +49,7 @@
     "only_changed_field": "rog_map.virtual_ground_height",
     "value_m": -1.5,
     "original_backup_suffix": ".before_wire_floor",
-    "aircraft_application_and_retest": "value -1.5 read back; planner launched; sender discovery check rejected launch before goal execution; trajectory and transport retest pending",
+    "aircraft_application_and_retest": "value -1.5 read back; first launch blocked by discovery; later updated-manager launch and native 20 Hz publication verified; PX4 receiver confirmation pending",
     "meaning": "Synthetic plane adjustment for ground diagnostics; not a surveyed floor or flight envelope"
   },
   "sender_discovery_retest": {
@@ -64,7 +65,36 @@
     "lifecycle_tests_passed": 27,
     "live_ros_delayed_source_fixture_elapsed_s": 1.159,
     "fixture_native_sender_launch": "mocked; no actual flight output",
-    "updated_manager_aircraft_deployment": "pending"
+    "updated_manager_aircraft_deployment": "revision 475b98a55672c03384e5a26227ba99d9a2ba5316 downloaded and sender launched"
+  },
+  "successful_ros_wire_retest": {
+    "manager_revision": "475b98a55672c03384e5a26227ba99d9a2ba5316",
+    "goal_requested_planner_xyz_m": [0.328813, -0.036567, -0.451635],
+    "native_topic": "/mavros/setpoint_position/local",
+    "rolling_rates_hz": [20.000, 19.993, 20.001, 20.000, 19.997],
+    "last_rate_window_samples": 103,
+    "receive_gap_min_max_s": [0.047, 0.053],
+    "last_rate_window_stddev_s": 0.00133,
+    "initial_topic_discovery_warning": true,
+    "sender_wait_transitioned_to_sent": true,
+    "sent_enu_log_entries": [
+      {"stamp_s": 1791965327.416945957, "xyz_m": [-0.012, 0.024, -0.022], "yaw_deg": 103.3},
+      {"stamp_s": 1791965328.365904233, "xyz_m": [-0.099, 0.077, -0.025], "yaw_deg": 103.1},
+      {"stamp_s": 1791965329.366780941, "xyz_m": [-0.266, 0.182, -0.032], "yaw_deg": 103.2},
+      {"stamp_s": 1791965330.367203034, "xyz_m": [-0.044, 0.043, -0.022], "yaw_deg": 103.1},
+      {"stamp_s": 1791965331.367204461, "xyz_m": [-0.250, 0.172, -0.032], "yaw_deg": 103.2},
+      {"stamp_s": 1791965332.367683853, "xyz_m": [-0.017, 0.026, -0.021], "yaw_deg": 103.1},
+      {"stamp_s": 1791965333.365986597, "xyz_m": [-0.205, 0.144, -0.030], "yaw_deg": 103.1},
+      {"stamp_s": 1791965334.365936761, "xyz_m": [-0.012, 0.024, -0.022], "yaw_deg": 103.2},
+      {"stamp_s": 1791965335.365969929, "xyz_m": [-0.139, 0.102, -0.027], "yaw_deg": 103.1},
+      {"stamp_s": 1791965336.366872883, "xyz_m": [-0.267, 0.182, -0.032], "yaw_deg": 103.2},
+      {"stamp_s": 1791965337.368640097, "xyz_m": [-0.071, 0.060, -0.024], "yaw_deg": 103.1},
+      {"stamp_s": 1791965338.368855277, "xyz_m": [-0.262, 0.179, -0.032], "yaw_deg": 103.2},
+      {"stamp_s": 1791965339.366872883, "xyz_m": [-0.029, 0.034, -0.022], "yaw_deg": 103.1},
+      {"stamp_s": 1791965340.371514243, "xyz_m": [-0.233, 0.161, -0.031], "yaw_deg": 103.1}
+    ],
+    "px4_receiver_readback_after_success": "pending",
+    "meaning": "Actual aircraft-side ROS native publication; does not verify PX4 reception, active OFFBOARD, flight or tracking accuracy"
   },
   "earlier_session_faults": {
     "stale_paired_localization_and_invalid_horizontal_estimator_observed": true,

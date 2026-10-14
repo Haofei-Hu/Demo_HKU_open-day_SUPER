@@ -6,7 +6,7 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 ## Quick Start: restore the aircraft after reboot
 
-The current remote integration step is a managed disarmed SUPER-to-PX4 [transport test](docs/SESSION_STARTUP.md#managed-disarmed-transport-test). Use `wire-test` after a short ground goal and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
+The managed disarmed SUPER-to-MAVROS transport now publishes native position/yaw setpoints at approximately 20 Hz on the aircraft. PX4 receiver confirmation is the next check. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
 
 For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
 
