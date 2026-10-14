@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-14",
+  "session": "20261014_222151_860099",
+  "controller_revision": "e541ed678e9abdf04d9247031a9118b70f5d3703",
+  "scope": "On-aircraft disarmed ground handover audit with concurrent vision-chain sampling",
+  "provenance": "Onboard CLI audit service response, controller status and independent subscriber report",
+  "trigger_success": true,
+  "displayed_phases": [
+    "READY",
+    "AUDIT_TRACK",
+    "AUDIT_END"
+  ],
+  "accepted_references": 217,
+  "preplan_commands_discarded": 0,
+  "held_reference_forward_left_fc_floor_height_m": [
+    0.3462,
+    -0.0154,
+    0.0757
+  ],
+  "endpoint_error_forward_left_up_m": [
+    0.0462,
+    -0.0154,
+    -0.0093
+  ],
+  "endpoint_status_reports": 18,
+  "status_observation_window_s": 20,
+  "six_second_ground_reference_hold_verified": true,
+  "exact_hold_duration_from_timestamps_available": false,
+  "callback_max_s": 0.02,
+  "timer_gap_max_s": 0.0609,
+  "fault_observed": null,
+  "native_output": false,
+  "mode_or_arming_requests": false,
+  "physical_aircraft_tracking_verified": false,
+  "two_metre_per_second_flight_verified": false,
+  "concurrent_sampling": {
+    "duration_s": 30,
+    "topics": {
+      "/Odometry": {
+        "n": 1460,
+        "age_min_avg_max_s": [
+          0.006,
+          0.011,
+          0.045
+        ],
+        "receive_gap_max_s": 0.055,
+        "last_receive_age_s": 0.014,
+        "invalid_stamps": 0,
+        "nonincreasing_stamps": 0,
+        "unexpected_frames": 0,
+        "publisher_identities_discovered": 1
+      },
+      "/super_debug/aligned_pose_cov": {
+        "n": 1500,
+        "age_min_avg_max_s": [
+          0.007,
+          0.014,
+          0.045
+        ],
+        "receive_gap_max_s": 0.051,
+        "last_receive_age_s": 0.012,
+        "invalid_stamps": 0,
+        "nonincreasing_stamps": 0,
+        "unexpected_frames": 0,
+        "publisher_identities_discovered": 1
+      },
+      "/mavros/vision_pose/pose_cov": {
+        "n": 1500,
+        "age_min_avg_max_s": [
+          0.009,
+          0.018,
+          0.047
+        ],
+        "receive_gap_max_s": 0.051,
+        "last_receive_age_s": 0.003,
+        "invalid_stamps": 0,
+        "nonincreasing_stamps": 0,
+        "unexpected_frames": 0,
+        "publisher_identities_discovered": 1
+      },
+      "/mavros/local_position/pose": {
+        "n": 845,
+        "age_min_avg_max_s": [
+          0.0,
+          0.007,
+          0.021
+        ],
+        "receive_gap_max_s": 0.044,
+        "last_receive_age_s": 0.022,
+        "invalid_stamps": 0,
+        "nonincreasing_stamps": 0,
+        "unexpected_frames": 0,
+        "publisher_identities_discovered": 1
+      }
+    },
+    "sampled_vision_chain_fresh": true,
+    "observer_loop_gap_max_s": 0.024746
+  },
+  "earlier_vision_freshness_fault_cause_established": false,
+  "limits_or_freshness_guards_relaxed": false
+}

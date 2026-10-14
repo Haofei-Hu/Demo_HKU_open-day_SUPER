@@ -47,7 +47,13 @@ python3 ~/Downloads/super_session.py handover-stop
 
 `planner-stop` and full `stop` also stop the auditor. A fault or completed audit cannot silently start another goal; stop the auditor and create a fresh grounded check session for a new trial.
 
-## Aircraft ground result
+## Latest aircraft vision-chain audit
+
+Session `20261014_222151_860099` completed a new disarmed audit after the freshness diagnostic update. The service accepted one goal, 217 matched references were accepted, and `AUDIT_END` retained `[0.3462, -0.0154, 0.0757] m` in captured forward/left/FC-floor-height coordinates across 18 consecutive status reports in a 20-second display window. Reference endpoint errors were `[0.0462, -0.0154, -0.0093] m` from the requested 0.30 m same-height forward target, within the existing 0.10 m per-axis margins. No fault appeared in the captured status window.
+
+Concurrent 30-second `--vision-chain` sampling covered raw odometry, aligned pose, native vision and FC local pose. Native vision received 1,500 messages, with maximum header age 47 ms and receive gap 51 ms. FC local-pose maxima were 21/44 ms; all four topics had one discovered publisher, valid increasing stamps and expected frames. The observer loop gap peaked at 24.746 ms and the sampled chain was fresh. This confirms a sustained ground reference hold with concurrent native-vision observation; the prior intermittent freshness faults remain unexplained. Aircraft tracking, airborne handover and 2 m/s flight remain unverified. See [the structured result](../data/observed_2026-10-14/super_handover_vision_audit.json).
+
+## Earlier aircraft ground result
 
 The latest trial accepted 217 references, reached `AUDIT_END` and retained the same endpoint in 18 successive status reports within a 20-second observation window, exceeding the six-second ground hold requirement. The held forward/left/FC-floor-height was `[0.2967, 0.0055, 0.1052] m`, with forward/left/up endpoint offsets `[-0.0033, 0.0055, 0.0202] m` from the requested same-height forward target. Concurrent 30-second sampling found all four chain topics fresh, with single publishers and no invalid/reordered stamps or unexpected frames. Local-pose maximum receive gap/header age were 44/22 ms. No native output or mode/arming requests were made. This verifies a sustained ground reference hold; physical tracking and airborne handover remain separate.
 
