@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Read-only, stamp-paired attitude survey; no calibrated transform is saved."""
+import argparse
+import json
 import math
+from pathlib import Path
 import time
 from collections import deque
 import numpy as np
@@ -23,7 +26,39 @@ def quaternion(q):
     return v / norm if np.all(np.isfinite(v)) and abs(norm-1) < .02 else None
 
 
-def main():
+def summarize(rotations, gaps, ages, counts):
+    report = dict(schema_version=1, received_body=counts[0], received_imu=counts[1],
+                  matched=len(rotations), estimate_available=False)
+    if len(rotations) < 20:
+        return report
+    matrix = np.array(rotations)
+    _, vectors = np.linalg.eigh(matrix.T @ matrix)
+    q = vectors[:, -1]
+    if q[3] < 0:
+        q = -q
+    errors = np.degrees(2*np.arccos(np.clip(np.abs(matrix @ q), 0, 1)))
+    x, y, z, w = q
+    angles = [math.atan2(2*(w*x+y*z), 1-2*(x*x+y*y)),
+              math.asin(float(np.clip(2*(w*y-z*x), -1, 1))),
+              math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))]
+    report.update(estimate_available=True, quaternion_xyzw=q.tolist(),
+                  rotation_rpy_deg=np.degrees(angles).tolist(),
+                  rotation_spread_mean_deg=float(errors.mean()),
+                  rotation_spread_max_deg=float(errors.max()),
+                  pairing_gap_max_s=max(gaps), body_age_min_s=min(ages),
+                  body_age_mean_s=float(np.mean(ages)), body_age_max_s=max(ages))
+    return report
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output-json', type=Path, help='write a new machine-readable survey; never overwrite')
+    parser.add_argument('--seconds', type=float, default=15., help='survey duration, 5 to 60 seconds')
+    args = parser.parse_args(argv)
+    if not math.isfinite(args.seconds) or not 5 <= args.seconds <= 60:
+        parser.error('--seconds must be between 5 and 60')
+    if args.output_json is not None and (args.output_json.exists() or args.output_json.is_symlink()):
+        parser.error('--output-json must name a new file')
     import rclpy
     from geometry_msgs.msg import PoseStamped
     from sensor_msgs.msg import Imu
@@ -53,7 +88,8 @@ def main():
         node.create_subscription(PoseStamped, '/super_debug/body_pose', on_body, qos),
         node.create_subscription(Imu, '/mavros/imu/data', on_imu, qos)]
     try:
-        end = time.monotonic() + 15
+        start_stamp = node.get_clock().now().nanoseconds
+        end = time.monotonic() + args.seconds
         while time.monotonic() < end:
             rclpy.spin_once(node, timeout_sec=.02)
             while pending and imu:
@@ -66,23 +102,24 @@ def main():
                     rotations.append(multiply(q_px4, q * [-1, -1, -1, 1]))
                     gaps.append(abs(nearest-t))
                     ages.append(age)
+        report = summarize(rotations, gaps, ages, counts)
+        report.update(ros_start_stamp_ns=start_stamp,
+                      ros_end_stamp_ns=node.get_clock().now().nanoseconds,
+                      completed_monotonic_s=time.monotonic())
+        if args.output_json is not None:
+            with args.output_json.open('x') as handle:
+                json.dump(report, handle, indent=2, allow_nan=False)
+                handle.write('\n')
         print('Received body/imu:', *counts, 'Matched:', len(rotations))
-        if len(rotations) < 20:
+        if not report['estimate_available']:
             print('Insufficient matched samples; no alignment estimate.')
+            if args.output_json is not None:
+                raise SystemExit(2)
             return
-        matrix = np.array(rotations)
-        _, vectors = np.linalg.eigh(matrix.T @ matrix)
-        q = vectors[:, -1]
-        if q[3] < 0:
-            q = -q
-        errors = np.degrees(2*np.arccos(np.clip(np.abs(matrix @ q), 0, 1)))
-        x, y, z, w = q
-        angles = [math.atan2(2*(w*x+y*z), 1-2*(x*x+y*y)),
-                  math.asin(float(np.clip(2*(w*y-z*x), -1, 1))),
-                  math.atan2(2*(w*z+x*y), 1-2*(y*y+z*z))]
+        q = np.array(report['quaternion_xyzw'])
         print('Candidate rotation quaternion xyzw:', q.round(6).tolist())
-        print('Candidate rotation RPY degrees:', np.degrees(angles).round(3).tolist())
-        print(f'Rotation spread mean/max: {errors.mean():.3f}/{errors.max():.3f} deg')
+        print('Candidate rotation RPY degrees:', np.array(report['rotation_rpy_deg']).round(3).tolist())
+        print(f'Rotation spread mean/max: {report["rotation_spread_mean_deg"]:.3f}/{report["rotation_spread_max_deg"]:.3f} deg')
         print(f'Stamp pairing gap max: {max(gaps):.3f}s; body age mean/max: '
               f'{np.mean(ages):.3f}/{max(ages):.3f}s')
         print('Inspection only: nominal mounting, no position origin/floor calibration.')

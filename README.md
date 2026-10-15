@@ -8,6 +8,14 @@ An indoor autonomous flight project for the HKU Open Day demonstration, integrat
 
 ## Quick Start: restore the aircraft after reboot
 
+For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing its three updated scripts:
+
+```bash
+python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics
+```
+
+This captures and applies a fresh quaternion, prepares the session map, runs one ground audit and saves a structured report. It preserves flight initiation as a separate operation; a passing ground result does not initiate takeoff. The manual steps below remain available for diagnosis.
+
 An earlier fresh-session trial exposed a planner map-height mismatch while localization and parameter checks remained healthy. Managed `low-speed-3d` startup now generates frozen session-relative vertical map bounds without changing the source profile, obstacle clouds or flight margins. Aircraft capture, planning and a complete disarmed audit subsequently passed using this profile; intermittent startup freshness and capture failures still require repeatability evidence. See [October 15 progress](docs/PROGRESS_2026-10-15.md).
 
 The managed disarmed SUPER-to-PX4 transport is verified: native position/yaw setpoints publish at approximately 20 Hz and PX4 reports fresh position-control intent. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).

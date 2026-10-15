@@ -481,6 +481,9 @@ class Session:
                 report['remote_preparation_checks_passed']=all(passed for name,passed in
                     report['checks'].items() if name not in site_inputs)
                 report['on_site_supervision_and_clearance']='Not assessed by this read-only command'
+                if self.args.report_json is not None:
+                    with self.args.report_json.expanduser().open('x') as handle:
+                        json.dump(report,handle,indent=2,allow_nan=False);handle.write('\n')
                 print(json.dumps(report,indent=2))
             elif action == 'align':
                 if any(name in windows for name in ('preview', 'vision', 'hover')):
@@ -488,7 +491,10 @@ class Session:
                 gate.pull()
                 gate.set_ctrl(0)
                 run(['python3', '-u', self.scripts/'odom_age_check.py'])
-                run(['python3', '-u', self.scripts/'frame_alignment_check.py'])
+                survey=['python3', '-u', self.scripts/'frame_alignment_check.py']
+                if self.args.report_json is not None:
+                    survey+=['--output-json',self.args.report_json.expanduser()]
+                run(survey)
                 print('Use this survey: super_session.py vision QX QY QZ QW. No quaternion was auto-saved.')
             elif action == 'vision-restart':
                 if windows.get('preview')!='0' or 'vision' not in windows:
@@ -774,7 +780,11 @@ def arguments(argv=None):
     parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--report-json',type=Path,help='new JSON report path; align or flight-check only')
     args = parser.parse_args(argv)
+    if args.report_json is not None and (args.action not in ('align','flight-check')
+            or args.report_json.expanduser().exists() or args.report_json.expanduser().is_symlink()):
+        parser.error('--report-json requires align/flight-check and a new file path')
     if not args.session or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for c in args.session):
         parser.error('Use letters, digits, underscore or hyphen for session names')
     if args.action == 'vision':

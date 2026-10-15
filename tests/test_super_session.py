@@ -65,6 +65,29 @@ class MemorySession(m.Session):
 
 
 class Tests(unittest.TestCase):
+    def test_machine_reports_are_explicit_and_never_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report=Path(directory)/'survey.json'
+            args=m.arguments(['align','--report-json',str(report)])
+            self.assertEqual(args.report_json,report)
+            s=MemorySession(args)
+            with patch.object(m,'GroundGate',FakeGate),patch.object(m,'run') as command:
+                s.mutate('align')
+            self.assertEqual(command.call_args.args[0][-2:],['--output-json',report])
+            report.write_text('{}')
+            with self.assertRaises(SystemExit):m.arguments(['align','--report-json',str(report)])
+            with self.assertRaises(SystemExit):m.arguments(['vision','0','0','0','1','--report-json',str(report)])
+
+    def test_readiness_machine_report_matches_printed_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report=Path(directory)/'readiness.json'
+            s=self.manager(['flight-check','--report-json',str(report)])
+            output=io.StringIO()
+            with patch.object(m,'GroundGate',FakeGate),redirect_stdout(output):
+                s.mutate('flight-check')
+            self.assertEqual(json.loads(report.read_text()),json.loads(output.getvalue()))
+            self.assertFalse(json.loads(report.read_text())['remote_preparation_checks_passed'])
+
     def setUp(self):
         FakeGate.blocked=FakeGate.stale_preview=FakeGate.bad_localization=False
         FakeGate.values.update(EKF2_EV_CTRL=0,EKF2_HGT_REF=3)

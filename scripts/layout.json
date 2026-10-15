@@ -37,6 +37,7 @@
   "send_control_preview_goal.py": "scripts/planning/send_control_preview_goal.py",
   "send_ground_height_goal.py": "scripts/planning/send_ground_height_goal.py",
   "stationary_position_check.py": "scripts/localization/stationary_position_check.py",
+  "super_ground_test.py": "scripts/maintenance/super_ground_test.py",
   "super_session.py": "scripts/maintenance/super_session.py",
   "super_flight_control.py": "scripts/flight/super_flight_control.py",
   "update_preview_alignment.py": "update_preview_alignment.py"
