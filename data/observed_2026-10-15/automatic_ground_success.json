@@ -1,0 +1,199 @@
+{
+  "date": "2026-10-15",
+  "run": "20261015_164840_712974",
+  "core_session": "20261015_164845_860628",
+  "revision": "133342b22961e3c503b7e1743c35ff1fe04134fc",
+  "scope": "First successful automatic on-aircraft disarmed ground workflow",
+  "provenance": "Onboard console transcript; complete saved report remains on the aircraft",
+  "result": "SUCCESS",
+  "saved_report": "/home/mars/Downloads/super_ground_tests/20261015_164840_712974/report.json",
+  "full_saved_report_received": false,
+  "completed_stages": [
+    "stop",
+    "start",
+    "align",
+    "vision",
+    "planner",
+    "handover-check",
+    "audit",
+    "flight-check"
+  ],
+  "alignment": {
+    "quaternion_xyzw": [
+      -0.0050965372185036,
+      -0.04249696203109643,
+      0.9607343591904743,
+      0.2741487271489268
+    ],
+    "received_body": 751,
+    "received_imu": 703,
+    "matched": 704,
+    "rotation_spread_mean_max_deg": [
+      0.27,
+      0.783
+    ],
+    "pairing_gap_max_s": 0.032,
+    "body_age_mean_max_s": [
+      0.01,
+      0.015
+    ],
+    "automatic_capture_and_application_verified": true
+  },
+  "odometry_survey": {
+    "n": 607,
+    "age_min_avg_max_s": [
+      0.007,
+      0.009,
+      0.013
+    ]
+  },
+  "session_map": {
+    "raw_reference_z_m": -13.144526,
+    "fixed_shift_m": -13.2,
+    "effective_floor_ceiling_m": [
+      -14.3,
+      -10.3
+    ],
+    "profile": "mid360_low_speed_3d_goal_ros2_session_1946e3154684.yaml",
+    "large_raw_offset_cause_established": false,
+    "translation_is_not_drift_correction": true
+  },
+  "audit": {
+    "displayed_phases": [
+      "AUDIT_TRACK",
+      "AUDIT_END"
+    ],
+    "accepted_references": 217,
+    "preplan_commands_discarded": 0,
+    "held_reference_forward_left_fc_floor_height_m": [
+      0.2889,
+      -0.0558,
+      0.1146
+    ],
+    "reference_endpoint_error_forward_left_up_m": [
+      -0.0111,
+      -0.0558,
+      0.0296
+    ],
+    "callback_max_s": 0.0218,
+    "timer_gap_max_s": 0.0564,
+    "fault_observed": null,
+    "six_second_endpoint_hold_passed_by_runner": true,
+    "concurrent_vision_chain_passed_by_runner": true,
+    "per_topic_timing_metrics_in_supplied_output": false
+  },
+  "readiness_snapshot": {
+    "scope": "Read-only grounded software prerequisites; no flight requests",
+    "parameters": {
+      "MPC_XY_VEL_ALL": {
+        "actual": -1.0,
+        "expected": -1.0,
+        "matches": true
+      },
+      "MPC_Z_VEL_ALL": {
+        "actual": -1.0,
+        "expected": -1.0,
+        "matches": true
+      },
+      "MPC_XY_VEL_MAX": {
+        "actual": 0.5,
+        "expected": 0.5,
+        "matches": true
+      },
+      "MPC_Z_VEL_MAX_UP": {
+        "actual": 0.5,
+        "expected": 0.5,
+        "matches": true
+      },
+      "MPC_Z_VEL_MAX_DN": {
+        "actual": 0.5,
+        "expected": 0.5,
+        "matches": true
+      },
+      "COM_OF_LOSS_T": {
+        "actual": 0.5,
+        "expected": 0.5,
+        "matches": true
+      },
+      "COM_OBL_RC_ACT": {
+        "actual": 4,
+        "expected": 4,
+        "matches": true
+      },
+      "EKF2_EV_CTRL": {
+        "actual": 11,
+        "expected": 11,
+        "matches": true
+      },
+      "EKF2_HGT_REF": {
+        "actual": 3,
+        "expected": 3,
+        "matches": true
+      },
+      "EKF2_EV_POS_X": {
+        "actual": 0.0,
+        "expected": 0.0,
+        "matches": true
+      },
+      "EKF2_EV_POS_Y": {
+        "actual": 0.0,
+        "expected": 0.0,
+        "matches": true
+      },
+      "EKF2_EV_POS_Z": {
+        "actual": 0.0,
+        "expected": 0.0,
+        "matches": true
+      },
+      "EKF2_EV_QMIN": {
+        "actual": 0,
+        "expected": 0,
+        "matches": true
+      }
+    },
+    "errors": [],
+    "state": {
+      "connected": true,
+      "armed": false,
+      "mode": "AUTO.LOITER",
+      "manual_input": false
+    },
+    "rc": {
+      "fresh": false,
+      "channel_count": 0
+    },
+    "mav_frame": "LOCAL_NED",
+    "native_publishers": {},
+    "pose_agreement": {
+      "distance_m": 0.015670850512356966,
+      "yaw_difference_deg": 0.020220272684935474
+    },
+    "checks": {
+      "connected_disarmed_on_ground": true,
+      "fresh_valid_localization": true,
+      "fc_vision_pose_agreement": true,
+      "required_parameters": true,
+      "local_ned": true,
+      "posctl_with_manual_input": false,
+      "fresh_rc_with_seven_channels": false,
+      "no_native_control_publishers": true,
+      "single_localization_sources": true,
+      "single_rc_source": true,
+      "managed_processes_active": true,
+      "reserved_3d_planner": true
+    },
+    "blockers": [
+      "posctl_with_manual_input",
+      "fresh_rc_with_seven_channels"
+    ],
+    "sampled_software_prerequisites_passed": false,
+    "remote_preparation_checks_passed": true,
+    "on_site_supervision_and_clearance": "Not assessed by this read-only command"
+  },
+  "native_output": false,
+  "mode_or_arming_requests": false,
+  "physical_aircraft_tracking_verified": false,
+  "two_metre_per_second_flight_verified": false,
+  "long_term_localization_stability_verified": false,
+  "repeatability_across_restarts_verified": false
+}

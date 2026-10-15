@@ -33,7 +33,8 @@
   "ground_audit_automatically_replayed": false,
   "source_freshness_and_flight_margins_relaxed": false,
   "automatic_alignment_spread_max_deg": 2.0,
-  "automatic_runner_aircraft_run_verified": false,
+  "automatic_runner_aircraft_run_verified": true,
   "airborne_tracking_verified": false,
-  "full_demonstration_repeatability_verified": false
+  "full_demonstration_repeatability_verified": false,
+  "aircraft_verification_record": "../observed_2026-10-15/automatic_ground_success.json"
 }
