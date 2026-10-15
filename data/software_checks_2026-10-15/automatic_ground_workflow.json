@@ -2,9 +2,9 @@
   "date": "2026-10-15",
   "scope": "Automatic ground orchestration, structured alignment and isolated ROS DDS; no aircraft execution",
   "unit_cases_passed": {
-    "automatic_orchestration_quality_failure_and_locking": 11,
+    "automatic_orchestration_quality_failure_and_locking": 12,
     "alignment_estimator_report": 2,
-    "manager_lifecycle_and_json_contract": 38,
+    "manager_lifecycle_and_json_contract": 39,
     "deployment_layout_and_installation": 3
   },
   "real_survey_subprocess_cases_passed": [
@@ -13,6 +13,13 @@
   ],
   "existing_survey_file_overwrite_rejected": true,
   "success_and_failure_console_results_match_saved_json": true,
+  "ubuntu_python_3_10_cli_regression": {
+    "original_aircraft_argument_error_reproduced": true,
+    "generated_vision_command_parsed_by_real_manager": true,
+    "negative_scientific_notation_preserved": true,
+    "bootstrap_flag_precedes_positional_separator": true,
+    "unit_cases_passed": 54
+  },
   "isolated_dds_audit_cases_passed": [
     "healthy hold and concurrent fresh inputs",
     "native vision dropout",

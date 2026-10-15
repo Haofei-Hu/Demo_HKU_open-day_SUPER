@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import tempfile
 import types
+import shlex
 import unittest
 from unittest.mock import patch
 
@@ -65,6 +66,19 @@ class MemorySession(m.Session):
 
 
 class Tests(unittest.TestCase):
+    def test_ros_bootstrap_keeps_flag_before_quaternion_separator(self):
+        q=['-1e-20','1e-30','0.0','1.0']
+        argv=['super_session.py','--session','super-flight','vision','--',*q]
+        with patch.object(m.sys,'argv',argv),patch.object(m.subprocess,'run') as command:
+            command.return_value.returncode=0
+            with self.assertRaises(SystemExit) as exit_code:m.main()
+        self.assertEqual(exit_code.exception.code,0)
+        body=command.call_args.args[0][-1]
+        child=shlex.split(body.split('exec ',1)[1])
+        args=m.arguments(child[2:])
+        self.assertTrue(args.ros_env)
+        self.assertEqual(args.quaternion,list(map(float,q)))
+
     def test_machine_reports_are_explicit_and_never_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:
             report=Path(directory)/'survey.json'

@@ -238,8 +238,13 @@ class GroundTest:
     def action(self, action, *extra):
         self.report['stage'] = action
         write_report(self.path, self.report)
-        command = [sys.executable, str(self.args.scripts_dir/'super_session.py'), action,
-                   '--session', self.args.session, '--scripts-dir', str(self.args.scripts_dir), *map(str, extra)]
+        command = [sys.executable, str(self.args.scripts_dir/'super_session.py'),
+                   '--session', self.args.session, '--scripts-dir', str(self.args.scripts_dir), action]
+        # Python 3.10 argparse cannot resume this nargs='*' positional after
+        # interleaved options. '--' also protects negative scientific notation.
+        if action == 'vision':
+            command.append('--')
+        command.extend(map(str, extra))
         logfile = self.folder/(str(len(self.report['stages']))+'_'+action+'.log')
         print(f'[{action}] {logfile}', flush=True)
         stage = dict(action=action, log=str(logfile))

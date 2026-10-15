@@ -54,6 +54,8 @@ Update these three files together in the existing flat aircraft script directory
 
 The existing integration prerequisites, including `create_session_map_profile.py`, `control_chain_age_check.py`, the handover controller and all four built ROS workspaces, must already be installed. The deployment catalog includes the new runner; the existing installer preserves installed files unless an explicit update is requested.
 
+On Ubuntu's Python 3.10, the runner must place common options before the action and protect vision quaternion positionals with `--`. The manager's ROS bootstrap must insert `--ros-env` before that separator. Update the runner and manager together for this correction; the original interleaved command can reject valid quaternion values before vision starts. Regression checks exercise the exact aircraft quaternion and negative scientific notation through the real Python 3.10 argument parser.
+
 Manual alignment is unchanged. `super_session.py align --report-json NEW_FILE` additionally writes a machine-readable survey; `flight-check --report-json NEW_FILE` writes the readiness snapshot. Neither output may overwrite an existing file. Saving a manual survey does not apply it automatically.
 
 ## Future supervised flight entry

@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 import sys
@@ -152,6 +153,23 @@ class Tests(unittest.TestCase):
             self.assertEqual(result['stages'][0]['returncode'],7)
             self.assertIn('fixture core failure',Path(result['stages'][0]['log']).read_text())
             self.assertFalse((runner.folder/'alignment.json').exists())
+
+    def test_generated_vision_command_passes_real_manager_parser(self):
+        quaternions=[
+            [-.010378974288993956,-.01017938613075453,.9638858381472019,.2659186868386183],
+            [-1e-20,1e-30,0.,1.]]
+        for q in quaternions:
+            with self.subTest(q=q),tempfile.TemporaryDirectory(prefix='auto cli ') as folder:
+                runner,_=self.runner(folder)
+                runner.action=m.GroundTest.action.__get__(runner)
+                def parsed_child(command,**kwargs):
+                    args=m.manager.arguments(command[2:])
+                    self.assertEqual(args.action,'vision')
+                    self.assertEqual(args.quaternion,q)
+                    self.assertEqual(args.scripts_dir,runner.args.scripts_dir)
+                    return subprocess.CompletedProcess(command,0)
+                with patch.object(m.subprocess,'run',side_effect=parsed_child):
+                    runner.action('vision',*q)
 
     def test_global_lock_blocks_a_second_runner_before_any_action(self):
         with tempfile.TemporaryDirectory() as folder:

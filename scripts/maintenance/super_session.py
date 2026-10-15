@@ -815,7 +815,7 @@ def main():
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
     if args.action in ('align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
-        body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), *sys.argv[1:], '--ros-env'])
+        body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), '--ros-env', *sys.argv[1:]])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)
     if args.action == 'start':
