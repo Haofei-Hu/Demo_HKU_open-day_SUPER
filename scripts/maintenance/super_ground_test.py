@@ -229,7 +229,8 @@ class GroundTest:
         self.folder.mkdir()
         self.path = self.folder/'report.json'
         self.report = dict(schema_version=1, scope='Disarmed one-goal ground audit',
-            passed=False, stage='preflight', stages=[], native_output=False,
+            result='RUNNING', passed=False, stage='preflight', stages=[], native_output=False,
+            started_at=datetime.now().astimezone().isoformat(),
             mode_or_arming_requests=False, flight_verified=False,
             alignment_max_spread_deg=args.max_alignment_spread_deg)
         self.observer = None
@@ -297,11 +298,11 @@ class GroundTest:
             self.report['readiness'] = json.loads(snapshot.read_text())
             if not self.report['readiness'].get('remote_preparation_checks_passed'):
                 raise RuntimeError('Remote preparation snapshot failed; inspect flight_check.json')
-            self.report.update(passed=True, stage='complete')
-            print('PASS: fresh alignment, session map, six-second audit endpoint hold and remote checks.', flush=True)
+            self.report.update(result='SUCCESS', passed=True, stage='complete')
             print('Stack retained. Flight and reboot repeatability are not established by this run.', flush=True)
             return 0
         except (Exception, KeyboardInterrupt) as exc:
+            self.report.update(result='FAIL', failed_stage=self.report['stage'])
             self.report['error'] = f'{type(exc).__name__}: {exc}'
             if self.observer is not None:
                 self.report['last_controller_status'] = self.observer.status
@@ -315,8 +316,10 @@ class GroundTest:
                     self.observer.close()
                 except Exception as exc:
                     self.report['cleanup_error'] = f'{type(exc).__name__}: {exc}'
+            self.report['finished_at'] = datetime.now().astimezone().isoformat()
             write_report(self.path, self.report)
-            print('Report:', self.path, flush=True)
+            print('RESULT:', self.report['result'], flush=True)
+            print('REPORT:', self.path, flush=True)
 
 
 def arguments(argv=None):

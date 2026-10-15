@@ -18,7 +18,7 @@ Keep the aircraft stationary, disarmed and on its takeoff floor. `--restart` exp
 4. Capture the current map reference and launch the `low-speed-3d` planner with frozen session-relative vertical bounds.
 5. Start the check-only handover controller and wait up to 60 seconds for a fresh `READY`, valid localization and unique input/status publishers.
 6. Call `/super_flight/audit` once. Observe the audit and all four localization streams concurrently for 30 seconds. Require a continuous, fresh `AUDIT_END` hold of at least six seconds with accepted references.
-7. Save the read-only preparation snapshot and require `remote_preparation_checks_passed` before reporting `PASS`.
+7. Save the read-only preparation snapshot and require `remote_preparation_checks_passed` before reporting `SUCCESS`.
 
 The automatic quaternion acceptance policy requires at least 20 matched samples, unit/finite components, pairing gap at most 50 ms, body timestamp ages between -50 and 250 ms, and maximum rotation spread at most 2 degrees. `--max-alignment-spread-deg` makes that last automation criterion explicit and configurable; it changes neither flight tracking tolerances nor map-capture limits. The existing 2.5 cm map-capture criterion and 10 cm flight/reference margins remain unchanged.
 
@@ -39,6 +39,8 @@ Every run creates:
 ```
 
 `report.json` records the failed/current stage, measured quaternion, managed session/log directory, audit transitions, four-stream timing and the final readiness snapshot. Failure reports include partial audit evidence when available. Native node logs remain under the existing `super_session_logs` directory. A failed run exits nonzero; a completed ground run exits zero. Missing RC/manual POSCTL is retained in the readiness snapshot but does not turn a valid remote ground preparation into a flight approval.
+
+After the final report is saved, the terminal ends with `RESULT: SUCCESS` or `RESULT: FAIL`, followed by `REPORT: <absolute path>`. The JSON uses the same `result` value, records start/finish times and includes `failed_stage` plus `error` on failure. In-progress reports use `RUNNING`. A `SUCCESS` result refers to the complete disarmed test, not flight readiness.
 
 Processes and logs remain available after success or failure. Inspect the reported stage before restarting; another full test requires an explicit `--restart`. Genuine bad input still fails the run. One successful run cannot establish reliability over future restarts or physical tracking accuracy.
 

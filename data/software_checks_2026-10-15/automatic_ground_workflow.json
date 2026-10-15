@@ -12,6 +12,7 @@
     "insufficient matched samples exit nonzero with no candidate"
   ],
   "existing_survey_file_overwrite_rejected": true,
+  "success_and_failure_console_results_match_saved_json": true,
   "isolated_dds_audit_cases_passed": [
     "healthy hold and concurrent fresh inputs",
     "native vision dropout",

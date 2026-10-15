@@ -1,5 +1,7 @@
 """Automatic survey consumption, staged failures and non-flight orchestration."""
 import fcntl
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -78,13 +80,18 @@ class Tests(unittest.TestCase):
     def test_nominal_workflow_uses_current_survey_once_and_saves_result(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(m,'AuditObserver',Observer):
             runner,calls=self.runner(folder,extra=['--fixed-lio-extrinsics'])
-            self.assertEqual(runner.run(),0)
+            output=io.StringIO()
+            with redirect_stdout(output):self.assertEqual(runner.run(),0)
             self.assertEqual([c[0] for c in calls],['start','align','vision','planner','handover-check','flight-check'])
             self.assertEqual(calls[0][1],('--fixed-lio-extrinsics',))
             self.assertEqual(list(calls[2][1]),survey()['quaternion_xyzw'])
             self.assertEqual(Observer.calls,1)
             result=json.loads(runner.path.read_text())
             self.assertTrue(result['passed'])
+            self.assertEqual(result['result'],'SUCCESS')
+            self.assertIn('RESULT: SUCCESS',output.getvalue())
+            self.assertIn('REPORT: '+str(runner.path),output.getvalue())
+            self.assertIn('finished_at',result)
             self.assertFalse(result['native_output'])
             self.assertFalse(result['mode_or_arming_requests'])
             self.assertIn('readiness',result)
@@ -104,9 +111,16 @@ class Tests(unittest.TestCase):
     def test_failed_survey_never_starts_vision_or_planner(self):
         with tempfile.TemporaryDirectory() as folder:
             runner,calls=self.runner(folder,alignment=survey(rotation_spread_max_deg=3.))
-            self.assertEqual(runner.run(),1)
+            output=io.StringIO()
+            with redirect_stdout(output):self.assertEqual(runner.run(),1)
             self.assertEqual([c[0] for c in calls],['start','align'])
             self.assertFalse(json.loads(runner.path.read_text())['passed'])
+            result=json.loads(runner.path.read_text())
+            self.assertEqual(result['result'],'FAIL')
+            self.assertEqual(result['failed_stage'],'align')
+            self.assertIn('RESULT: FAIL',output.getvalue())
+            self.assertNotIn('RESULT: SUCCESS',output.getvalue())
+            self.assertIn('REPORT: '+str(runner.path),output.getvalue())
 
     def test_failed_audit_is_not_retried_or_promoted_to_pass(self):
         Observer.error='Missing/stale vision'
