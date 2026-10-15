@@ -10,6 +10,8 @@ For a grounded update of the visual relay, `vision-restart` replaces only that m
 
 The manager's parameter reads use one client and at most three requests within the original 12-second response budget. A missing first reply can recover after response-endpoint discovery; cancelled requests cannot supply later accepted values. Parameter writes and force-pull calls are sent once. Read retries recheck ground state, do not extend the response budget and do not accept an empty or mismatched response. A persistent service failure remains a blocking error.
 
+The managed `low-speed-3d` profile also requires `create_session_map_profile.py` in Downloads. Before planner launch it captures a stable raw height and creates a separate session YAML with translated vertical map bounds. This accounts for the current LIO coordinate origin and ROG-Map's inflated virtual floor. The original YAML remains unchanged, the core-session anchor is frozen in `map_reference.json` under the session log directory, and planner restarts reuse it. After replacing the manager/helper, use `planner-stop` followed by `planner --planner-profile low-speed-3d` to load the new map; localization and alignment stay running. See [the coordinate-boundary repair](PROGRESS_2026-10-15.md).
+
 Install tmux on onboard Ubuntu:
 
 ```bash

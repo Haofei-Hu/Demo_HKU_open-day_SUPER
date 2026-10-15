@@ -4,6 +4,8 @@ The disarmed SUPER → MAVROS → PX4 protocol path is verified on the aircraft.
 
 ## Ground audit
 
+Fresh LIO sessions can have a nonzero raw-world vertical origin even when aligned/FC coordinates are near zero. Managed `low-speed-3d` startup now creates a session-local map profile before launching SUPER; the auditor receives that exact profile path. Only virtual ground/ceiling and initial map-centre Z are translated, and the translation remains fixed for the core session. This prevents a negative raw-world origin from falling below a hardcoded virtual floor. It does not change physical height goals, actual cloud obstacles or 10 cm margins. See [the observed failure and validation](PROGRESS_2026-10-15.md).
+
 Keep the existing fixed-geometry localization/vision session and the reserved `low-speed-3d` planner running. The manager's `handover-check` launches the default check-only controller and stops a managed wire sender if present. It refuses other native writers, another hover/reference/handover window, or an older standalone hover artifact without the extension hooks. Localization and planning stay running.
 
 The flat Downloads installation needs the current `super_session.py`, `super_flight_control.py`, `first_hover_terminal.py`, `bounded_reference_preview.py` and the existing coordinate preview. No workspace rebuild is required. Updating the standalone hover artifact does not change its existing CLI defaults; the managed hover command still supplies the 1 m / 6 s arguments explicitly. Back up the prior scripts before replacement.

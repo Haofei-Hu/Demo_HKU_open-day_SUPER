@@ -15,6 +15,7 @@
   "create_flight_pose_transport.py": "scripts/maintenance/create_flight_pose_transport.py",
   "create_ground_height_fusion_transport.py": "scripts/maintenance/create_ground_height_fusion_transport.py",
   "create_ground_xy_fusion_transport.py": "scripts/maintenance/create_ground_xy_fusion_transport.py",
+  "create_session_map_profile.py": "scripts/maintenance/create_session_map_profile.py",
   "create_super_3d_goal_profile.py": "scripts/maintenance/create_super_3d_goal_profile.py",
   "create_super_ground_diagnostic.py": "scripts/maintenance/create_super_ground_diagnostic.py",
   "create_super_motion_profiles.py": "scripts/maintenance/create_super_motion_profiles.py",

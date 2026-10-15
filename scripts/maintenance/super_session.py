@@ -7,6 +7,7 @@ Mutable actions require fresh connected/disarmed/on-ground FC telemetry.
 """
 import argparse
 from datetime import datetime
+import hashlib
 import json
 import math
 import os
@@ -24,7 +25,7 @@ CORE = ('lidar', 'lio', 'mavros', 'body')
 SCRIPTS = ('fastlio_body_debug.py', 'odom_age_check.py', 'frame_alignment_check.py',
            'update_preview_alignment.py', 'aligned_pose_preview.py',
            'flight_pose_cov_transport.py', 'first_hover_terminal.py',
-           'control_bridge_preview.py')
+           'control_bridge_preview.py', 'create_session_map_profile.py')
 NATIVE_CONTROL_TOPICS=('/mavros/setpoint_position/local','/mavros/setpoint_raw/local',
     '/mavros/setpoint_raw/global','/mavros/setpoint_raw/attitude','/mavros/setpoint_position/global',
     '/mavros/setpoint_position/global_to_local','/mavros/setpoint_velocity/cmd_vel',
@@ -434,6 +435,24 @@ class Session:
                 self.tmux('kill-window', '-t', self.name+':'+name)
         print('Ground planning stopped; localization and vision remain running.')
 
+    def session_map_profile(self,source,gate):
+        if self.args.planner_profile!='low-speed-3d':return source
+        helper=self.scripts/'create_session_map_profile.py'
+        if not helper.is_file():raise RuntimeError('Missing session map helper: '+str(helper))
+        token=hashlib.sha256(str(self.config['logs']).encode()).hexdigest()[:12]
+        target=source.with_name(source.stem+'_session_'+token+'.yaml')
+        run(['python3',helper,'--source',source,'--target',target,
+             '--record',Path(self.config['logs'])/'map_reference.json',
+             '--alignment-path',self.scripts/'aligned_pose_preview.py'])
+        # The helper observes three seconds in a separate ROS process. Refresh
+        # this gate's telemetry before any process launch, rather than using
+        # the samples cached before that observation.
+        gate.wait(gate.grounded,'fresh ground state after session-map observation')
+        gate.wait(gate.localization_ready,'fresh localization after session-map observation')
+        gate.check()
+        if not target.is_file():raise RuntimeError('Session map helper did not create its profile')
+        return target
+
     def mutate(self, action):
         self.load()
         if action not in ('stop', 'planner-stop', 'wire-stop', 'handover-stop'):
@@ -600,7 +619,7 @@ class Session:
                         raise RuntimeError('An existing native setpoint sender is present')
                     from mars_quadrotor_msgs.msg import PositionCommand
                     PositionCommand()  # Verify generated message support before launching.
-                    config = self.planner_profile()
+                    config = self.session_map_profile(self.planner_profile(),gate)
                     self.config['planner_profile']=self.args.planner_profile
                     self.config['planner_config_path']=str(config)
                     self.save()

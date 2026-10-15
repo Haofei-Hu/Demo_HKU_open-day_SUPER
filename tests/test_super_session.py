@@ -465,6 +465,34 @@ class Tests(unittest.TestCase):
         self.assertEqual(s.window_state['preview'],'0')
         self.assertFalse(any('kill-session'==op[0] for op in s.operations))
 
+    def test_low_speed_3d_launch_uses_frozen_session_map_without_changing_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);source=folder/'base.yaml'
+            source.write_text('source profile unchanged\n')
+            (folder/'create_session_map_profile.py').write_text('# helper fixture\n')
+            (folder/'aligned_pose_preview.py').write_text('# geometry unchanged\n')
+            s=self.manager(['planner','--planner-profile','low-speed-3d','--scripts-dir',directory])
+            s.config['logs']=str(folder/'logs');s.window_state.update(preview='0',vision='0')
+            package=types.ModuleType('mars_quadrotor_msgs');messages=types.ModuleType('mars_quadrotor_msgs.msg')
+            messages.PositionCommand=lambda:object()
+            calls=[]
+            def helper(command):
+                args=list(map(str,command));calls.append(args)
+                self.assertEqual(args[args.index('--source')+1],str(source))
+                target=Path(args[args.index('--target')+1])
+                target.write_text('session profile unchanged\n')
+            with patch.object(m,'GroundGate',FakeGate),patch.object(s,'planner_profile',return_value=source), \
+                 patch.object(m,'run',side_effect=helper),patch.dict('sys.modules',
+                    {'mars_quadrotor_msgs':package,'mars_quadrotor_msgs.msg':messages}):
+                s.mutate('planner')
+            actual=Path(s.config['planner_config_path'])
+            self.assertNotEqual(actual,source)
+            self.assertIn('_session_',actual.name)
+            self.assertIn('config_name:='+actual.name,s.started[0][1])
+            self.assertEqual(source.read_text(),'source profile unchanged\n')
+            self.assertEqual((folder/'aligned_pose_preview.py').read_text(),'# geometry unchanged\n')
+            self.assertEqual(len(calls),1);self.assertEqual(FakeGate.writes,[])
+
     def test_planning_requires_fused_localization_and_goal_is_readonly(self):
         s=self.manager(['planner']);s.window_state.update(preview='0',vision='0')
         FakeGate.bad_localization=True

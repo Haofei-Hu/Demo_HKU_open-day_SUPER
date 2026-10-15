@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-15",
+  "scope": "Pure configuration tests, isolated ROS DDS observation and pinned source-expression arithmetic cross-check; no full planner dynamics",
+  "upstream_super_commit": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+  "upstream_grid_convention": "ORIGIN_AT_CORNER",
+  "pure_tests_passed": 4,
+  "manager_lifecycle_tests_passed": 36,
+  "deployment_layout_tests_passed": 3,
+  "ros_cases_passed": [
+    "healthy raw capture",
+    "moving raw position rejected",
+    "raw gap rejected",
+    "arming rejected",
+    "duplicate raw publishers rejected"
+  ],
+  "actual_helper_subprocess_runs_passed": 2,
+  "frozen_profile_and_record_byte_identical_on_repeat": true,
+  "parent_telemetry_refreshed_after_helper": true,
+  "compiled_upstream_boundary_expression_cases_passed": 7,
+  "example": {
+    "observed_raw_z_m": -1.1827157092876552,
+    "frozen_shift_m": -1.2,
+    "configured_ground_ceil_m": [
+      -2.7,
+      2.3
+    ],
+    "map_origin_z_m": 0.3,
+    "effective_ground_ceil_m": [
+      -2.3,
+      1.7
+    ]
+  },
+  "only_changed_source_config_fields": [
+    "rog_map.virtual_ground_height",
+    "rog_map.virtual_ceil_height",
+    "rog_map.fix_map_origin[2]"
+  ],
+  "source_yaml_unchanged": true,
+  "pointclouds_radius_motion_limits_and_physical_margins_unchanged": true,
+  "aircraft_retest_verified": false
+}

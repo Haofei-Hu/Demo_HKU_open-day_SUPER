@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-14",
+  "session": "20261014_233804_742867",
+  "scope": "Disarmed aircraft audit; no trajectory executed",
+  "fault": "No verified planner reference within 8 s",
+  "accepted_references": 0,
+  "planner_errors": [
+    "Odom below virtual ground",
+    "Ill corridor! Forced return",
+    "Cannot simplify sfcs"
+  ],
+  "polynomial_publishers": 0,
+  "position_command_publishers": 1,
+  "configured_map": {
+    "virtual_ground_height": -1.5,
+    "virtual_ceil_height": 3.5,
+    "fix_map_origin": [
+      0,
+      0,
+      1.5
+    ],
+    "map_size": [
+      50,
+      50,
+      6
+    ],
+    "resolution": 0.1,
+    "inflation_resolution": 0.2,
+    "inflation_step": 2,
+    "robot_r": 0.2
+  },
+  "observed_raw_position_m": [
+    0.09330963632959664,
+    -0.07300756372178101,
+    -1.1827157092876552
+  ],
+  "upstream_corner_grid_effective_floor_m": -1.1,
+  "raw_height_below_effective_floor": true,
+  "concurrent_native_vision": {
+    "duration_s": 30,
+    "n": 1502,
+    "header_age_max_s": 0.06,
+    "receive_gap_max_s": 0.041,
+    "fresh": true
+  },
+  "remote_preparation_checks_passed": true,
+  "source_config_modified": false,
+  "session_bound_correction_aircraft_retest_verified": false
+}
