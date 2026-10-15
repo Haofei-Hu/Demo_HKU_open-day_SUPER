@@ -384,13 +384,20 @@ class Session:
             'low-speed-margin': ('mid360_low_speed_margin_ros2.yaml', .3, .45),
             'low-speed-reserved': ('mid360_low_speed_reserved_ros2.yaml', .25, .45),
             'low-speed-3d': ('mid360_low_speed_3d_goal_ros2.yaml', .25, .45),
+            'forward-5m-2mps': ('mid360_forward_5m_ground_ros2.yaml', 2., 1.),
         }
         expected = motion_profiles.get(self.args.planner_profile)
         if expected is not None:
             filename, expected_velocity, expected_acceleration = expected
             target = folder/filename
             if not target.is_file():
-                if self.args.planner_profile == 'low-speed-3d':
+                if self.args.planner_profile == 'forward-5m-2mps':
+                    source=folder/'mid360_low_speed_3d_goal_ros2.yaml'
+                    helper=self.scripts/'create_super_speed_ground_profile.py'
+                    if not source.is_file() or not helper.is_file():
+                        raise RuntimeError('Need existing low-speed-3d profile and create_super_speed_ground_profile.py')
+                    run(['python3',helper,'--source',source])
+                elif self.args.planner_profile == 'low-speed-3d':
                     source = folder/'mid360_low_speed_reserved_ros2.yaml'
                     if not source.is_file():
                         helper = self.scripts/'create_super_motion_profiles.py'
@@ -421,7 +428,7 @@ class Session:
             limits = data.get('traj_opt', {}).get('boundary', {})
             if limits.get('max_vel') != expected_velocity or limits.get('max_acc') != expected_acceleration:
                 raise RuntimeError(f'Low-speed preview requires max_vel={expected_velocity} and max_acc={expected_acceleration}')
-        if self.args.planner_profile == 'low-speed-3d' and fsm.get('click_height') != -6.0:
+        if self.args.planner_profile in ('low-speed-3d','forward-5m-2mps') and fsm.get('click_height') != -6.0:
             raise RuntimeError('3D goal preview requires click_height=-6 to preserve message Z')
         (folder.parent/'log').mkdir(parents=True, exist_ok=True)
         return target
@@ -436,7 +443,7 @@ class Session:
         print('Ground planning stopped; localization and vision remain running.')
 
     def session_map_profile(self,source,gate):
-        if self.args.planner_profile!='low-speed-3d':return source
+        if self.args.planner_profile not in ('low-speed-3d','forward-5m-2mps'):return source
         helper=self.scripts/'create_session_map_profile.py'
         if not helper.is_file():raise RuntimeError('Missing session map helper: '+str(helper))
         token=hashlib.sha256(str(self.config['logs']).encode()).hexdigest()[:12]
@@ -473,6 +480,10 @@ class Session:
                         boundary['max_vel']==.25 and boundary['max_acc']==.45 and
                         fsm['click_height']==-6. and fsm['click_goal_topic']=='/goal_pose' and
                         fsm['cmd_topic']=='/planning/pos_cmd' and fsm['click_goal_en'])
+                    if self.config.get('planner_profile')=='forward-5m-2mps':
+                        report['checks']['ground_speed_profile']=(boundary['max_vel']==2. and boundary['max_acc']==1.
+                            and fsm['click_height']==-6. and fsm['click_goal_topic']=='/goal_pose'
+                            and fsm['cmd_topic']=='/planning/pos_cmd' and fsm['click_goal_en'])
                 except (OSError,KeyError,TypeError,ValueError) as exc:
                     report['errors'].append('Planner configuration: '+str(exc))
                 report['blockers']=[name for name,passed in report['checks'].items() if not passed]
@@ -660,13 +671,14 @@ class Session:
                 print('Ground wire sender launched: SUPER coordinate preview -> MAVROS position/yaw, 20 Hz.')
                 print('Disarmed AUTO.LOITER/POSCTL only; arming/OFFBOARD latches output off. No mode or arming requests.')
                 print('This checks transport; bounded-reference/flight tracking approval remains separate.')
-            elif action=='handover-check':
-                if self.config.get('planner_profile')!='low-speed-3d' or any(
+            elif action in ('handover-check','speed-check'):
+                expected='forward-5m-2mps' if action=='speed-check' else 'low-speed-3d'
+                if self.config.get('planner_profile')!=expected or any(
                         windows.get(name)!='0' for name in ('preview','vision','planner','cmd_preview')):
-                    raise RuntimeError('Need the managed low-speed-3d planner and current vision session')
+                    raise RuntimeError(f'Need the managed {expected} planner and current vision session')
                 if any(name in windows for name in ('hover','reference_preview','handover_check')):
                     raise RuntimeError('Another hover/reference/handover window exists; stop it first')
-                helper=self.scripts/'super_flight_control.py'
+                helper=self.scripts/('ground_speed_audit.py' if action=='speed-check' else 'super_flight_control.py')
                 if not helper.is_file() or not (self.scripts/'bounded_reference_preview.py').is_file():
                     raise RuntimeError('Missing handover controller or bounded reference helper')
                 import ast
@@ -750,7 +762,7 @@ def unmanaged_processes():
     scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py'}
     scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
                 'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py',
-                'bounded_reference_preview.py','super_flight_control.py'}
+                'bounded_reference_preview.py','super_flight_control.py','ground_speed_audit.py'}
     found = []
     for path in Path('/proc').glob('[0-9]*/cmdline'):
         try:
@@ -766,14 +778,14 @@ def unmanaged_processes():
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('start', 'align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
+    parser.add_argument('action', choices=('start', 'align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'speed-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'status', 'logs', 'stop'))
     parser.add_argument('quaternion', nargs='*', type=float)
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
     parser.add_argument('--fcu-url', default=DEFAULT_FCU)
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--restart', action='store_true', help='replace only the hover window after a fresh ground-state check')
-    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d'), default='diagnostic',
+    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d','forward-5m-2mps'), default='diagnostic',
                         help='ground profile; low-speed 0.3/0.5, margin 0.3/0.45, reserved/3d 0.25/0.45; 3d preserves message Z before map relocation')
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
@@ -814,7 +826,7 @@ def main():
     args = arguments()
     if subprocess.run(['which', 'tmux'], stdout=subprocess.DEVNULL).returncode:
         raise SystemExit('tmux is missing. Install once on Ubuntu: sudo apt install tmux')
-    if args.action in ('align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
+    if args.action in ('align', 'vision', 'vision-restart', 'planner', 'goal', 'planner-check', 'reference-preview', 'wire-test', 'wire-stop', 'handover-check', 'speed-check', 'handover-stop', 'flight-check', 'planner-stop', 'hover', 'stop') and not args.ros_env:
         body = source_prefix()+'exec '+shell_command([sys.executable, Path(__file__).resolve(), '--ros-env', *sys.argv[1:]])
         raise SystemExit(subprocess.run(['bash', '--noprofile', '--norc', '-c', body]).returncode)
     session = Session(args)

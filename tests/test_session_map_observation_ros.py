@@ -48,7 +48,9 @@ def run(case):
                 msg.pos_horiz_rel_status_flag=msg.pos_vert_abs_status_flag=True
             elif kind is Odometry:
                 msg.header.frame_id='camera_init';msg.child_frame_id='body';msg.pose.pose.orientation.w=1.
-                msg.pose.pose.position.z=-1.1827+(.05 if case=='movement' and elapsed>1. else 0.)
+                offset=.02*elapsed if case=='movement' else (
+                    .02676 if case=='settles' and .5<elapsed<1.5 else 0.)
+                msg.pose.pose.position.z=-1.1827+offset
             elif kind is PoseStamped:msg.header.frame_id='map';msg.pose.orientation.w=1.
             else:msg.header.frame_id='px4_enu_preview';msg.pose.pose.orientation.w=1.
             pubs[topic].publish(msg)
@@ -58,9 +60,12 @@ def run(case):
     try:
         gate=manager.GroundGate();gate.wait(gate.localization_ready,'fresh fixture localization')
         began=time.monotonic()
-        if case=='healthy':
+        if case in ('healthy','settles'):
             observation=m.observe(gate)
             assert abs(observation['raw_z']+1.1827)<1e-8 and observation['raw_source_gid']
+            if case=='settles':
+                assert 4.<time.monotonic()-began<8.
+                print('PASS: initial 2.676 cm excursion aged out; later full stable window accepted',flush=True)
             with tempfile.TemporaryDirectory() as directory:
                 folder=Path(directory);source=folder/'base.yaml';target=folder/'session.yaml'
                 record=folder/'map_reference.json';alignment=folder/'alignment.py'
@@ -86,8 +91,9 @@ def run(case):
             except RuntimeError as exc:
                 assert expected in str(exc),str(exc)
                 if case=='movement':
-                    assert 'raw XYZ range cm=[0.0, 0.0, 5.0]' in str(exc),str(exc)
-                    assert 'first-to-last XYZ change cm=[0.0, 0.0, 5.0]' in str(exc),str(exc)
+                    assert 'raw XYZ range cm=' in str(exc),str(exc)
+                    assert 'no stable 3 s window within the 12 s' in str(exc),str(exc)
+                    assert 11.5<time.monotonic()-began<13.5
                     assert 'no map profile written' in str(exc),str(exc)
             else:raise AssertionError('Invalid ground reference accepted: '+case)
         print('PASS: map reference observation',case,flush=True)
@@ -97,4 +103,4 @@ def run(case):
 
 
 if __name__=='__main__':
-    for case in ('healthy','movement','raw_gap','armed','duplicate'):run(case)
+    for case in ('healthy','settles','movement','raw_gap','armed','duplicate'):run(case)

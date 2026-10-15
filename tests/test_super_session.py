@@ -66,6 +66,43 @@ class MemorySession(m.Session):
 
 
 class Tests(unittest.TestCase):
+    def test_speed_auditor_requires_separate_profile_and_no_execution_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for name in ('ground_speed_audit.py','bounded_reference_preview.py'):
+                (root/name).write_text('# fixture')
+            (root/'first_hover_terminal.py').write_text('class FirstHoverControl:\n'
+                '    def mission_tick(self): pass\n    def allowed_modes(self): pass\n'
+                '    def check_envelope(self): pass\n')
+            s=self.manager(['speed-check','--scripts-dir',directory])
+            s.config.update(planner_profile='low-speed-3d',planner_config_path='/tmp/fast.yaml')
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            with patch.object(m,'GroundGate',FakeGate),self.assertRaises(RuntimeError):s.mutate('speed-check')
+            s.config['planner_profile']='forward-5m-2mps'
+            msg=types.ModuleType('mars_quadrotor_msgs.msg');msg.PolynomialTrajectory=lambda:None
+            with patch.object(m,'GroundGate',FakeGate),patch.dict('sys.modules',{'mars_quadrotor_msgs.msg':msg}):
+                s.mutate('speed-check')
+            self.assertIn('ground_speed_audit.py',s.started[0][1])
+            self.assertNotIn('--execute',s.started[0][1])
+            self.assertEqual(FakeGate.writes,[])
+            with self.assertRaises(SystemExit):m.arguments(['speed-check','--execute'])
+
+    def test_fast_profile_does_not_pass_reserved_flight_profile_check(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)/'fast.yaml'
+            profile.write_text(yaml.safe_dump(dict(traj_opt=dict(boundary=dict(max_vel=2.,max_acc=1.)),
+                fsm=dict(click_height=-6.,click_goal_topic='/goal_pose',cmd_topic='/planning/pos_cmd',click_goal_en=True))))
+            s=self.manager(['flight-check'])
+            s.config.update(planner_profile='forward-5m-2mps',planner_config_path=str(profile))
+            s.window_state.update(preview='0',vision='0',planner='0',cmd_preview='0')
+            output=io.StringIO()
+            with patch.object(m,'GroundGate',FakeGate),redirect_stdout(output):s.mutate('flight-check')
+            report=json.loads(output.getvalue())
+            self.assertTrue(report['checks']['ground_speed_profile'])
+            self.assertFalse(report['checks']['reserved_3d_planner'])
+            self.assertFalse(report['remote_preparation_checks_passed'])
+
     def test_ros_bootstrap_keeps_flag_before_quaternion_separator(self):
         q=['-1e-20','1e-30','0.0','1.0']
         argv=['super_session.py','--session','super-flight','vision','--',*q]

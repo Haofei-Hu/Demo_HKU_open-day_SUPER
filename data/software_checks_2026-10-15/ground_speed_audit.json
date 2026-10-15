@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-15",
+  "scope": "Isolated ROS 2 Humble / Python 3.10 software validation; synthetic telemetry and polynomial references, no aircraft actuation",
+  "test_profile": "forward-5m-2mps",
+  "forward_reference_m": 5.0,
+  "speed_limit_mps": 2.0,
+  "acceleration_limit_mps2": 1.0,
+  "unit_cases_passed": {
+    "manager": 41,
+    "automatic_runner": 13,
+    "deployment_layout": 3,
+    "separate_speed_profile": 2,
+    "bounded_reference": 11,
+    "session_map_profile": 5
+  },
+  "controller_ros_cases_passed": [
+    "5 m smooth S-curve at exact 2/1 limits and endpoint hold",
+    "advertised overspeed rejected",
+    "lateral corridor escape rejected",
+    "reference restart discontinuity rejected",
+    "existing low-speed audit hold",
+    "existing supervised flight lifecycle",
+    "missing RC blocks flight entry"
+  ],
+  "separate_process_observer_cases_passed": [
+    "2/1 advertised derivative peaks saved with fresh inputs and six-second hold",
+    "2.01 m/s advertised speed rejected"
+  ],
+  "map_capture_ros_cases_passed": [
+    "healthy capture",
+    "initial 2.676 cm excursion ages out before stable full three-second window",
+    "continuous 2 cm/s drift times out within 12-second budget",
+    "raw odometry gap rejected",
+    "arming rejected",
+    "duplicate raw sources rejected"
+  ],
+  "map_capture_limit_cm_per_axis": 2.5,
+  "map_capture_observation_budget_s": 12,
+  "map_capture_window_s": 3,
+  "real_map_helper_subprocess_runs_passed": 4,
+  "map_anchor_and_yaml_identical_on_repeat": true,
+  "earlier_fixture_failures": {
+    "thread_based_nominal_fixture": "Freshness guards rejected input gaps above 250 ms while producer and observer shared a Python process. Kept the guards; separate telemetry process fixture passed. No hardware reliability claim."
+  },
+  "mode_and_arming_requests_observed_in_observer_fixture": 0,
+  "audit_requests_per_observer_case": 1,
+  "px4_speed_parameters_changed": false,
+  "default_low_speed_and_flight_limits_preserved": true,
+  "extended_profile_execution_rejected": true,
+  "aircraft_5m_ground_audit_verified": false,
+  "physical_2mps_tracking_verified": false,
+  "limits": "Fixtures do not establish SUPER path feasibility in the aircraft map, actual aircraft speed, physical accuracy or repeatability across restarts."
+}

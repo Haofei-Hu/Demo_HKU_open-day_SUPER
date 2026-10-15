@@ -28,13 +28,17 @@ class Observer:
     error = None
     calls = 0
     status = 'READY: DEBUG ONLY; fault=None'
+    def __init__(self,**kwargs):
+        self.motion_limits=kwargs.get('motion_limits')
     def wait_ready(self):
         pass
     def audit(self, seconds):
         type(self).calls += 1
         if self.error:
             raise RuntimeError(self.error)
-        return dict(sampled_vision_chain_fresh=True, end_hold_s=7.)
+        report=dict(sampled_vision_chain_fresh=True, end_hold_s=7.)
+        if self.motion_limits:report['planner_motion']=dict(peak_speed_mps=2.,peak_acceleration_mps2=1.)
+        return report
     def close(self):
         pass
     def snapshot(self):
@@ -57,7 +61,9 @@ class Tests(unittest.TestCase):
     def runner(self, folder, extra=(), existing=False, alignment=None, ready=True):
         scripts=Path(folder)/'Downloads';scripts.mkdir(exist_ok=True)
         for name in (*m.manager.SCRIPTS,'super_session.py','control_chain_age_check.py',
-                     'super_flight_control.py','ground_setpoint_transport.py'):
+                     'super_flight_control.py','ground_setpoint_transport.py','ground_speed_audit.py',
+                     'create_super_speed_ground_profile.py','create_super_motion_profiles.py',
+                     'bounded_reference_preview.py'):
             (scripts/name).touch()
         runner=m.GroundTest(m.arguments(['--scripts-dir',str(scripts),*extra]))
         runner.session.exists=lambda:existing
@@ -102,6 +108,32 @@ class Tests(unittest.TestCase):
             runner,calls=self.runner(folder,existing=True)
             self.assertEqual(runner.run(),1)
             self.assertEqual(calls,[])
+
+    def test_fast_profile_is_separate_and_never_promotes_flight_readiness(self):
+        required={'connected_disarmed_on_ground','fresh_valid_localization','fc_vision_pose_agreement',
+                  'required_parameters','local_ned','no_native_control_publishers',
+                  'single_localization_sources','managed_processes_active','ground_speed_profile'}
+        ready=dict(checks={name:True for name in required},errors=[],remote_preparation_checks_passed=False)
+        ready['checks']['reserved_3d_planner']=False
+        self.assertTrue(m.ground_speed_prerequisites(ready))
+        for name in required:
+            changed=json.loads(json.dumps(ready));changed['checks'][name]=False
+            self.assertFalse(m.ground_speed_prerequisites(changed),name)
+        with tempfile.TemporaryDirectory() as folder,patch.object(m,'AuditObserver',Observer):
+            runner,calls=self.runner(folder,extra=['--test-profile','forward-5m-2mps'])
+            original=runner.action
+            def action(name,*args):
+                original(name,*args)
+                if name=='flight-check':Path(args[1]).write_text(json.dumps(ready))
+            runner.action=action
+            self.assertEqual(runner.args.sample_seconds,40.)
+            self.assertEqual(runner.run(),0)
+            self.assertIn(('planner',('--planner-profile','forward-5m-2mps')),calls)
+            self.assertIn('speed-check',[call[0] for call in calls])
+            result=json.loads(runner.path.read_text())
+            self.assertTrue(result['ground_prerequisites_passed'])
+            self.assertFalse(result['readiness']['remote_preparation_checks_passed'])
+            self.assertEqual(result['audit']['planner_motion']['peak_speed_mps'],2.)
 
     def test_explicit_restart_uses_guarded_manager_stop_before_start(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(m,'AuditObserver',Observer):
@@ -152,6 +184,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(result['stage'],'start')
             self.assertEqual(result['stages'][0]['returncode'],7)
             self.assertIn('fixture core failure',Path(result['stages'][0]['log']).read_text())
+            self.assertIn('fixture core failure',result['failure_output'])
             self.assertFalse((runner.folder/'alignment.json').exists())
 
     def test_generated_vision_command_passes_real_manager_parser(self):

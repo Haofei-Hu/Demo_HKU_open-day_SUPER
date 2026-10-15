@@ -20,7 +20,10 @@ def norm(vector):
 
 
 class TakeoffFrame:
-    def __init__(self, position, quaternion):
+    def __init__(self, position, quaternion, max_forward=5.):
+        if not math.isfinite(max_forward) or not 0 < max_forward <= 5.1:
+            raise ValueError('Invalid forward reference bound')
+        self.max_forward = float(max_forward)
         self.origin = np.array(position, dtype=float, copy=True)
         q = np.asarray(quaternion, dtype=float)
         if self.origin.shape != (3,) or q.shape != (4,) or not np.all(np.isfinite([*self.origin, *q])) or abs(norm(q)-1) > .02:
@@ -37,7 +40,7 @@ class TakeoffFrame:
 
     def check(self, position):
         p = self.coordinates(position)
-        if not np.all(np.isfinite(p)) or not (-.10 <= p[0] <= 5 and abs(p[1]) <= 2 and -.10 <= p[2] <= 2):
+        if not np.all(np.isfinite(p)) or not (-.10 <= p[0] <= self.max_forward and abs(p[1]) <= 2 and -.10 <= p[2] <= 2):
             raise ValueError('Outside forward/left/floor-height envelope: '+str(p.round(4).tolist()))
         return p
 
@@ -87,7 +90,11 @@ class Plan:
 
 class Reference:
     """A terminal state is permanent for this process; no automatic new goal."""
-    def __init__(self, frame):
+    def __init__(self, frame, max_speed=.3, max_acceleration=.5):
+        if (not all(math.isfinite(v) for v in (max_speed,max_acceleration))
+                or not 0 < max_speed <= 2. or not 0 < max_acceleration <= 1.):
+            raise ValueError('Invalid reference motion limits')
+        self.max_speed,self.max_acceleration = float(max_speed),float(max_acceleration)
         self.frame = frame
         self.plans = deque(maxlen=24)
         self.phase = 'WAIT_TRAJECTORY'
@@ -123,8 +130,8 @@ class Reference:
             if norm(position-self.last[1]) > .05:
                 self.restarts_blocked += 1
             return False  # Keep the verified endpoint; never accept another trajectory.
-        if norm(velocity) > .3+1e-9 or norm(acceleration) > .5+1e-9:
-            raise ValueError('Advertised planner derivative exceeds 0.3/0.5')
+        if norm(velocity) > self.max_speed+1e-9 or norm(acceleration) > self.max_acceleration+1e-9:
+            raise ValueError(f'Advertised planner derivative exceeds {self.max_speed:g}/{self.max_acceleration:g}')
         plan = next((p for p in reversed(self.plans) if p.matches(stamp,raw,velocity,acceleration)),None)
         if plan is None:
             return None  # DDS topics may arrive in either order; bounded node queue retries.
@@ -142,7 +149,7 @@ class Reference:
         else:
             dt = (stamp-self.last[0])/1e9
             step = norm(position-self.last[1])
-            allowed_step = .015+.3*dt
+            allowed_step = .015+self.max_speed*dt
             if dt > .25 or step > allowed_step:
                 triggers = []
                 if dt > .25:triggers.append('stamp gap')

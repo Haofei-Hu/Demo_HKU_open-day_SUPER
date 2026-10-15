@@ -96,7 +96,7 @@ def capture_summary(rows):
 def observe(gate):
     from nav_msgs.msg import Odometry
     from rclpy.qos import QoSProfile,ReliabilityPolicy
-    rows=[];last_receipt=None;bad=None;last_stamp=0
+    rows=[];last_receipt=None;bad=None;last_stamp=0;unstable_detail=None
     def receive(msg):
         nonlocal last_receipt,bad,last_stamp
         if msg.header.frame_id!='camera_init' or msg.child_frame_id!='body':
@@ -109,12 +109,16 @@ def observe(gate):
         if stamp<=last_stamp or stamp<=0 or not -.05<=age<=.25:return
         last_stamp=stamp;last_receipt=time.monotonic()
         rows.append((last_receipt,p.x,p.y,p.z))
+        # Keep one sample at/before the trailing three-second boundary.
+        # An early excursion must age out before a new stable window qualifies.
+        while len(rows)>1 and rows[1][0]<=last_receipt-3.:
+            rows.pop(0)
         if len(rows)>512:rows.pop(0)
     subscription=gate.node.create_subscription(Odometry,'/Odometry',receive,
         QoSProfile(depth=16,reliability=ReliabilityPolicy.BEST_EFFORT))
     identity=None
     def ready():
-        nonlocal identity
+        nonlocal identity,unstable_detail
         if not gate.grounded():raise RuntimeError('Ground state lost while observing map reference')
         if bad:raise RuntimeError(bad)
         if last_receipt is not None and time.monotonic()-last_receipt>.25:
@@ -128,16 +132,22 @@ def observe(gate):
         if len(rows)<50 or rows[-1][0]-rows[0][0]<3.:return False
         span,ranges,change=capture_summary(rows)
         if any(value>.025 for value in ranges):
-            raise RuntimeError(
+            unstable_detail=(
                 'Raw position is not stationary within 0.025 m per axis; '
                 f'raw XYZ range cm={[round(value*100,3) for value in ranges]}; '
                 f'first-to-last XYZ change cm={[round(value*100,3) for value in change]}; '
                 f'window={span:.3f}s; samples={len(rows)}; '
                 'capture limit is separate from the 0.10 m flight/reference envelope; '
                 'no map profile written')
+            return False
         return True
     try:
-        gate.wait(ready,'three seconds of fresh stationary raw odometry')
+        try:
+            gate.wait(ready,'three seconds of fresh stationary raw odometry')
+        except RuntimeError as exc:
+            if str(exc).startswith('Timed out waiting for three seconds') and unstable_detail:
+                raise RuntimeError(unstable_detail+'; no stable 3 s window within the 12 s observation budget') from exc
+            raise
         gate.check()
         return dict(raw_z=sum(row[3] for row in rows)/len(rows),raw_source_gid=identity)
     finally:gate.node.destroy_subscription(subscription)
@@ -155,6 +165,7 @@ def main():
         if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
             raise RuntimeError('Native control writer present; no session-map update')
         digest=hashlib.sha256(args.alignment_path.read_bytes()).hexdigest()
+        print('Map capture: wait up to 12 s for a fresh 3 s window within 2.5 cm per raw axis',flush=True)
         observation=observe(gate)
         if hashlib.sha256(args.alignment_path.read_bytes()).hexdigest()!=digest:
             raise RuntimeError('Alignment changed during map observation')

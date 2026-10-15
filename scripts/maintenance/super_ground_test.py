@@ -47,14 +47,25 @@ def alignment_quaternion(report, max_spread=2.):
     return q
 
 
+def ground_speed_prerequisites(report):
+    """Accept only the explicit ground profile; do not redefine flight readiness."""
+    checks=report.get('checks',{})
+    required={'connected_disarmed_on_ground','fresh_valid_localization','fc_vision_pose_agreement',
+              'required_parameters','local_ned','no_native_control_publishers',
+              'single_localization_sources','managed_processes_active','ground_speed_profile'}
+    exempt={'posctl_with_manual_input','fresh_rc_with_seven_channels','single_rc_source','reserved_3d_planner'}
+    return (not report.get('errors') and all(checks.get(name) is True for name in required)
+            and all(passed or name in exempt for name,passed in checks.items()))
+
+
 class AuditObserver:
     """Observe the existing checker and trigger only its disarmed audit."""
-    def __init__(self):
+    def __init__(self,motion_limits=None):
         from nav_msgs.msg import Odometry
         from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
         from std_msgs.msg import String
         from rclpy.qos import QoSProfile, ReliabilityPolicy
-        from control_chain_age_check import Series
+        from control_chain_age_check import Series,Motion
         self.Series = Series
         self.gate = manager.GroundGate()
         self.status = None
@@ -68,12 +79,17 @@ class AuditObserver:
         self.audit_request_attempted = False
         self.audit_acknowledged = False
         self.source_identities = {}
+        self.motion_limits=motion_limits
+        self.motion=Motion() if motion_limits is not None else None
         self.kinds = {
             '/Odometry': (Odometry, 'camera_init'),
             '/super_debug/aligned_pose_cov': (PoseWithCovarianceStamped, 'px4_enu_preview'),
             '/mavros/vision_pose/pose_cov': (PoseWithCovarianceStamped, 'px4_enu_preview'),
             '/mavros/local_position/pose': (PoseStamped, 'map'),
         }
+        if self.motion is not None:
+            from mars_quadrotor_msgs.msg import PositionCommand
+            self.kinds['/planning/pos_cmd']=(PositionCommand,'world')
         self.series = {name: Series() for name in self.kinds}
         qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
         for topic, (kind, _) in self.kinds.items():
@@ -88,6 +104,10 @@ class AuditObserver:
         age = (self.gate.node.get_clock().now().nanoseconds-ns)/1e9
         series = self.series[topic]
         series.add(time.monotonic(), ns, age)
+        if topic=='/planning/pos_cmd':
+            vectors=[tuple(getattr(getattr(msg,field),axis) for axis in ('x','y','z'))
+                     for field in ('position','velocity','acceleration')]
+            self.motion.add(ns,msg.header.frame_id,msg.trajectory_flag,*vectors)
         if msg.header.frame_id != self.kinds[topic][1] or (
                 topic == '/Odometry' and msg.child_frame_id != 'body'):
             series.bad_frames += 1
@@ -140,6 +160,11 @@ class AuditObserver:
         if self.active:
             if self.freshness_fault:
                 raise RuntimeError(self.freshness_fault)
+            if self.motion is not None and (self.motion.invalid
+                    or self.motion.speed>self.motion_limits[0]+1e-9
+                    or self.motion.acceleration>self.motion_limits[1]+1e-9):
+                raise RuntimeError(f'Planner motion exceeds limits {self.motion_limits}: '
+                    f'peak speed={self.motion.speed:.6f}, acceleration={self.motion.acceleration:.6f}')
             if not self.gate.localization_ready():
                 raise RuntimeError('Ground localization became stale or invalid during audit')
             if now-self.status_at > 2.:
@@ -197,9 +222,17 @@ class AuditObserver:
                 receive_gap_max_s=s.gap_max, last_receive_age_s=now-s.last_receive,
                 invalid_stamps=s.invalid, nonincreasing_stamps=s.reordered,
                 unexpected_frames=s.bad_frames, publisher_identities_discovered=len(s.sources))
-        return dict(trigger_success=True, duration_s=now-began, end_hold_s=self.end_hold,
+        report=dict(trigger_success=True, duration_s=now-began, end_hold_s=self.end_hold,
                     final_status=self.status, phases=self.states, topics=topics,
                     sampled_vision_chain_fresh=True, observer_loop_gap_max_s=loop_gap)
+        if self.motion is not None:
+            if not self.motion.within(*self.motion_limits):
+                raise RuntimeError('Insufficient or invalid planner motion samples')
+            report['planner_motion']=dict(n=self.motion.n,peak_speed_mps=self.motion.speed,
+                peak_acceleration_mps2=self.motion.acceleration,
+                speed_limit_mps=self.motion_limits[0],acceleration_limit_mps2=self.motion_limits[1],
+                requested_speed_is_a_limit=True,physical_speed_verified=False)
+        return report
 
     def snapshot(self):
         """Retain partial evidence even if the audit or its acknowledgement fails."""
@@ -209,6 +242,9 @@ class AuditObserver:
             audit_acknowledged=self.audit_acknowledged, final_status=self.status,
             end_hold_s=self.end_hold, phases=self.states,
             freshness_fault=self.freshness_fault,
+            planner_motion=(dict(n=self.motion.n,peak_speed_mps=self.motion.speed,
+                peak_acceleration_mps2=self.motion.acceleration,invalid=self.motion.invalid)
+                if self.motion is not None else None),
             topics={name:dict(n=s.n, age_min_s=finite(s.age_min),age_max_s=finite(s.age_max),
                 receive_gap_max_s=s.gap_max,invalid_stamps=s.invalid,
                 nonincreasing_stamps=s.reordered,unexpected_frames=s.bad_frames,
@@ -233,6 +269,11 @@ class GroundTest:
             started_at=datetime.now().astimezone().isoformat(),
             mode_or_arming_requests=False, flight_verified=False,
             alignment_max_spread_deg=args.max_alignment_spread_deg)
+        self.report['test_profile']=args.test_profile
+        self.report['map_capture_range_cm']=2.5
+        self.report['map_capture_max_wait_s']=12.
+        self.report['requested_reference']=(dict(forward_m=5.,speed_limit_mps=2.,acceleration_limit_mps2=1.)
+            if args.test_profile=='forward-5m-2mps' else dict(forward_m=.3,speed_limit_mps=.25,acceleration_limit_mps2=.45))
         self.observer = None
 
     def action(self, action, *extra):
@@ -257,12 +298,18 @@ class GroundTest:
             if result.returncode:
                 raise RuntimeError(f'{action} failed; inspect {logfile}')
         finally:
+            if stage.get('returncode') != 0 and logfile.is_file():
+                stage['output_tail']='\n'.join(logfile.read_text(errors='replace').splitlines()[-80:])
+                self.report['failure_output']=stage['output_tail']
             write_report(self.path, self.report)
 
     def prepare(self):
         """Reusable preparation; any future flight entry must add fresh flight gates."""
         required = (*manager.SCRIPTS, 'super_session.py', 'control_chain_age_check.py',
                     'super_flight_control.py', 'ground_setpoint_transport.py')
+        if self.args.test_profile=='forward-5m-2mps':
+            required+=('ground_speed_audit.py','create_super_speed_ground_profile.py',
+                       'create_super_motion_profiles.py','bounded_reference_preview.py')
         for name in required:
             if not (self.args.scripts_dir/name).is_file():
                 raise RuntimeError('Missing prerequisite: '+name)
@@ -281,7 +328,8 @@ class GroundTest:
         q = alignment_quaternion(measured, self.args.max_alignment_spread_deg)
         print('Applying this run\'s measured quaternion xyzw:', q, flush=True)
         self.action('vision', *q)
-        self.action('planner', '--planner-profile', 'low-speed-3d')
+        profile='forward-5m-2mps' if self.args.test_profile=='forward-5m-2mps' else 'low-speed-3d'
+        self.action('planner','--planner-profile',profile)
         self.session.load()
         self.report['session'] = self.session.config
 
@@ -290,18 +338,26 @@ class GroundTest:
         print('Report:', self.path, flush=True)
         try:
             self.prepare()
-            self.action('handover-check')
+            fast=self.args.test_profile=='forward-5m-2mps'
+            self.action('speed-check' if fast else 'handover-check')
             self.report['stage'] = 'audit'
             write_report(self.path, self.report)
-            self.observer = AuditObserver()
+            self.observer = AuditObserver(motion_limits=(2.,1.)) if fast else AuditObserver()
             self.observer.wait_ready()
             self.report['audit'] = self.observer.audit(self.args.sample_seconds)
+            if fast:
+                motion=self.report['audit']['planner_motion']
+                print(f'PLANNER PEAK: {motion["peak_speed_mps"]:.6f} m/s; '
+                      f'{motion["peak_acceleration_mps2"]:.6f} m/s^2; limits 2/1.',flush=True)
             self.observer.close()
             self.observer = None
             snapshot = self.folder/'flight_check.json'
             self.action('flight-check', '--report-json', snapshot)
             self.report['readiness'] = json.loads(snapshot.read_text())
-            if not self.report['readiness'].get('remote_preparation_checks_passed'):
+            ready=(ground_speed_prerequisites(self.report['readiness']) if fast else
+                   self.report['readiness'].get('remote_preparation_checks_passed'))
+            self.report['ground_prerequisites_passed']=bool(ready)
+            if not ready:
                 raise RuntimeError('Remote preparation snapshot failed; inspect flight_check.json')
             self.report.update(result='SUCCESS', passed=True, stage='complete')
             print('Stack retained. Flight and reboot repeatability are not established by this run.', flush=True)
@@ -333,10 +389,14 @@ def arguments(argv=None):
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--restart', action='store_true', help='explicitly replace a managed grounded/disarmed session')
     parser.add_argument('--fixed-lio-extrinsics', action='store_true', help='use the existing fixed-extrinsic startup override')
+    parser.add_argument('--test-profile',choices=('handover','forward-5m-2mps'),default='handover',
+                        help='ground audit: default 0.30 m low speed, or 5 m at max 2 m/s and 1 m/s^2')
     parser.add_argument('--max-alignment-spread-deg', type=float, default=2., help='automatic survey acceptance limit, default 2 degrees')
-    parser.add_argument('--sample-seconds', type=float, default=30., help='concurrent audit observation, 20 to 300 seconds')
+    parser.add_argument('--sample-seconds', type=float, help='concurrent observation, 20..300 s; default 30, or 40 for 5 m test')
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.sample_seconds is None:
+        args.sample_seconds=40. if args.test_profile=='forward-5m-2mps' else 30.
     args.scripts_dir = args.scripts_dir.expanduser().resolve()
     if (not math.isfinite(args.sample_seconds) or not 20 <= args.sample_seconds <= 300
             or not math.isfinite(args.max_alignment_spread_deg) or not 0 < args.max_alignment_spread_deg <= 5):

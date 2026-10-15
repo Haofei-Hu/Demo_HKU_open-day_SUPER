@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-15",
+  "source": "Uploaded automatic report and onboard planner-stage log",
+  "run_id": "20261015_181501_488238",
+  "core_session_id": "20261015_181501_551320",
+  "result": "FAIL",
+  "failed_stage": "planner",
+  "prior_stages_passed": [
+    "start",
+    "align",
+    "vision"
+  ],
+  "cause": "Raw Z range exceeded the 2.5 cm map-anchor capture criterion in the initial three-second window",
+  "capture_samples": 151,
+  "capture_span_s": 3.001,
+  "raw_xyz_range_cm": [
+    1.366,
+    1.134,
+    2.676
+  ],
+  "first_to_last_xyz_change_cm": [
+    -0.672,
+    -0.397,
+    2.018
+  ],
+  "z_excess_mm": 1.76,
+  "map_profile_written": false,
+  "planner_started": false,
+  "resolution": "Retain 2.5 cm per axis and wait within the existing 12-second budget for a qualifying trailing three-second window; no restarts or tolerance increase",
+  "updated_aircraft_run_verified": false,
+  "actual_physical_movement_inferred": false
+}

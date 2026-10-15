@@ -27,6 +27,29 @@ from control_bridge_preview import Mapping,quaternion_rpy
 from bounded_reference_preview import Plan
 
 
+def speed_plan(start,end,when,scale=1.):
+    """Continuous p/v/a S-curve: 5 m, peak 2 m/s, peak 1 m/s^2, jerk 4."""
+    durations=[.25,1.75,.25,.25,.25,1.75,.25]
+    jerks=[4.,0.,-4.,0.,-4.,0.,4.]
+    direction=(np.asarray(end)-np.asarray(start))/5.
+    pieces=[[],[],[]];position=velocity=acceleration=0.
+    for duration,jerk in zip(durations,jerks):
+        for axis in range(3):
+            coefficients=[0.,0.,0.,0.,jerk/6,acceleration/2,velocity,position]
+            coefficients=np.array(coefficients)*direction[axis]
+            coefficients[-1]+=start[axis]
+            coefficients/=np.array([scale**power for power in range(7,-1,-1)])
+            pieces[axis].extend(map(float,coefficients))
+        position+=velocity*duration+acceleration*duration**2/2+jerk*duration**3/6
+        velocity+=acceleration*duration+jerk*duration**2/2
+        acceleration+=jerk*duration
+    msg=PolynomialTrajectory();msg.header.frame_id='world'
+    msg.type=3;msg.order_pos=7;msg.piece_num_pos=7;msg.start_wt_pos=float(when)
+    msg.time_pos=[duration*scale for duration in durations]
+    msg.coef_pos_x,msg.coef_pos_y,msg.coef_pos_z=pieces
+    return msg
+
+
 def run(case):
     with tempfile.TemporaryDirectory() as directory:
         alignment=Path(directory)/'alignment.py'
@@ -34,7 +57,8 @@ def run(case):
         config=Path(directory)/'planner.yaml'
         cfg=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
         cfg['fsm']['click_height']=-6.
-        cfg['traj_opt']['boundary'].update(max_vel=.25,max_acc=.45)
+        fast=case.startswith('audit_speed5')
+        cfg['traj_opt']['boundary'].update(max_vel=2. if fast else .25,max_acc=1. if fast else .45)
         config.write_text(yaml.safe_dump(cfg))
         rclpy.init()
         params=Node('param',namespace='/mavros')
@@ -60,7 +84,11 @@ def run(case):
         pubs={name:probe.create_publisher(kind,topic,10) for name,(kind,topic) in kinds.items()}
         executor=SingleThreadedExecutor()
         for node in (params,frame,probe):executor.add_node(node)
-        bridge=SuperFlightControl(execute=execute,alignment_path=alignment,planner_config=config)
+        if fast:
+            from ground_speed_audit import GroundSpeedAudit
+            bridge=GroundSpeedAudit(alignment_path=alignment,planner_config=config)
+        else:
+            bridge=SuperFlightControl(execute=execute,alignment_path=alignment,planner_config=config)
         executor.add_node(bridge)
 
         telemetry_ticks=0
@@ -104,6 +132,10 @@ def run(case):
                 pubs[name].publish(msg)
 
         def make_plan(start,end,when):
+            if fast:
+                msg=speed_plan(start,end,when,scale=.8 if case=='audit_speed5_overspeed' else 1.)
+                stamp(msg)
+                return msg
             duration=4.
             msg=PolynomialTrajectory();stamp(msg);msg.header.frame_id='world'
             msg.type=3;msg.order_pos=7;msg.piece_num_pos=1;msg.start_wt_pos=float(when);msg.time_pos=[duration]
@@ -117,7 +149,7 @@ def run(case):
             goals.append(msg)
             end=np.array([msg.pose.position.x,msg.pose.position.y,msg.pose.position.z])
             start=settings['pose'].copy()
-            if case=='audit_corridor':start+=bridge.frame.axes.T@np.array([0.,.11,0.])
+            if case in ('audit_corridor','audit_speed5_corridor'):start+=bridge.frame.axes.T@np.array([0.,.11,0.])
             delay=.4 if case=='audit_overlap' else .1
             plan=make_plan(start,end,probe.get_clock().now().nanoseconds/1e9+delay)
             settings['plan']=plan
@@ -229,16 +261,22 @@ def run(case):
             else:
                 assert not call(audit_client).success
                 assert call(start_client).success
-            if case=='audit_corridor':
+            if case in ('audit_corridor','audit_speed5_corridor'):
                 wait(lambda:bridge.phase=='STOPPED')
                 assert 'outside initial straight-line handover corridor' in bridge.fault
                 assert bridge.follower.accepted==0
                 assert not requests and not native and len(goals)==1
                 print('PASS:',case,bridge.phase)
                 return
+            if case=='audit_speed5_overspeed':
+                wait(lambda:bridge.phase=='STOPPED')
+                assert 'derivative' in bridge.fault,bridge.fault
+                assert not requests and not native and len(goals)==1
+                print('PASS:',case,bridge.fault)
+                return
             wait(lambda:bridge.phase in ('TRACK','AUDIT_TRACK'),seconds=24)
             assert len(goals)==1
-            if case=='audit_restart':
+            if case in ('audit_restart','audit_speed5_restart'):
                 spin(1.8);settings['restart']=True
                 wait(lambda:bridge.phase=='STOPPED')
                 assert 'discontinuity' in bridge.fault
@@ -269,11 +307,13 @@ def run(case):
             else:
                 wait(lambda:bridge.phase=='END_HOLD' if execute else bridge.phase=='AUDIT_END')
                 held=bridge.follower.last[1].copy()
-                spin(6.2 if case=='audit_sustained_hold' else .4)
+                spin(6.2 if case in ('audit_sustained_hold','audit_speed5_hold') else .4)
                 assert np.array_equal(held,bridge.follower.last[1]),'Restart altered terminal reference'
-                if case=='audit_sustained_hold':
+                if case in ('audit_sustained_hold','audit_speed5_hold'):
                     assert bridge.phase=='AUDIT_END' and bridge.fault is None
                     assert sum(status.startswith('AUDIT_END:') for status in statuses)>=6
+                    if fast:
+                        assert np.allclose(bridge.frame.coordinates(held),[5.,0.,.085],atol=1e-8)
                 if execute:
                     wait(lambda:bridge.phase=='DONE')
                     assert requests==['OFFBOARD','ARM','AUTO.LAND']

@@ -10,13 +10,22 @@ The automatic ground runner subsequently completed the full aircraft workflow wi
 
 ## Quick Start: restore the aircraft after reboot
 
-For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing its three updated scripts:
+For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing the matching script release:
 
 ```bash
 python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics
 ```
 
 This captures and applies a fresh quaternion, prepares the session map, runs one ground audit and saves a structured report. It preserves flight initiation as a separate operation; a passing ground result does not initiate takeoff. The manual steps below remain available for diagnosis.
+
+For the separate 5 m forward reference audit, capped at 2 m/s and 1 m/s²:
+
+```bash
+python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics \
+  --test-profile forward-5m-2mps
+```
+
+This also remains disarmed and produces debug output only. The report records the actual sampled planner peaks and `SUCCESS`/`FAIL`; it does not establish physical 2 m/s tracking. Map capture retains the 2.5 cm per-axis limit and waits up to 12 seconds for a complete stable three-second window. See [the test profile](docs/AUTOMATED_GROUND_TEST.md#forward-5-m-ground-audit) for installation and result interpretation.
 
 An earlier fresh-session trial exposed a planner map-height mismatch while localization and parameter checks remained healthy. Managed `low-speed-3d` startup now generates frozen session-relative vertical map bounds without changing the source profile, obstacle clouds or flight margins. Aircraft capture, planning and a complete disarmed audit subsequently passed using this profile; intermittent startup freshness and capture failures still require repeatability evidence. See [October 15 progress](docs/PROGRESS_2026-10-15.md).
 

@@ -20,7 +20,7 @@ Keep the aircraft stationary, disarmed and on its takeoff floor. `--restart` exp
 6. Call `/super_flight/audit` once. Observe the audit and all four localization streams concurrently for 30 seconds. Require a continuous, fresh `AUDIT_END` hold of at least six seconds with accepted references.
 7. Save the read-only preparation snapshot and require `remote_preparation_checks_passed` before reporting `SUCCESS`.
 
-The automatic quaternion acceptance policy requires at least 20 matched samples, unit/finite components, pairing gap at most 50 ms, body timestamp ages between -50 and 250 ms, and maximum rotation spread at most 2 degrees. `--max-alignment-spread-deg` makes that last automation criterion explicit and configurable; it changes neither flight tracking tolerances nor map-capture limits. The existing 2.5 cm map-capture criterion and 10 cm flight/reference margins remain unchanged.
+The automatic quaternion acceptance policy requires at least 20 matched samples, unit/finite components, pairing gap at most 50 ms, body timestamp ages between -50 and 250 ms, and maximum rotation spread at most 2 degrees. `--max-alignment-spread-deg` makes that last automation criterion explicit and configurable; it changes neither flight tracking tolerances nor map-capture limits. Map capture waits within its existing 12-second observation budget for a complete trailing three-second window with at least 50 samples and no more than 2.5 cm range on each raw axis. An early excursion can age out; continuous instability still fails without writing a map profile. Ground-state loss, source conflicts and odometry gaps still stop capture immediately. The 10 cm flight/reference margins remain unchanged.
 
 Both receipt gaps and timestamp ages are checked during the audit. Missing/invalid estimator state, changed or duplicate input sources, a native control publisher, stale status, controller faults or a rejected audit fail the run. The audit request is never replayed after a lost acknowledgement. A single failed step stops the sequence; there are no automatic node restarts, survey retries, rebases or tolerance changes.
 
@@ -38,7 +38,7 @@ Every run creates:
     <stage-number>_<action>.log
 ```
 
-`report.json` records the failed/current stage, measured quaternion, managed session/log directory, audit transitions, four-stream timing and the final readiness snapshot. Failure reports include partial audit evidence when available. Native node logs remain under the existing `super_session_logs` directory. A failed run exits nonzero; a completed ground run exits zero. Missing RC/manual POSCTL is retained in the readiness snapshot but does not turn a valid remote ground preparation into a flight approval.
+`report.json` records the failed/current stage, measured quaternion, managed session/log directory, audit transitions, input timing and the final readiness snapshot. Failure reports include partial audit evidence when available and the last 80 lines of a failed stage's output, so an uploaded report retains the underlying subprocess error. Native node logs remain under the existing `super_session_logs` directory. A failed run exits nonzero; a completed ground run exits zero. Missing RC/manual POSCTL is retained in the readiness snapshot but does not turn a valid remote ground preparation into a flight approval.
 
 After the final report is saved, the terminal ends with `RESULT: SUCCESS` or `RESULT: FAIL`, followed by `REPORT: <absolute path>`. The JSON uses the same `result` value, records start/finish times and includes `failed_stage` plus `error` on failure. In-progress reports use `RUNNING`. A `SUCCESS` result refers to the complete disarmed test, not flight readiness.
 
@@ -58,8 +58,25 @@ On Ubuntu's Python 3.10, the runner must place common options before the action 
 
 Manual alignment is unchanged. `super_session.py align --report-json NEW_FILE` additionally writes a machine-readable survey; `flight-check --report-json NEW_FILE` writes the readiness snapshot. Neither output may overwrite an existing file. Saving a manual survey does not apply it automatically.
 
+## Forward 5 m ground audit
+
+After installing the matching speed-audit release, run:
+
+```bash
+python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics \
+  --test-profile forward-5m-2mps
+```
+
+This runs the same fresh-session preparation and one-goal audit with a separate `forward-5m-2mps` planner profile. The requested reference moves 5 m along the locked takeoff heading at unchanged height, with a 3D speed limit of 2 m/s and acceleration limit of 1 m/s². The aircraft remains disarmed. The test publishes debug references, observes for 40 seconds by default and requires at least six seconds of `AUDIT_END`. It checks initial and endpoint offsets and the straight reference corridor against the existing 10 cm per-axis allowance. Its forward envelope extends to 5.10 m to include that endpoint allowance; this is not an increased tracking-error tolerance.
+
+The observer also samples `/planning/pos_cmd`, rejects invalid or above-limit advertised derivatives and saves `audit.planner_motion` with sample count and measured peak speed/acceleration. The terminal prints `PLANNER PEAK` on a passing audit. Two metres per second is an upper bound; optimization, map geometry and route length can produce a lower peak. These are planner reference derivatives, not measured physical aircraft speed.
+
+The matching update comprises the runner, manager, map helper, `super_flight_control.py`, `bounded_reference_preview.py`, `ground_speed_audit.py`, `create_super_speed_ground_profile.py` and its existing `create_super_motion_profiles.py` dependency. The speed-profile helper changes only velocity and acceleration in a separate YAML, preserving the source configuration. The manager launches the dedicated checker through `speed-check`; its command line has no execution option. Extended distance/speed configurations are also refused by the base controller when execution is requested.
+
+PX4 parameters, including its existing 0.5 m/s limits, are unchanged. The final snapshot deliberately keeps `reserved_3d_planner=false` for this profile. The runner checks a separate `ground_speed_profile` prerequisite rather than labeling it ready for flight. `SUCCESS` establishes this disarmed planning/reference test only. The default command above still runs the original 0.30 m low-speed audit.
+
 ## Future supervised flight entry
 
 Preparation is isolated in `GroundTest.prepare()` and auditing in `AuditObserver`. A future flight runner can reuse preparation while replacing the audit stage with a separate, explicitly requested flight lifecycle. It must recheck current RC/manual POSCTL, landed state, valid localization, source/configuration identity, single control ownership, parameter limits and on-site supervision before enabling any flight output. A saved ground report is not sufficient authorization or current evidence for takeoff.
 
-The current runner has no `--execute` option and creates no native setpoint publisher, mode client or arming client. Its sole controller trigger is the disarmed audit service. In addition to isolated ROS validation, aircraft run `20261015_164840_712974` completed the full automatic sequence with `RESULT: SUCCESS` and a saved report. See [the run record](../data/observed_2026-10-15/automatic_ground_success.json) for its evidence and limits; this one ground result does not establish airborne tracking, long-term localization stability or repeatability across restarts.
+The current runner has no `--execute` option, creates no native setpoint publisher and sends no mode or arming requests. Its sole controller trigger is the disarmed audit service. In addition to isolated ROS validation, aircraft run `20261015_164840_712974` completed the original automatic sequence with `RESULT: SUCCESS` and a saved report. See [the run record](../data/observed_2026-10-15/automatic_ground_success.json) for its evidence and limits; this one ground result does not establish the new 5 m aircraft audit, airborne tracking, long-term localization stability or repeatability across restarts.

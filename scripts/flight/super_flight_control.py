@@ -52,6 +52,10 @@ def inverse_goal(mapping, raw_pose, target):
 
 
 class SuperFlightControl(FirstHoverControl):
+    PLANNER_LIMITS=(.25,.45)
+    REFERENCE_LIMITS=(.3,.5)
+    MAX_DISTANCE=.3
+    FRAME_FORWARD_LIMIT=5.
     NODE_NAME='super_flight'
     DEBUG_TOPIC='/super_debug/super_flight_target'
     START_SERVICE='/super_flight/start'
@@ -66,8 +70,11 @@ class SuperFlightControl(FirstHoverControl):
 
     def __init__(self,execute=False,hover_fc_height=1.,hold_seconds=6.,distance=.3,
                  alignment_path=None,planner_config=None):
-        if not math.isfinite(distance) or not 0<distance<=.3:
-            raise ValueError('Initial SUPER handover distance must be in (0, 0.30] m')
+        if execute and (self.PLANNER_LIMITS!=(.25,.45) or self.REFERENCE_LIMITS!=(.3,.5)
+                        or self.MAX_DISTANCE>.3 or self.FRAME_FORWARD_LIMIT>5.):
+            raise ValueError('Extended speed/distance profiles are ground-audit only; flight blocked')
+        if not math.isfinite(distance) or not 0<distance<=self.MAX_DISTANCE:
+            raise ValueError(f'Initial SUPER handover distance must be in (0, {self.MAX_DISTANCE:g}] m')
         self.callback_runtime=self.max_callback_runtime=self.max_timer_gap=0.
         super().__init__(execute,hover_fc_height,hold_seconds)
         self.distance=float(distance)
@@ -82,9 +89,9 @@ class SuperFlightControl(FirstHoverControl):
         cfg=yaml.safe_load(self.config_bytes)
         if (cfg['fsm']['click_height']!=-6. or cfg['fsm']['click_goal_topic']!='/goal_pose'
                 or not cfg['fsm']['click_goal_en'] or cfg['fsm']['cmd_topic']!='/planning/pos_cmd'
-                or cfg['traj_opt']['boundary']['max_vel']!=.25
-                or cfg['traj_opt']['boundary']['max_acc']!=.45):
-            raise ValueError('Need the reserved low-speed-3d planner profile')
+                or cfg['traj_opt']['boundary']['max_vel']!=self.PLANNER_LIMITS[0]
+                or cfg['traj_opt']['boundary']['max_acc']!=self.PLANNER_LIMITS[1]):
+            raise ValueError(f'Need 3D planner limits {self.PLANNER_LIMITS}; profile mismatch')
         self.mapping=Mapping(load_converter(self.alignment_path))
         self.raw_cache={};self.aligned_cache={}
         self.pair_ns=0;self.raw_pose=None;self.aligned_pose=None
@@ -107,7 +114,7 @@ class SuperFlightControl(FirstHoverControl):
         self.create_service(Trigger,'/super_flight/audit',self.audit)
         self.create_timer(1.,self.report)
         self.get_logger().info('SUPER HANDOVER: '+('explicit flight start required; ' if execute else
-            'DISARMED AUDIT ONLY; ')+f'forward {distance:g} m, 0.25/0.45 planner, '
+            'DISARMED AUDIT ONLY; ')+f'forward {distance:g} m, {self.PLANNER_LIMITS[0]:g}/{self.PLANNER_LIMITS[1]:g} planner, '
             'initial/endpoint/tracking tolerance 0.10 m per axis; one goal, no restart forwarding.')
 
     @staticmethod
@@ -245,7 +252,8 @@ class SuperFlightControl(FirstHoverControl):
     def change(self,phase):
         super().change(phase)
         if phase=='READY':
-            self.frame=TakeoffFrame(self.reference.ground,quaternion_rpy(0.,0.,self.reference.yaw))
+            self.frame=TakeoffFrame(self.reference.ground,quaternion_rpy(0.,0.,self.reference.yaw),
+                                    max_forward=self.FRAME_FORWARD_LIMIT)
 
     def allowed_modes(self):
         return dict(super().allowed_modes(),WAIT_PLAN=('OFFBOARD',),TRACK=('OFFBOARD',),END_HOLD=('OFFBOARD',))
@@ -264,7 +272,7 @@ class SuperFlightControl(FirstHoverControl):
     def issue_goal(self):
         if self.goal_pub.get_subscription_count()<1 or self.count_publishers('/goal_pose')!=1:
             raise ValueError('Need planner goal subscriber and this controller as sole goal source')
-        self.follower=Reference(self.frame)
+        self.follower=Reference(self.frame,*self.REFERENCE_LIMITS)
         self.pending.clear();self.poly_pending.clear()
         target=np.array(self.reference.ground,dtype=float)
         target+=self.frame.axes.T@np.array([self.distance,0.,self.reference.lift if self.execute else 0.])

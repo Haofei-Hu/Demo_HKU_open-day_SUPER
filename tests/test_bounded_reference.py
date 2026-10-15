@@ -21,6 +21,21 @@ def trajectory(start=100., distance=.1):
 
 
 class Tests(unittest.TestCase):
+    def test_high_speed_limits_are_explicit_and_defaults_remain_low(self):
+        frame=TakeoffFrame([0,0,0],[0,0,0,1],max_forward=5.1)
+        frame.check([5.099,0,0])
+        with self.assertRaises(ValueError):frame.check([5.101,0,0])
+        with self.assertRaises(ValueError):TakeoffFrame([0,0,0],[0,0,0,1]).check([5.001,0,0])
+        fast=Reference(frame,2.,1.)
+        self.assertEqual((fast.max_speed,fast.max_acceleration),(2.,1.))
+        # Derivative checking occurs even when no matching polynomial exists.
+        self.assertIsNone(fast.command(100000000000,[0,0,0],[2,0,0],[1,0,0],[0,0,0],[0,0,0,1]))
+        for velocity,acceleration in (([2.001,0,0],[0,0,0]),([0,0,0],[1.001,0,0])):
+            with self.assertRaisesRegex(ValueError,'derivative'):
+                fast.command(100000000000,[0,0,0],velocity,acceleration,[0,0,0],[0,0,0,1])
+        with self.assertRaisesRegex(ValueError,'derivative'):
+            Reference(frame).command(100000000000,[0,0,0],[2,0,0],[0,0,0],[0,0,0],[0,0,0,1])
+
     def reference(self):
         r=Reference(TakeoffFrame([0,0,0],[0,0,0,1]))
         r.add_plan(trajectory())
