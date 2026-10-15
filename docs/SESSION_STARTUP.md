@@ -12,6 +12,8 @@ The manager's parameter reads use one client and at most three requests within t
 
 The managed `low-speed-3d` profile also requires `create_session_map_profile.py` in Downloads. Before planner launch it captures a stable raw height and creates a separate session YAML with translated vertical map bounds. This accounts for the current LIO coordinate origin and ROG-Map's inflated virtual floor. The original YAML remains unchanged, the core-session anchor is frozen in `map_reference.json` under the session log directory, and planner restarts reuse it. After replacing the manager/helper, use `planner-stop` followed by `planner --planner-profile low-speed-3d` to load the new map; localization and alignment stay running. See [the coordinate-boundary repair](PROGRESS_2026-10-15.md).
 
+If map capture reports `Raw position is not stationary`, inspect the reported raw XYZ ranges and first-to-last changes. The capture uses a 0.025 m peak-to-peak criterion over at least three seconds; this is distinct from the 0.10 m flight/reference envelope. A rejected observation writes no map profile and does not launch the planner. Do not infer a physical movement or silently loosen either threshold from the generic error alone.
+
 Install tmux on onboard Ubuntu:
 
 ```bash

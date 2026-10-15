@@ -85,6 +85,14 @@ def create(source,target,record,observation,alignment_digest):
     return target
 
 
+def capture_summary(rows):
+    """Describe the exact raw-coordinate window used for the map anchor."""
+    span=rows[-1][0]-rows[0][0]
+    ranges=[max(r[i] for r in rows)-min(r[i] for r in rows) for i in (1,2,3)]
+    change=[rows[-1][i]-rows[0][i] for i in (1,2,3)]
+    return span,ranges,change
+
+
 def observe(gate):
     from nav_msgs.msg import Odometry
     from rclpy.qos import QoSProfile,ReliabilityPolicy
@@ -118,8 +126,15 @@ def observe(gate):
         if identity is not None and identity!=gid:raise RuntimeError('Raw source changed during observation')
         identity=gid
         if len(rows)<50 or rows[-1][0]-rows[0][0]<3.:return False
-        if any(max(r[i] for r in rows)-min(r[i] for r in rows)>.025 for i in (1,2,3)):
-            raise RuntimeError('Raw position is not stationary within 0.025 m per axis; no map profile written')
+        span,ranges,change=capture_summary(rows)
+        if any(value>.025 for value in ranges):
+            raise RuntimeError(
+                'Raw position is not stationary within 0.025 m per axis; '
+                f'raw XYZ range cm={[round(value*100,3) for value in ranges]}; '
+                f'first-to-last XYZ change cm={[round(value*100,3) for value in change]}; '
+                f'window={span:.3f}s; samples={len(rows)}; '
+                'capture limit is separate from the 0.10 m flight/reference envelope; '
+                'no map profile written')
         return True
     try:
         gate.wait(ready,'three seconds of fresh stationary raw odometry')

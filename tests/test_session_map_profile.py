@@ -21,6 +21,15 @@ def configuration():
 
 
 class Tests(unittest.TestCase):
+    def test_capture_diagnostics_distinguish_excursion_from_net_change(self):
+        span,ranges,change=m.capture_summary([
+            (10.,0.,0.,-1.),(11.,.04,-.03,-.99),(13.,.01,-.01,-1.)])
+        self.assertEqual(span,3.)
+        for actual,expected in zip(ranges,(.04,.03,.01)):
+            self.assertAlmostEqual(actual,expected)
+        for actual,expected in zip(change,(.01,-.01,0.)):
+            self.assertAlmostEqual(actual,expected)
+
     def test_recorded_below_ground_case_and_translated_effective_boundaries(self):
         cfg=configuration();original=deepcopy(cfg)
         self.assertAlmostEqual(m.effective_bounds(cfg)[0],-1.1)

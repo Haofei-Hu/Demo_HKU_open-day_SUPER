@@ -83,7 +83,12 @@ def run(case):
             expected={'movement':'not stationary','raw_gap':'odometry gap','armed':'Ground state lost',
                       'duplicate':'Multiple raw'}[case]
             try:m.observe(gate)
-            except RuntimeError as exc:assert expected in str(exc),str(exc)
+            except RuntimeError as exc:
+                assert expected in str(exc),str(exc)
+                if case=='movement':
+                    assert 'raw XYZ range cm=[0.0, 0.0, 5.0]' in str(exc),str(exc)
+                    assert 'first-to-last XYZ change cm=[0.0, 0.0, 5.0]' in str(exc),str(exc)
+                    assert 'no map profile written' in str(exc),str(exc)
             else:raise AssertionError('Invalid ground reference accepted: '+case)
         print('PASS: map reference observation',case,flush=True)
     finally:
