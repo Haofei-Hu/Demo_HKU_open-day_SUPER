@@ -107,7 +107,9 @@ class DemoTest(GroundTest):
             self.report['mission']=config;self.report['waypoints']=mission.waypoints()
             self.report['execution_context']='ground_rehearsal'
             self.report['requested_fc_floor_height_m']=mission.hover_height
-            print(f'ROUTE: {config["mission_id"]}; {mission.hover_height:g} m height, {mission.distance:g} m outbound, return, 6 s hover, LAND',flush=True)
+            self.report['round_trips_requested']=mission.round_trips
+            print(f'ROUTE: {config["mission_id"]}; {mission.hover_height:g} m height, '
+                  f'{mission.round_trips} round trips of {mission.distance:g} m each way, final 6 s hover, LAND',flush=True)
             scene=None
             if not self.args.logic_only:
                 self.open_qgc()
@@ -132,7 +134,9 @@ class DemoTest(GroundTest):
                                                         OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1'))
             child=json.loads((self.folder/'mission_report.json').read_text())
             self.report['mission_report']=child
-            if child.get('result')!='SUCCESS' or child.get('completed_stages')!=list(mission.PHASES):
+            self.report['round_trips_completed']=child.get('round_trips_completed',0)
+            if (child.get('result')!='SUCCESS' or child.get('completed_stages')!=list(mission.PHASES)
+                    or child.get('round_trips_completed')!=mission.round_trips):
                 raise RuntimeError('Complete ordered mission and confirmed landing were not established')
             actual=child.get('simulation_backend',{}).get('actual_SUPER_used') is True
             if not self.args.logic_only and not actual:raise RuntimeError('Real SUPER rehearsal was not used; no synthetic fallback allowed')
@@ -149,6 +153,7 @@ class DemoTest(GroundTest):
             if childpath.exists():
                 child=json.loads(childpath.read_text())
                 self.report['partial_mission_report']=child
+                self.report['round_trips_completed']=child.get('round_trips_completed',0)
                 # Planner participation and mission completion are independent facts.
                 self.report['actual_SUPER_tested']=child.get('simulation_backend',{}).get('actual_SUPER_used') is True
             print('ERROR:',self.report['error'],flush=True);return 1

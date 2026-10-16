@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "1cf2ce88d4f0d89e0b6d0ec1f6cea20cd9abc1c62f1d47c1d1362279e5cfdec7"
+      "sha256": "173b0ebe93ea2ded14c1b9b3dd872d01c6ce444acbbd1e67857e189dbdf90b70"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -11,15 +11,15 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "99d2215308a5f3f44719c4bb87c8376beba269f963109e2e36b28a4d73af4313"
+      "sha256": "ffc094637be41cf3a8fa23a1bfbc50be14f12299dc288e41091df66ce5352130"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "219dc6c89faba17e917c8abcebe493ca46c85d65dc5720ea4a6c29091d79fdf5"
+      "sha256": "9a9a5a3f2fcba5f4497969c068502a8d655accc4d1127b54a2d1fcd376849d1f"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "e71d4771e52aa4fe3339d6b88e7781b74e55fd75db48866e0c951f8124f430b2"
+      "sha256": "ba95c2645d1076a5e5d1e5b887f9e61285112f3ea605335f67a4f0cbf32b65ce"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
@@ -31,7 +31,7 @@
     },
     "super_flight_control.py": {
       "path": "scripts/flight/super_flight_control.py",
-      "sha256": "cc58d388edd74c71d55798234866a8381656c30abd85d8218b35e91e771e2bb6"
+      "sha256": "19a05db2f57876d99fa43750131020fba5ee417ed0c08a85d06bc0a4b73829cf"
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
@@ -79,7 +79,7 @@
     },
     "open_day_mission.json": {
       "path": "configs/demonstration/open_day_mission.json",
-      "sha256": "61d23c9f7524fde12adc30fbee3cd4fc452825b5abd4462c52157305d1634abf",
+      "sha256": "a09fd9af8488d50b48379a9b8a05149c3f4fb1061c32da1c1a90fa07c89be64a",
       "preserve_existing": true
     },
     "qgc_startup.py": {

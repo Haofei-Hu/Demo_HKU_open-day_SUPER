@@ -73,6 +73,9 @@ class SuperFlightControl(FirstHoverControl):
     def position_policy_message(self):
         return 'initial/endpoint/tracking tolerance 0.10 m per axis'
 
+    def goal_policy_message(self):
+        return 'one goal, no restart forwarding'
+
     def __init__(self,execute=False,hover_fc_height=1.,hold_seconds=6.,distance=.3,
                  alignment_path=None,planner_config=None):
         if execute and not self.ALLOW_EXTENDED_EXECUTION and (self.PLANNER_LIMITS!=(.25,.45) or self.REFERENCE_LIMITS!=(.3,.5)
@@ -120,7 +123,7 @@ class SuperFlightControl(FirstHoverControl):
         self.create_timer(1.,self.report)
         self.get_logger().info('SUPER HANDOVER: '+('explicit flight start required; ' if execute else
             'DISARMED AUDIT ONLY; ')+f'forward {distance:g} m, {self.PLANNER_LIMITS[0]:g}/{self.PLANNER_LIMITS[1]:g} planner, '
-            +self.position_policy_message()+'; one goal, no restart forwarding.')
+            +self.position_policy_message()+'; '+self.goal_policy_message()+'.')
 
     @staticmethod
     def stamp(msg):

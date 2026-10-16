@@ -1,0 +1,194 @@
+{
+  "scope": "Cloud ROS 2 Humble software checks and synthetic planner/virtual vehicle trials; no aircraft, actual PX4, or actual SUPER",
+  "focused_checks_passed": 64,
+  "deterministic_five_round_state_sequence": "PASS: ten alternating goals, original fixed endpoints, ten separate accepted/arrival records, no final hold before fifth return, one final six-second hold, eleventh goal rejected",
+  "partial_completion_rejected": "PASS: four rounds cannot pass even if a child reports success; ordered stages and round count are checked",
+  "physical_configuration_check": "PASS: controller initializes check state with 1.5 m target and five rounds, no start/output",
+  "deployment": "PASS: canonical legacy single round migrates to five with backup; measured geometry retained; repeated installation unchanged",
+  "long_ros_trials": [
+    {
+      "test_environment": "Default cloud ROS transport/scheduling",
+      "result": "FAIL",
+      "error": "Missing/stale local; receive_age=0.285085s (max 0.250000s); header_age=0.290611s (range -0.050000..0.250000s); local_stamp_ns=1792166742125516341; phase=WAIT_PLAN",
+      "round_trips_requested": 5,
+      "round_trips_completed": 2,
+      "planner_goals_sent": 5,
+      "completed_stages": [
+        "TAKEOFF_TO_0_5M",
+        "STABILIZE_AT_HOME",
+        "ROUND_01_SUPER_OUTBOUND_4_5M",
+        "ROUND_01_STABILIZE_AT_FAR_POINT",
+        "ROUND_01_SUPER_RETURN_HOME",
+        "ROUND_02_SUPER_OUTBOUND_4_5M",
+        "ROUND_02_STABILIZE_AT_FAR_POINT",
+        "ROUND_02_SUPER_RETURN_HOME"
+      ],
+      "simulation_backend": {
+        "kind": "ideal synthetic ROS planning and vehicle",
+        "actual_SUPER_used": false,
+        "actual_PX4_used": false,
+        "hardware_used": false,
+        "ledger": {
+          "goals": [
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ],
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ],
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ]
+          ],
+          "commands": [
+            "OFFBOARD",
+            "ARM"
+          ],
+          "peak_native_speed": 1.655203349768802,
+          "max_lateral_displacement_m": 9.171483017489379e-15,
+          "armed": true,
+          "landed": false,
+          "rest_waits": 0,
+          "future_replans": 0,
+          "accepted_goals": [
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ],
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ],
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ]
+          ]
+        },
+        "scene_file": null,
+        "execution_timeout_s": null,
+        "static_snapshot_adaptation": []
+      }
+    },
+    {
+      "test_environment": "Cloud test only: UDP transport and CPUs 2-4",
+      "result": "FAIL",
+      "error": "Missing/stale local; receive_age=0.374325s (max 0.250000s); header_age=0.382621s (range -0.050000..0.250000s); local_stamp_ns=1792166838610469794; phase=PRESTREAM",
+      "round_trips_requested": 5,
+      "round_trips_completed": 0,
+      "planner_goals_sent": null,
+      "completed_stages": [],
+      "simulation_backend": {
+        "kind": "ideal synthetic ROS planning and vehicle",
+        "actual_SUPER_used": false,
+        "actual_PX4_used": false,
+        "hardware_used": false,
+        "ledger": {
+          "goals": [],
+          "commands": [],
+          "peak_native_speed": 0.0,
+          "max_lateral_displacement_m": 0.0,
+          "armed": false,
+          "landed": true,
+          "rest_waits": 0,
+          "future_replans": 0,
+          "accepted_goals": []
+        },
+        "scene_file": null,
+        "execution_timeout_s": null,
+        "static_snapshot_adaptation": []
+      }
+    },
+    {
+      "test_environment": "Cloud test only: CPUs 0-4 and SCHED_RR priority 10",
+      "result": "FAIL",
+      "error": "Missing/stale local; receive_age=0.564982s (max 0.250000s); header_age=1.042949s (range -0.050000..0.250000s); local_stamp_ns=1792167071409644062; phase=TRACK",
+      "round_trips_requested": 5,
+      "round_trips_completed": 0,
+      "planner_goals_sent": 2,
+      "completed_stages": [
+        "TAKEOFF_TO_0_5M",
+        "STABILIZE_AT_HOME",
+        "ROUND_01_SUPER_OUTBOUND_4_5M",
+        "ROUND_01_STABILIZE_AT_FAR_POINT"
+      ],
+      "simulation_backend": {
+        "kind": "ideal synthetic ROS planning and vehicle",
+        "actual_SUPER_used": false,
+        "actual_PX4_used": false,
+        "hardware_used": false,
+        "ledger": {
+          "goals": [
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ]
+          ],
+          "commands": [
+            "OFFBOARD",
+            "ARM"
+          ],
+          "peak_native_speed": 1.6552041267495723,
+          "max_lateral_displacement_m": 8.743006318923108e-15,
+          "armed": true,
+          "landed": false,
+          "rest_waits": 0,
+          "future_replans": 0,
+          "accepted_goals": [
+            [
+              3.8340102670935527,
+              2.4608911302776586,
+              -0.325
+            ],
+            [
+              0.12,
+              -0.08,
+              -0.325
+            ]
+          ]
+        },
+        "scene_file": null,
+        "execution_timeout_s": null,
+        "static_snapshot_adaptation": []
+      }
+    }
+  ],
+  "full_five_round_ros_pass_verified": false,
+  "interpretation": "Long trials were interrupted by stale virtual local-position feedback. Scheduling-gap advisories preceded those faults; the source of the cloud stalls is not established. Changed cloud transport/CPU/scheduling settings did not produce a full pass. No controller freshness guard or aircraft parameter was relaxed.",
+  "remaining": "Run the updated five-round captured-map rehearsal onboard; physical five-round execution remains unverified."
+}

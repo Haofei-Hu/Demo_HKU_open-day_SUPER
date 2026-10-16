@@ -245,7 +245,7 @@ def backend(connection,fault,scene_file=None):
         state['goals'].append(end)
         if scene_file is not None:return  # The real isolated SUPER owns all planning output.
         if fault=='relocated-goal':
-            shift=(.095523,-.009363,.198440) if len(state['goals'])==1 else (-.03,.02,.12)
+            shift=(.095523,-.009363,.198440) if len(state['goals'])%2==1 else (-.03,.02,.12)
             end=[end[0]+math.cos(yaw)*shift[0]-math.sin(yaw)*shift[1],
                  end[1]+math.sin(yaw)*shift[0]+math.cos(yaw)*shift[1],end[2]+shift[2]]
         state['accepted_goals'].append(list(end))

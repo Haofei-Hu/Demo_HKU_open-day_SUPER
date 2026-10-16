@@ -23,10 +23,16 @@ class DemoMission:
         if context not in (None,'ground_rehearsal'):raise ValueError('Unknown mission execution context')
         self.rehearsal_only=context=='ground_rehearsal'
         self.distance=4.5 if self.demonstration else 1.
-        self.PHASES=tuple('TAKEOFF_TO_0_5M' if self.rehearsal_only and p=='TAKEOFF_TO_1_5M' else
-                          'SUPER_OUTBOUND_1M' if not self.demonstration and p=='SUPER_OUTBOUND_4_5M'
-                          else p for p in type(self).PHASES)
         v=config['venue'];f=config['flight'];s=config['takeoff'];body=config['vehicle']
+        self.round_trips=f.get('round_trips',1)
+        if isinstance(self.round_trips,bool) or not isinstance(self.round_trips,int) or self.round_trips<1:
+            raise ValueError('Round trips must be a positive integer')
+        outbound='SUPER_OUTBOUND_4_5M' if self.demonstration else 'SUPER_OUTBOUND_1M'
+        stages=['TAKEOFF_TO_0_5M' if self.rehearsal_only else 'TAKEOFF_TO_1_5M','STABILIZE_AT_HOME']
+        for number in range(1,self.round_trips+1):
+            stages.extend(self.round_stage(stage,number) for stage in
+                          (outbound,'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME'))
+        self.PHASES=tuple(stages+['HOLD_HOME_6S','AUTO_LAND','CONFIRM_LANDED_AND_DISARMED'])
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
         fixed={'length_forward_m':5.8 if self.demonstration else 2.,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
@@ -55,6 +61,9 @@ class DemoMission:
             raise ValueError('Missing/invalid measured geometry: '+name)
         return float(value)
 
+    def round_stage(self,stage,number):
+        return stage if self.round_trips==1 else f'ROUND_{number:02d}_{stage}'
+
     @classmethod
     def load(cls,path):
         return cls(json.loads(Path(path).read_text()))
@@ -75,8 +84,7 @@ class DemoMission:
         result['mission_id']='short_site_1m_rehearsal'
         result['venue'].update(length_forward_m=2.,boundary_type='outer')
         result['flight']['outbound_forward_m']=1.
-        result['sequence']=[p if p!='SUPER_OUTBOUND_4_5M' else 'SUPER_OUTBOUND_1M'
-                            for p in result['sequence']]
+        result['sequence']=[p.replace('SUPER_OUTBOUND_4_5M','SUPER_OUTBOUND_1M') for p in result['sequence']]
         result['status']='SYNTHETIC_SHORT_SITE_REHEARSAL_NOT_A_FLIGHT_CONFIGURATION'
         result['local_test_context']=dict(forward_obstacle_distance_approx_m=1.5,
             venue_geometry='Virtual test box; current room walls and aircraft extents are not surveyed',
@@ -107,10 +115,12 @@ class MissionReport:
         self.path=Path(path)
         self.phases=mission.PHASES
         self.demonstration=mission.demonstration
+        self.round_returns={mission.round_stage('SUPER_RETURN_HOME',number) for number in range(1,mission.round_trips+1)}
         if self.path.exists():raise ValueError('Mission report already exists; use a new path')
         self.data=dict(schema_version=1,result='RUNNING',mode=mode,
             execution_context='ground_rehearsal' if mission.rehearsal_only else 'physical_mission_specification',
             requested_fc_floor_height_m=mission.hover_height,
+            round_trips_requested=mission.round_trips,round_trips_completed=0,
             mission=mission.config,waypoints=mission.waypoints(),expected_stages=list(self.phases),events=[],
             completed_stages=[],error=None,physical_flight_verified=False,
             started_at=datetime.now().astimezone().isoformat())
@@ -129,7 +139,9 @@ class MissionReport:
         if stage in self.data['completed_stages']:raise ValueError('Mission stage repeated: '+stage)
         expected=self.phases[len(self.data['completed_stages'])]
         if stage!=expected:raise ValueError('Mission stage out of order: '+stage+'; expected '+expected)
-        self.data['completed_stages'].append(stage);self.save()
+        self.data['completed_stages'].append(stage)
+        if stage in self.round_returns:self.data['round_trips_completed']+=1
+        self.save()
 
     def finish(self,error=None):
         complete=self.data['completed_stages']==list(self.phases)

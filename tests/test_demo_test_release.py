@@ -12,6 +12,28 @@ m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 
 class Tests(unittest.TestCase):
+    def test_legacy_single_round_is_migrated_without_losing_local_measurements(self):
+        _,fetch=self.release()
+        original=json.loads(fetch('configs/demonstration/open_day_mission.json'))
+        original['flight'].pop('round_trips')
+        original['sequence']=['TAKEOFF_TO_1_5M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
+            'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME','HOLD_HOME_6S','AUTO_LAND','CONFIRM_LANDED_AND_DISARMED']
+        original['takeoff'].update(forward_from_rear_m=.6,distance_from_left_m=1.2)
+        original['vehicle']['centre_to_front_m']=.31
+        with tempfile.TemporaryDirectory() as directory:
+            destination=Path(directory);mission=destination/'open_day_mission.json'
+            mission.write_text(json.dumps(original))
+            backup=m.install('a'*40,destination,fetch)
+            updated=json.loads(mission.read_text())
+            self.assertEqual(json.loads((backup/'previous_open_day_mission.json').read_text()),original)
+            self.assertEqual(updated['flight']['round_trips'],5)
+            self.assertEqual(len(updated['sequence']),20)
+            self.assertEqual(updated['takeoff'],original['takeoff'])
+            self.assertEqual(updated['vehicle'],original['vehicle'])
+            self.assertEqual(updated['flight']['height_fc_above_floor_m'],1.5)
+            before=mission.read_bytes();m.install('a'*40,destination,fetch)
+            self.assertEqual(mission.read_bytes(),before)
+
     def release(self):
         manifest=json.loads((ROOT/'configs/demonstration/demo_test_release.json').read_text())
         def fetch(path):return (ROOT/path).read_bytes()

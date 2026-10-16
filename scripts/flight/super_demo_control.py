@@ -130,6 +130,7 @@ class DemoMissionControl(SuperFlightControl):
         self.leg_start_target=self.return_hold_target=None
         self.arrived_since=self.final_hold_since=None
         self.native_velocity=np.zeros(3);self.goal_count=0;self.stages_started=False
+        self.round_index=1
         self.plan_wait_started_at=None;self.plan_wait_elapsed_s=0.
         self.max_tracking_error=np.zeros(3)
         self.sent_references=deque(maxlen=512)
@@ -164,8 +165,11 @@ class DemoMissionControl(SuperFlightControl):
         self.create_subscription(TwistStamped,'/mavros/local_position/velocity_local',
                                  lambda msg:self.store('velocity',msg),qos_profile_sensor_data)
         self.create_subscription(MarkerArray,'/visualization/goal',self.planner_goal_received,qos_profile_sensor_data)
-        self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, {self.distance:g} m outbound, '
-                               'return, 6 s hold, LAND; no parameter writes.')
+        self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, '
+            f'{self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND; no parameter writes.')
+
+    def leg_key(self):
+        return self.leg if self.mission.round_trips==1 else f'round_{self.round_index:02d}_{self.leg}'
 
     def make_native_publisher(self):
         return self.create_publisher(PositionTarget,self.NATIVE_TOPIC,10)
@@ -199,13 +203,14 @@ class DemoMissionControl(SuperFlightControl):
             self.target_ok(target,'SUPER accepted goal')
             self.accepted_raw=raw.copy();self.accepted_target=np.array(target,copy=True)
             shift=self.frame.axes@(self.accepted_target-self.requested_target)
-            self.mission_report.data['accepted_goals'][self.leg]=dict(
+            self.mission_report.data['accepted_goals'][self.leg_key()]=dict(
+                round_trip=self.round_index,leg=self.leg,
                 goal_request_stamp_ns=int(self.goal_issued_ns),
                 feedback_stamp_ns=min(self.stamp(m) for m in msg.markers if m.action==0 and m.type==2 and m.ns=='goal'),
                 requested_planner_xyz=self.requested_raw.tolist(),accepted_planner_xyz=raw.tolist(),
                 requested_aligned_xyz=self.requested_target.tolist(),accepted_aligned_xyz=self.accepted_target.tolist(),
                 adjustment_forward_left_up_m=shift.tolist(),feedback='Pinned SUPER goal/path markers')
-            self.get_logger().info(f'SUPER accepted {self.leg} goal: planner xyz={raw.round(6).tolist()}; '
+            self.get_logger().info(f'SUPER accepted {self.leg_key()} goal: planner xyz={raw.round(6).tolist()}; '
                 f'adjustment forward/left/up={shift.round(6).tolist()}; arrival uses this confirmed goal')
             self.mission_report.save()
         except ValueError as exc:self.abort(str(exc))
@@ -216,6 +221,9 @@ class DemoMissionControl(SuperFlightControl):
 
     def position_policy_message(self):
         return 'post-takeoff position uses vehicle-inclusive venue bounds; 0.10 m arrival detection only'
+
+    def goal_policy_message(self):
+        return f'{self.mission.round_trips} round trips, {2*self.mission.round_trips} ordered goals; no automatic goal replay'
 
     def validate(self,ground=False):
         result=super().validate(ground)
@@ -240,7 +248,7 @@ class DemoMissionControl(SuperFlightControl):
                 self.mission,lambda:self.extended is not None and self.extended.landed_state==1)
             self.home=np.array(self.reference.ground)+np.array([0.,0.,self.reference.lift])
             self.far=self.home+self.frame.axes.T@np.array([self.distance,0.,0.])
-        self.mission_report.event(phase,leg=self.leg)
+        self.mission_report.event(phase,leg=self.leg,round_trip=self.round_index)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
             self.mission_report.completed(self.mission.PHASES[0])
@@ -312,7 +320,7 @@ class DemoMissionControl(SuperFlightControl):
             if self.follower is not None:
                 evidence=dict(self.follower.motion_summary,
                     last_violation=self.follower.last_motion_violation,policy=self.motion_policy)
-                self.mission_report.data['planner_motion_by_leg'][self.leg]=evidence
+                self.mission_report.data['planner_motion_by_leg'][self.leg_key()]=evidence
                 if self.follower.last_continuity_failure is not None:
                     self.mission_report.data['reference_continuity_failure']=self.follower.last_continuity_failure
 
@@ -322,7 +330,7 @@ class DemoMissionControl(SuperFlightControl):
             goal_known=self.accepted_target is not None
             waiting=not self.fresh_ns(self.follower.last[0]) or not goal_known
             self.mission_report.data['intermediate_rest_wait']=dict(
-                leg=self.leg,waiting=waiting,timeout_s=None,
+                leg=self.leg,round_trip=self.round_index,waiting=waiting,timeout_s=None,
                 accepted_goal_confirmed=goal_known,
                 last_accepted_stamp_ns=int(self.follower.last[0]))
             if waiting and not getattr(self,'rest_wait_warned',False):
@@ -369,10 +377,10 @@ class DemoMissionControl(SuperFlightControl):
         endpoint,error,detail=self.endpoint_evidence(plan)
         kind=('WAIT_ACCEPTED_GOAL' if self.accepted_target is None else
               'FINAL_GOAL_CANDIDATE' if final else 'INTERMEDIATE_STOP')
-        key=(self.leg,kind)
+        key=(self.leg_key(),kind)
         if key not in self.endpoint_kinds:
             self.endpoint_kinds.add(key)
-            self.plan_evidence.append(dict(leg=self.leg,kind=kind,requested_planner_xyz=self.requested_raw.tolist(),
+            self.plan_evidence.append(dict(leg=self.leg,round_trip=self.round_index,kind=kind,requested_planner_xyz=self.requested_raw.tolist(),
                 committed_planner_endpoint=plan.endpoint.tolist(),error_forward_left_up=error.tolist(),
                 completion_target_aligned_xyz=self.completion_target().tolist()))
             self.get_logger().info('Mission committed endpoint '+kind+'; '+detail)
@@ -393,7 +401,7 @@ class DemoMissionControl(SuperFlightControl):
         acceleration=math.hypot(*(getattr(msg.acceleration,a) for a in ('x','y','z')))
         self.mission_report.data['peak_reference_acceleration_mps2']=max(
             self.mission_report.data['peak_reference_acceleration_mps2'],acceleration)
-        summary=self.mission_report.data['motion_advisory_by_leg'].setdefault(self.leg,
+        summary=self.mission_report.data['motion_advisory_by_leg'].setdefault(self.leg_key(),
             dict(speed_exceedances=0,acceleration_exceedances=0))
         speed_exceeded=speed>self.ADVISORY_SPEED+1e-9
         acceleration_exceeded=acceleration>self.ADVISORY_ACCELERATION+1e-9
@@ -403,15 +411,18 @@ class DemoMissionControl(SuperFlightControl):
             summary['last_exceedance']=dict(stamp_ns=self.stamp(msg),speed_mps=speed,
                                              acceleration_mps2=acceleration)
         if (self.motion_policy=='observe' and (speed_exceeded or acceleration_exceeded)
-                and self.leg not in self.motion_warned_legs):
-            self.motion_warned_legs.add(self.leg)
+                and self.leg_key() not in self.motion_warned_legs):
+            self.motion_warned_legs.add(self.leg_key())
             self.get_logger().warning('Mission motion advisories exceeded; warning only: '
                 f'speed={speed:.6f} m/s (advisory {self.ADVISORY_SPEED:g}), '
                 f'acceleration={acceleration:.6f} m/s^2 (advisory {self.ADVISORY_ACCELERATION:g}); '
                 'position, polynomial agreement, continuity and freshness checks remain active')
 
     def request_leg(self,leg,target):
-        if self.goal_count>=2:raise ValueError('Demonstration permits exactly one outbound and one return goal')
+        if self.goal_count>=2*self.mission.round_trips:raise ValueError('All configured round-trip goals have already been sent')
+        if leg!=('outbound' if self.goal_count%2==0 else 'return'):
+            raise ValueError('Navigation goals must alternate outbound and return')
+        if self.round_index!=self.goal_count//2+1:raise ValueError('Round-trip index does not match goal sequence')
         if self.goal_pub.get_subscription_count()<1 or self.count_publishers('/goal_pose')!=1:
             raise ValueError('Need this mission as sole goal writer and a SUPER subscriber')
         self.leg_start_target=(self.follower.last[1].copy() if self.follower is not None and self.follower.last is not None
@@ -429,7 +440,7 @@ class DemoMissionControl(SuperFlightControl):
         for axis,value in zip(('x','y','z','w'),self.goal_q):setattr(msg.pose.orientation,axis,float(value))
         self.goal_issued_ns=self.stamp(msg);self.goal_count+=1;self.goal_pub.publish(msg)
         self.mission_report.data['planner_goals_sent']=self.goal_count
-        self.mission_report.event('GOAL_'+leg.upper(),requested_aligned_xyz=self.requested_target.tolist(),
+        self.mission_report.event('GOAL_'+leg.upper(),round_trip=self.round_index,requested_aligned_xyz=self.requested_target.tolist(),
                                   requested_planner_xyz=self.requested_raw.tolist())
         self.change('WAIT_PLAN')
 
@@ -439,7 +450,7 @@ class DemoMissionControl(SuperFlightControl):
 
     def start(self,request,response):
         response=super().start(request,response)
-        if response.success:response.message=f'Accepted one mission: {self.mission.hover_height:g} m rise, {self.distance:g} m outbound, return, 6 s hold, LAND'
+        if response.success:response.message=f'Accepted one mission: {self.mission.hover_height:g} m rise, {self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND'
         return response
 
     def arrived(self,xyz,target):
@@ -497,7 +508,7 @@ class DemoMissionControl(SuperFlightControl):
                 if now-self.arrived_since>=1.:
                     error=self.frame.axes@(np.asarray(xyz)-self.requested_target)
                     arrivals=self.mission_report.data.setdefault('goal_arrivals',{})
-                    arrivals[self.leg]=dict(measured_aligned_xyz=np.asarray(xyz).tolist(),
+                    arrivals[self.leg_key()]=dict(round_trip=self.round_index,leg=self.leg,measured_aligned_xyz=np.asarray(xyz).tolist(),
                         requested_aligned_xyz=self.requested_target.tolist(),
                         accepted_aligned_xyz=self.completion_target().tolist(),
                         error_to_request_forward_left_up_m=error.tolist(),
@@ -505,11 +516,17 @@ class DemoMissionControl(SuperFlightControl):
                     self.mission_report.data['nominal_waypoints_reached']=all(
                         entry['nominal_position_reached'] for entry in arrivals.values())
                     if self.leg=='outbound':
-                        self.mission_report.completed(self.mission.PHASES[2])
-                        self.mission_report.completed('STABILIZE_AT_FAR_POINT')
+                        outbound='SUPER_OUTBOUND_4_5M' if self.mission.demonstration else 'SUPER_OUTBOUND_1M'
+                        self.mission_report.completed(self.mission.round_stage(outbound,self.round_index))
+                        self.mission_report.completed(self.mission.round_stage('STABILIZE_AT_FAR_POINT',self.round_index))
                         self.request_leg('return',self.home)
                     else:
-                        self.mission_report.completed('SUPER_RETURN_HOME')
+                        self.mission_report.completed(self.mission.round_stage('SUPER_RETURN_HOME',self.round_index))
+                        self.mission_report.data['round_trips_completed']=self.round_index
+                        self.get_logger().info(f'Round trip {self.round_index}/{self.mission.round_trips} complete')
+                        if self.round_index<self.mission.round_trips:
+                            self.round_index+=1;self.request_leg('outbound',self.far)
+                            return True
                         self.return_hold_target=self.completion_target().copy()
                         self.mission_report.data['return_hold_target_aligned_xyz']=self.return_hold_target.tolist()
                         self.mission_report.data['return_home_offset_forward_left_up_m']=(self.frame.axes@(self.return_hold_target-self.home)).tolist()

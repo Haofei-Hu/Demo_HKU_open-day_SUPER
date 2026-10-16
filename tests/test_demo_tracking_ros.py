@@ -133,7 +133,8 @@ class Tests(unittest.TestCase):
         from std_srvs.srv import Trigger
         from test_demo_mission import fixture
         with tempfile.TemporaryDirectory() as folder:
-            folder=Path(folder);mission=folder/'mission.json';mission.write_text(json.dumps(fixture()))
+            folder=Path(folder);mission=folder/'mission.json';config=fixture()
+            config['flight']['round_trips']=5;mission.write_text(json.dumps(config))
             alignment=folder/'alignment.py';alignment.write_text('def convert(p,q,c):\n return p,q,c\n')
             planner=folder/'planner.json';planner.write_text(json.dumps(dict(
                 fsm=dict(click_height=-6.,click_goal_topic='/goal_pose',click_goal_en=True,cmd_topic='/planning/pos_cmd'),
@@ -145,6 +146,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(node.motion_policy,'observe')
                 self.assertEqual(node.mission.hover_height,1.5)
                 self.assertEqual(node.hover_fc_height,1.5)
+                self.assertEqual(node.mission.round_trips,5)
                 self.assertEqual(node.offboard_budget,float('inf'))
                 self.assertEqual(node.mission_report.data['execution_limits'],
                                  dict(controller_timeout_s=None,committed_trajectory_duration_s=None,
@@ -166,7 +168,7 @@ class Tests(unittest.TestCase):
         logs=[];report=NS(data={'peak_reference_acceleration_mps2':0.,'motion_advisory_by_leg':{}})
         control=NS(goal_rotation=np.eye(3),mission_report=report,motion_policy='observe',
             leg='outbound',motion_warned_legs=set(),ADVISORY_SPEED=2.4,ADVISORY_ACCELERATION=1.5,
-            stamp=SuperFlightControl.stamp,get_logger=lambda:NS(warning=logs.append))
+            leg_key=lambda:'outbound',stamp=SuperFlightControl.stamp,get_logger=lambda:NS(warning=logs.append))
         msg=PositionCommand();msg.header.stamp.sec=100;msg.velocity.x=2.6;msg.acceleration.x=1.7
         DemoMissionControl.reference_accepted(control,msg)
         DemoMissionControl.reference_accepted(control,msg)

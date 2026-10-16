@@ -18,7 +18,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M` before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
+The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M`, and `flight.round_trips` to `5` with the current canonical sequence before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
 
 ## Run the complete ground rehearsal after each reboot
 
@@ -37,12 +37,14 @@ The runner performs the following sequence:
 1. Open or reuse QGroundControl, then start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
 2. Measure and apply a fresh alignment quaternion, start external vision, and capture the session-relative map configuration.
 3. Wait for a continuous fresh 30-second real vision window, then capture a fresh occupied scene.
-4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
+4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, complete five 4.5 m outbound/return rounds, hover six seconds after the fifth return, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
 Alignment excludes body samples outside the existing -0.05..0.25 s receive-time header-age band before estimation, and reports excluded counts and raw age extrema. It still requires enough valid matched pairs and the existing pairing/rotation checks. Full-rehearsal preparation streams progress without the historical 120-second action deadline.
 
 Vision preparation uses the test runner's existing 30-second observation duration as a continuous qualified window. This is a selected diagnostic observation length, not a SUPER or PX4 mandated delay; no thirty-second wait is inserted into individual mission legs. `VISION WAIT` records temporal interruptions and waits for a new complete window, with no total acquisition deadline and no stack restart. The original -0.05..0.25 s header-age band and 0.25 s receive-gap limit remain unchanged. Final logs retain lifetime statistics, including rejected intervals, followed by qualified-window statistics. Invalid/reordered stamps, wrong frames or changed/duplicate publishers still fail. This policy applies to preparation; it does not change flight-controller freshness handling.
+
+The canonical route performs five complete round trips in one flight: ten navigation legs and 45 m nominal horizontal travel before curved-path adjustments. Endpoints stay tied to the original takeoff frame. There is one takeoff, one final six-second hover and one landing; intermediate returns continue to the next outbound leg. Logs print `Round trip n/5 complete`. Reports preserve all ten accepted goals/arrival records and require all twenty ordered stages plus `round_trips_completed=5` for success.
 
 Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which remains **1.5 m** with `TAKEOFF_TO_1_5M`. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 
@@ -125,7 +127,7 @@ Run the complete rehearsal command again for another fresh automatic test. Do no
 
 ## Prepare physical execution separately
 
-The physical route uses 1.5 m height, 4.5 m forward, return to the original hover point, six-second hold, then landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
+The physical route uses 1.5 m height and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
 Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Survey that box, takeoff distances from its rear and left boundaries, and all six propeller-inclusive FC-centre extents. Replace every null geometry field with an actual measurement; do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change.
 

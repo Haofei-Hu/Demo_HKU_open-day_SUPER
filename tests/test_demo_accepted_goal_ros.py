@@ -25,6 +25,7 @@ from bounded_reference_preview import Plan
 class Harness(DemoMissionControl):
     def __init__(self):
         self.motion_policy='observe'
+        self.round_index=1
         self.phase='TRACK';self.leg='outbound';self.goal_issued_ns=100_000_000_000;self.now_ns=101_000_000_000
         self.accepted_raw=self.accepted_target=self.previous_accepted_raw=None
         self.requested_raw=np.array([3.194326,-3.172474,1.651302])
@@ -66,6 +67,34 @@ class Harness(DemoMissionControl):
 
 
 class Tests(unittest.TestCase):
+    def test_five_round_trips_keep_fixed_endpoints_and_land_only_after_tenth_goal(self):
+        node=Harness();config=fixture();config['flight']['round_trips']=5
+        node.mission=DemoMission(config);node.goal_count=0
+        node.request_leg('outbound',node.far)
+        for number in range(1,6):
+            for direction in ('outbound','return'):
+                self.assertEqual(node.round_index,number);self.assertEqual(node.leg,direction)
+                expected=node.far if direction=='outbound' else node.home
+                np.testing.assert_allclose(node.requested_target,expected)
+                node.now_ns+=2_000_000_000;node.feedback(node.requested_raw)
+                target=node.accepted_target.copy()
+                node.follower.phase='END_HOLD';node.follower.last=(node.now_ns,target,node.goal_q)
+                node.phase='END_HOLD';now=node.now_ns/1e9;node.arrived_since=now-1.1
+                node.mission_tick(now,target,0.)
+                if direction=='return':
+                    self.assertEqual(node.mission_report.data['round_trips_completed'],number)
+                    self.assertEqual(node.phase,'FINAL_HOLD' if number==5 else 'WAIT_PLAN')
+        self.assertEqual(node.goal_count,10)
+        self.assertEqual(len(node.mission_report.data['accepted_goals']),10)
+        self.assertEqual(len(node.mission_report.data['goal_arrivals']),10)
+        self.assertIn('round_01_outbound',node.mission_report.data['goal_arrivals'])
+        self.assertIn('round_05_return',node.mission_report.data['goal_arrivals'])
+        node.mission_tick(now+5.,node.return_hold_target,0.)
+        self.assertEqual(node.phase,'FINAL_HOLD')
+        node.mission_tick(now+6.1,node.return_hold_target,0.)
+        self.assertEqual(node.phase,'LAND_REQUEST')
+        with self.assertRaisesRegex(ValueError,'already been sent'):node.request_leg('outbound',node.far)
+
     def test_stream_queue_uses_latest_fresh_sample_without_retiming(self):
         node=Harness();raw=np.array([3.25,-3.25,1.85]);node.feedback(raw)
         msg=stage_plan(node.mapping.origin+node.home,raw,100.,5.)

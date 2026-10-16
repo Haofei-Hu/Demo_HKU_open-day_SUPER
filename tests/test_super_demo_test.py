@@ -41,9 +41,10 @@ class Tests(unittest.TestCase):
             actions.append((name,list(map(str,command)),env))
             if name=='complete_mission':
                 frozen=Path(command[command.index('--mission-file')+1])
-                phases=m.DemoMission.load(frozen).PHASES
+                mission=m.DemoMission.load(frozen);phases=mission.PHASES
                 (runner.folder/'mission_report.json').write_text(json.dumps(dict(result='SUCCESS',
-                    completed_stages=list(phases),simulation_backend=dict(actual_SUPER_used=not logic))))
+                    completed_stages=list(phases),round_trips_completed=mission.round_trips,
+                    simulation_backend=dict(actual_SUPER_used=not logic))))
         runner.step=step
         return runner,actions
 
@@ -63,6 +64,8 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.run_complete(),0)
             self.assertEqual(runner.args.mission_file.read_bytes(),original)
             self.assertEqual(runner.report['requested_fc_floor_height_m'],.5)
+            self.assertEqual(runner.report['round_trips_requested'],5)
+            self.assertEqual(runner.report['round_trips_completed'],5)
             self.assertEqual(runner.report['waypoints']['home_hover'],[0.,0.,.5])
             self.assertEqual(runner.report['mission_report']['completed_stages'][0],'TAKEOFF_TO_0_5M')
             self.assertEqual([a[0] for a in actions],['prepare','vision_chain','capture_scene','complete_mission'])
@@ -131,6 +134,18 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.run_complete(),1)
             self.assertIn('ordered mission',runner.report['error'])
 
+    def test_incomplete_round_count_cannot_pass_even_with_all_stage_labels(self):
+        with tempfile.TemporaryDirectory() as folder:
+            runner,_=self.runner(folder,logic=True);step=runner.step
+            def incomplete(name,command,env=None):
+                step(name,command,env)
+                p=runner.folder/'mission_report.json';data=json.loads(p.read_text())
+                data['round_trips_completed']=4;p.write_text(json.dumps(data))
+            runner.step=incomplete
+            self.assertEqual(runner.run_complete(),1)
+            self.assertFalse(runner.report['demonstration_completed'])
+            self.assertEqual(runner.report['round_trips_completed'],4)
+
     def test_failed_rehearsal_retains_actual_planner_rejection_in_report(self):
         with tempfile.TemporaryDirectory() as folder:
             runner,_=self.runner(folder,logic=True)
@@ -174,7 +189,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.args.mission_file.read_bytes(),before)
             self.assertEqual(runner.report['mission']['mission_id'],'short_site_1m_rehearsal')
             self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,.5])
-            self.assertEqual(runner.report['mission_report']['completed_stages'][2],'SUPER_OUTBOUND_1M')
+            self.assertEqual(runner.report['mission_report']['completed_stages'][2],'ROUND_01_SUPER_OUTBOUND_1M')
             self.assertFalse(runner.report['demonstration_completed'])
 
     def test_observe_policy_is_explicit_and_forwarded_to_private_child(self):

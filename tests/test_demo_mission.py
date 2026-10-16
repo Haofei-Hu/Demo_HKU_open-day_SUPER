@@ -13,6 +13,8 @@ from demo_mission import DemoMission,MissionReport
 
 def fixture():
     config=json.loads((ROOT/'configs/demonstration/open_day_mission.json').read_text())
+    config['flight']['round_trips']=1
+    config['sequence']=list(DemoMission.PHASES)
     config['takeoff'].update(forward_from_rear_m=.5,distance_from_left_m=1.4)
     for side in ('front','rear','left','right'):config['vehicle']['centre_to_'+side+'_m']=.2
     config['vehicle'].update(centre_to_top_m=.1,centre_to_bottom_m=.085)
@@ -20,6 +22,26 @@ def fixture():
 
 
 class Tests(unittest.TestCase):
+    def test_five_round_trips_require_all_returns_before_success(self):
+        config=fixture();config['flight']['round_trips']=5
+        mission=DemoMission(config)
+        self.assertEqual(len(mission.PHASES),20)
+        self.assertEqual(mission.PHASES[2],'ROUND_01_SUPER_OUTBOUND_4_5M')
+        self.assertEqual(mission.PHASES[-4],'ROUND_05_SUPER_RETURN_HOME')
+        with tempfile.TemporaryDirectory() as folder:
+            report=MissionReport(Path(folder)/'report.json',mission,'simulation')
+            for stage in mission.PHASES[:14]:report.completed(stage)
+            report.finish()
+            self.assertEqual(report.data['round_trips_completed'],4)
+            self.assertEqual(report.data['result'],'FAIL')
+            for stage in mission.PHASES[14:]:report.completed(stage)
+            report.finish()
+            self.assertEqual(report.data['round_trips_completed'],5)
+            self.assertEqual(report.data['result'],'SUCCESS')
+        for bad in (0,-1,True,1.5):
+            config['flight']['round_trips']=bad
+            with self.assertRaisesRegex(ValueError,'positive integer'):DemoMission(config)
+
     def test_rehearsal_height_is_half_metre_without_editing_flight_specification(self):
         original=fixture();before=deepcopy(original)
         config=DemoMission.ground_rehearsal(original);mission=DemoMission(config)

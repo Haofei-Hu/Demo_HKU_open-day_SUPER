@@ -12,19 +12,27 @@ import tempfile
 import urllib.request
 
 
-def mission_height_update(data):
-    """Migrate the requested canonical height without replacing local measurements."""
+def mission_profile_update(data,template):
+    """Migrate known canonical settings without replacing local measurements."""
     try:config=json.loads(data)
     except (ValueError,UnicodeDecodeError):return data
     if (not isinstance(config,dict) or config.get('schema_version')!=1
             or config.get('mission_id')!='open_day_out_and_back'
             or not isinstance(config.get('flight'),dict)
-            or config['flight'].get('height_fc_above_floor_m')!=2.
             or not isinstance(config.get('sequence'),list)
-            or not config['sequence'] or config['sequence'][0]!='TAKEOFF_TO_2M'):
+            or not config['sequence']):
         return data
-    config['flight']['height_fc_above_floor_m']=1.5
-    config['sequence'][0]='TAKEOFF_TO_1_5M'
+    changed=False
+    if config['flight'].get('height_fc_above_floor_m')==2. and config['sequence'][0]=='TAKEOFF_TO_2M':
+        config['flight']['height_fc_above_floor_m']=1.5
+        config['sequence'][0]='TAKEOFF_TO_1_5M';changed=True
+    legacy=['TAKEOFF_TO_1_5M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
+            'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME','HOLD_HOME_6S','AUTO_LAND','CONFIRM_LANDED_AND_DISARMED']
+    if (config['flight'].get('round_trips',1)==1 and config['sequence']==legacy
+            and template.get('flight',{}).get('round_trips')==5):
+        config['flight']['round_trips']=5
+        config['sequence']=list(template['sequence']);changed=True
+    if not changed:return data
     return (json.dumps(config,indent=2)+'\n').encode()
 
 
@@ -63,8 +71,8 @@ def install(revision,destination,fetch=None):
             if entry.get('preserve_existing'):
                 migrate=(name=='open_day_mission.json'
                          and json.loads(data).get('flight',{}).get('height_fc_above_floor_m')==1.5)
-                data=mission_height_update(previous) if migrate else previous
-                if previous!=data:print('Mission height updated: 2 -> 1.5 m; local measurements retained')
+                data=mission_profile_update(previous,json.loads(data)) if migrate else previous
+                if previous!=data:print('Canonical mission profile updated; local measurements retained')
             if previous==data:
                 retained.append(name);continue
         if target.exists():shutil.copy2(target,staged/('previous_'+name))

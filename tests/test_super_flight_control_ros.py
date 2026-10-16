@@ -104,7 +104,10 @@ def run(case):
         for node in (params,frame,probe):executor.add_node(node)
         if demo:
             from super_demo_control import DemoMissionControl
+            from demo_mission import DemoMission
             mission=json.loads((ROOT/'configs/demonstration/open_day_mission.json').read_text())
+            mission['flight']['round_trips']=1
+            mission['sequence']=list(DemoMission.PHASES)
             mission['takeoff'].update(forward_from_rear_m=.5,distance_from_left_m=1.4)
             for name in ('front','rear','left','right'):mission['vehicle']['centre_to_'+name+'_m']=.2
             mission['vehicle'].update(centre_to_top_m=.1,centre_to_bottom_m=.085)
@@ -336,7 +339,7 @@ def run(case):
                 assert all(m.coordinate_frame==PositionTarget.FRAME_LOCAL_NED for m in native)
                 assert all(not m.type_mask & (PositionTarget.IGNORE_VX|PositionTarget.IGNORE_VY|PositionTarget.IGNORE_VZ)
                            for m in native)
-                print('PASS: COMPLETE DEMONSTRATION 2 m rise / 4.5 m outbound / return / 6 s hover / confirmed LAND',flush=True)
+                print('PASS: LEGACY SINGLE ROUND 1.5 m rise / 4.5 m outbound / return / 6 s hover / confirmed LAND',flush=True)
                 return
             if case in ('audit_corridor','audit_speed5_corridor'):
                 wait(lambda:bridge.phase=='STOPPED')
