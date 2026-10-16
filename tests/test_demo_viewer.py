@@ -8,13 +8,29 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import Mock,patch
+import math
+import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts/simulation'))
+sys.path.insert(0,str(ROOT/'scripts/localization'))
 import demo_mission_simulation as m
 
 
 class Tests(unittest.TestCase):
+    def test_arrow_uses_body_heading_with_mounting_and_world_rotations(self):
+        from aligned_pose_preview import multiply,rotation
+        world=np.array([.2,-.3,.4,.8]);world/=np.linalg.norm(world)
+        mounting=np.array([0.,0.,math.sin(math.pi/8),math.cos(math.pi/8)])
+        inverse_mount=mounting*np.array([-1,-1,-1,1])
+        raw_attitudes=([0.,0.,0.,1.],[1.,0.,0.,0.],[0.,1.,0.,0.],[0.,0.,1.,0.])
+        for raw in raw_attitudes:
+            expected=multiply(raw,inverse_mount)
+            aligned=multiply(world,expected)
+            actual=m.viewer_body_orientation(rotation(world),aligned)
+            self.assertAlmostEqual(abs(np.dot(actual,expected)),1.,places=10)
+            np.testing.assert_allclose(rotation(np.array(actual))[:,0],rotation(expected)[:,0],atol=1e-10)
+
     def environment(self,**extra):
         return patch.dict(os.environ,dict(ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1',**extra),clear=True)
 

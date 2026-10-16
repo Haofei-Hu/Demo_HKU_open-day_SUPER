@@ -1,0 +1,30 @@
+{
+  "scope": "Cloud ROS 2 Humble viewer pose and release checks; no aircraft, actual flight or desktop rendering",
+  "checks_passed": 16,
+  "root_cause": "Viewer directly copied FAST_LIO IMU orientation, so arrow +X could differ from vehicle body +X by the configured mounting rotation. Current nominal body/IMU yaw is 45 degrees.",
+  "correction": "R_world_body = transpose(R_aligned_world) * R_aligned_body; quaternion used only by the visualization pose publisher",
+  "live_ros_case": {
+    "world_rotation_deg": 90.0,
+    "body_to_imu_yaw_deg": 45.0,
+    "raw_imu_yaw_deg": 0.0,
+    "aligned_body_yaw_deg": 45.0,
+    "expected_viewer_body_yaw_deg": -45.0,
+    "result": "PASS",
+    "raw_odometry_orientation_unchanged": true,
+    "virtual_fc_orientation_unchanged": true,
+    "viewer_position_unchanged": true,
+    "original_stamp_retained": true,
+    "vehicle_disarmed": true,
+    "planner_goals_sent": 0
+  },
+  "pure_rotation_cases": "Identity and half-turn raw attitudes with nontrivial world rotation and nominal mounting; reconstructed body +X and quaternion checked",
+  "unmodified": [
+    "control references",
+    "alignment/calibration files",
+    "raw localization",
+    "virtual FC feedback",
+    "ground 0.5 m and physical 1.5 m heights",
+    "continuous 30 s preparation observation policy"
+  ],
+  "limitations": "Actual Qt rendering and visual agreement on the onboard desktop remain to be checked. No new complete mission or physical flight is claimed."
+}

@@ -30,7 +30,9 @@ class RehearsalViewer:
         self.folder=Path(report).parent
         self.process=None;self.log=None
         self.state=dict(requested=enabled,status='pending' if enabled else 'disabled',
-                        domain_id=197,localhost_only=True,rendering_verified=False)
+                        domain_id=197,localhost_only=True,rendering_verified=False,
+                        arrow_direction='vehicle body +X in raw planner world; not velocity',
+                        arrow_anchor='raw FAST_LIO localization reference point')
 
     def save(self):
         self.folder.mkdir(parents=True,exist_ok=True)
@@ -127,6 +129,24 @@ def rehearsal_profile(source,report):
     return target
 
 
+def viewer_body_orientation(raw_to_aligned,aligned_quaternion):
+    """Express the aligned body attitude in planner world, including mounting."""
+    import numpy as np
+    from aligned_pose_preview import rotation
+    r=np.asarray(raw_to_aligned).T@rotation(np.asarray(aligned_quaternion))
+    q=np.zeros(4);trace=float(np.trace(r))
+    if trace>0:
+        scale=2*math.sqrt(1+trace)
+        q[:3]=np.array([r[2,1]-r[1,2],r[0,2]-r[2,0],r[1,0]-r[0,1]])/scale
+        q[3]=scale/4
+    else:
+        i=int(np.argmax(np.diag(r)));j=(i+1)%3;k=(i+2)%3
+        scale=2*math.sqrt(1+r[i,i]-r[j,j]-r[k,k])
+        q[i]=scale/4;q[j]=(r[i,j]+r[j,i])/scale;q[k]=(r[i,k]+r[k,i])/scale
+        q[3]=(r[k,j]-r[j,k])/scale
+    return (q/np.linalg.norm(q)).tolist()
+
+
 def synthetic_goal_markers(goal,robot,stamp):
     """Reproduce the pinned SUPER Ros2Adapter goal-path message contract."""
     from geometry_msgs.msg import Point
@@ -169,6 +189,7 @@ def backend(connection,fault,scene_file=None):
     executor=SingleThreadedExecutor();executor.add_node(node);executor.add_node(frame)
     ground=[.12,-.08,-.74];pose=list(ground);velocity=[0.,0.,0.];yaw=.6
     raw_q=[0.,0.,math.sin(yaw/2),math.cos(yaw/2)];aligned_q=list(raw_q)
+    viewer_q=list(raw_q)
     raw_rotation=None;raw_zero=None;origin=None
     if scene_file is not None:
         import numpy as np
@@ -181,6 +202,7 @@ def backend(connection,fault,scene_file=None):
         if not np.allclose(raw_rotation.T@raw_rotation,np.eye(3),atol=1e-8,rtol=0):
             raise ValueError('Scene conversion must be rigid')
         origin=np.array(scene['origin'])
+        viewer_q=viewer_body_orientation(raw_rotation,aligned_q)
     state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
                max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None,
                future_plan=None,future_replans=0,future_replanned_goal=None,accepted_goals=[])
@@ -300,7 +322,10 @@ def backend(connection,fault,scene_file=None):
                 # Visualization-only alias: SUPER world numerically matches raw camera_init.
                 # Never alias the aligned ENU or MAVROS map frame to world.
                 visible=PoseStamped();visible.header.stamp=stamp;visible.header.frame_id='world'
-                visible.pose=msg.pose.pose;vehiclepub.publish(visible)
+                visible.pose.position=msg.pose.pose.position
+                for axis,value in zip(('x','y','z','w'),viewer_q):
+                    setattr(visible.pose.orientation,axis,float(value))
+                vehiclepub.publish(visible)
     def planning():
         plan=state['plan'];stamp_ns=node.get_clock().now().nanoseconds;now=stamp_ns/1e9
         if plan is None or now<plan.start:return
