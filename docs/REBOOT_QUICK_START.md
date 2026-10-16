@@ -37,8 +37,10 @@ The runner performs the following sequence:
 1. Open or reuse QGroundControl, then start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
 2. Measure and apply a fresh alignment quaternion, start external vision, and capture the session-relative map configuration.
 3. Sample the real vision chain for 30 seconds and capture a fresh occupied scene.
-4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 1.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
+4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
+
+Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which remains **1.5 m** with `TAKEOFF_TO_1_5M`. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 
 During complete-demo map initialization, `Map capture WAIT` means the runner is still waiting for a fresh three-second raw-odometry window whose range is at most 2.5 cm per axis. There is no capture deadline: passing 12 seconds does not fail the rehearsal. Progress and observed ranges appear in the planner-stage log. Lost ground state, stale odometry or changed sources still stop initialization; a stable window is required before a map profile is written. Ctrl+C cancels the run.
 
@@ -119,7 +121,7 @@ Run the complete rehearsal command again for another fresh automatic test. Do no
 
 ## Prepare physical execution separately
 
-The physical route is also 1.5 m up, 4.5 m forward, return to the original hover point, six-second hold, then landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
+The physical route uses 1.5 m height, 4.5 m forward, return to the original hover point, six-second hold, then landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
 Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Survey that box, takeoff distances from its rear and left boundaries, and all six propeller-inclusive FC-centre extents. Replace every null geometry field with an actual measurement; do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change.
 

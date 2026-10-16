@@ -60,7 +60,9 @@ def main():
             runner.report.update(result='FAIL',error='Another automatic task owns the stack')
             write_report(runner.path,runner.report);print('RESULT: FAIL\nREPORT:',runner.path);return 1
         try:
-            DemoMission.load(args.mission_file)
+            mission=DemoMission.load(args.mission_file)
+            if mission.rehearsal_only:
+                raise ValueError('Physical preparation requires the 1.5 m mission, not a frozen ground rehearsal')
             if args.execute and not args.on_site_supervised:
                 raise ValueError('Explicit on-site supervision is required for flight execution')
             for name in ('super_demo_control.py','demo_mission.py'):

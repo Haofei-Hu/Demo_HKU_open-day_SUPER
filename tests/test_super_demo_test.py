@@ -48,7 +48,12 @@ class Tests(unittest.TestCase):
     def test_default_runs_real_preparation_scene_and_whole_mission(self):
         with tempfile.TemporaryDirectory() as folder,self.gate():
             runner,actions=self.runner(folder)
+            original=runner.args.mission_file.read_bytes()
             self.assertEqual(runner.run_complete(),0)
+            self.assertEqual(runner.args.mission_file.read_bytes(),original)
+            self.assertEqual(runner.report['requested_fc_floor_height_m'],.5)
+            self.assertEqual(runner.report['waypoints']['home_hover'],[0.,0.,.5])
+            self.assertEqual(runner.report['mission_report']['completed_stages'][0],'TAKEOFF_TO_0_5M')
             self.assertEqual([a[0] for a in actions],['prepare','vision_chain','capture_scene','complete_mission'])
             self.assertEqual(actions[0][1],'demo')
             self.assertIn('--scene-file',actions[-1][1]);self.assertEqual(actions[-1][2]['ROS_DOMAIN_ID'],'197')
@@ -156,7 +161,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.run_complete(),0)
             self.assertEqual(runner.args.mission_file.read_bytes(),before)
             self.assertEqual(runner.report['mission']['mission_id'],'short_site_1m_rehearsal')
-            self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,1.5])
+            self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,.5])
             self.assertEqual(runner.report['mission_report']['completed_stages'][2],'SUPER_OUTBOUND_1M')
             self.assertFalse(runner.report['demonstration_completed'])
 

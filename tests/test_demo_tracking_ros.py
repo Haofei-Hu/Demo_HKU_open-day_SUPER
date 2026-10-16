@@ -108,6 +108,16 @@ class Tests(unittest.TestCase):
                 DemoMissionControl(source,report,execute=True,on_site_supervised=True)
             self.assertFalse(report.exists())
 
+    def test_half_metre_rehearsal_cannot_be_used_by_physical_controller(self):
+        from demo_mission import DemoMission
+        from test_demo_mission import fixture
+        config=DemoMission.ground_rehearsal(fixture())
+        with tempfile.TemporaryDirectory() as folder:
+            source=Path(folder)/'ground.json';source.write_text(json.dumps(config))
+            for execute in (False,True):
+                with self.assertRaisesRegex(ValueError,'virtual execution only'):
+                    DemoMissionControl(source,Path(folder)/'report.json',execute=execute,on_site_supervised=True)
+
     def test_observe_motion_policy_keeps_supervision_gate(self):
         with self.assertRaisesRegex(ValueError,'explicit on-site supervision'):
             DemoMissionControl('unused.json','unused-report.json',execute=True,

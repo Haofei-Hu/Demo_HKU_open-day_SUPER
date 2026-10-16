@@ -19,14 +19,18 @@ class DemoMission:
         if profile not in ('open_day_out_and_back','short_site_1m_rehearsal'):
             raise ValueError('Unknown mission profile')
         self.demonstration=profile=='open_day_out_and_back'
+        context=config.get('execution_context')
+        if context not in (None,'ground_rehearsal'):raise ValueError('Unknown mission execution context')
+        self.rehearsal_only=context=='ground_rehearsal'
         self.distance=4.5 if self.demonstration else 1.
-        self.PHASES=tuple('SUPER_OUTBOUND_1M' if not self.demonstration and p=='SUPER_OUTBOUND_4_5M'
+        self.PHASES=tuple('TAKEOFF_TO_0_5M' if self.rehearsal_only and p=='TAKEOFF_TO_1_5M' else
+                          'SUPER_OUTBOUND_1M' if not self.demonstration and p=='SUPER_OUTBOUND_4_5M'
                           else p for p in type(self).PHASES)
         v=config['venue'];f=config['flight'];s=config['takeoff'];body=config['vehicle']
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
         fixed={'length_forward_m':5.8 if self.demonstration else 2.,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
-        expected={'height_fc_above_floor_m':1.5,'outbound_forward_m':self.distance,
+        expected={'height_fc_above_floor_m':.5 if self.rehearsal_only else 1.5,'outbound_forward_m':self.distance,
                   'horizontal_speed_limit_mps':2.,'acceleration_limit_mps2':1.,
                   'return_hover_s':6.,'axis_error_limit_m':.1}
         if any(f.get(k)!=n for k,n in expected.items()):raise ValueError('Final demonstration settings differ')
@@ -54,6 +58,15 @@ class DemoMission:
     @classmethod
     def load(cls,path):
         return cls(json.loads(Path(path).read_text()))
+
+    @staticmethod
+    def ground_rehearsal(config):
+        """Use a per-run 0.5 m virtual route; never edit the 1.5 m flight file."""
+        result=deepcopy(config)
+        result['execution_context']='ground_rehearsal'
+        result['flight']['height_fc_above_floor_m']=.5
+        result['sequence'][0]='TAKEOFF_TO_0_5M'
+        return result
 
     @staticmethod
     def short_site_fixture(config):
@@ -89,11 +102,15 @@ class DemoMission:
 
 class MissionReport:
     def __init__(self,path,mission,mode):
+        if mission.rehearsal_only and mode!='simulation':
+            raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
         self.path=Path(path)
         self.phases=mission.PHASES
         self.demonstration=mission.demonstration
         if self.path.exists():raise ValueError('Mission report already exists; use a new path')
         self.data=dict(schema_version=1,result='RUNNING',mode=mode,
+            execution_context='ground_rehearsal' if mission.rehearsal_only else 'physical_mission_specification',
+            requested_fc_floor_height_m=mission.hover_height,
             mission=mission.config,waypoints=mission.waypoints(),expected_stages=list(self.phases),events=[],
             completed_stages=[],error=None,physical_flight_verified=False,
             started_at=datetime.now().astimezone().isoformat())

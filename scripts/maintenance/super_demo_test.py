@@ -84,6 +84,7 @@ class DemoTest(GroundTest):
             for name in required:
                 if not (self.args.scripts_dir/name).is_file():raise RuntimeError('Missing dependency: '+name)
             config=json.loads(self.args.mission_file.read_text())
+            config=DemoMission.ground_rehearsal(config)
             if getattr(self.args,'route_profile','demonstration')=='short-1m':
                 if not self.args.fixture_geometry:raise ValueError('Short-site rehearsal needs explicitly labelled --fixture-geometry')
                 config=DemoMission.short_site_fixture(config)
@@ -95,6 +96,8 @@ class DemoTest(GroundTest):
             mission=DemoMission(config)
             frozen=self.folder/'mission.json';frozen.write_text(json.dumps(config,indent=2)+'\n')
             self.report['mission']=config;self.report['waypoints']=mission.waypoints()
+            self.report['execution_context']='ground_rehearsal'
+            self.report['requested_fc_floor_height_m']=mission.hover_height
             print(f'ROUTE: {config["mission_id"]}; {mission.hover_height:g} m height, {mission.distance:g} m outbound, return, 6 s hover, LAND',flush=True)
             scene=None
             if not self.args.logic_only:

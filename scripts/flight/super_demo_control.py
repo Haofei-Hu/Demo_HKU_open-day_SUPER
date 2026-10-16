@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One complete venue-bounded demonstration; check-only unless explicitly enabled.
 
-    1.5 m takeoff -> SUPER 4.5 m outbound -> SUPER return -> 6 s hold -> LAND
+    0.5 m virtual / 1.5 m physical takeoff -> SUPER outbound/return -> 6 s hold -> LAND
 
 No parameter writes. Execution also requires an explicit start service, current
 RC/POSCTL and the on-site-supervision flag. Reports distinguish simulation.
@@ -119,6 +119,8 @@ class DemoMissionControl(SuperFlightControl):
         if execute and not simulation and str(config.get('status','')).startswith('SYNTHETIC'):
             raise ValueError('Synthetic test geometry cannot enable a physical flight')
         self.mission=DemoMission(config)
+        if self.mission.rehearsal_only and not simulation:
+            raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
         self.MAX_DISTANCE=self.mission.distance
         self.FRAME_FORWARD_LIMIT=self.mission.distance+.1
         self.mission_report=MissionReport(report_path,self.mission,'simulation' if simulation else
@@ -241,7 +243,7 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.event(phase,leg=self.leg)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
-            self.mission_report.completed('TAKEOFF_TO_1_5M')
+            self.mission_report.completed(self.mission.PHASES[0])
         elif phase=='LANDING' and self.stages_started:
             self.mission_report.completed('AUTO_LAND')
         elif phase=='DONE' and self.stages_started:

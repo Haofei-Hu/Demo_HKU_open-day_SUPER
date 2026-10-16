@@ -1,0 +1,98 @@
+{
+  "scope": "Cloud ROS 2 Humble tests with synthetic planner and ideal virtual vehicle; no aircraft or actual SUPER/PX4",
+  "focused_checks_passed": 59,
+  "physical_controller_target_verified_m": 1.5,
+  "canonical_flight_file_unchanged": true,
+  "ground_height_m": 0.5,
+  "original_mission_bytes_preserved_by_runner_test": true,
+  "ground_profiles_rejected_by_physical_controller": true,
+  "full_rehearsal": {
+    "result": "SUCCESS",
+    "stage": "DONE",
+    "execution_context": "ground_rehearsal",
+    "requested_fc_floor_height_m": 0.5,
+    "completed_stages": [
+      "TAKEOFF_TO_0_5M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_4_5M",
+      "STABILIZE_AT_FAR_POINT",
+      "SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "return_hover_duration_s": 6.0007654840592295,
+    "planner_goals_sent": 2,
+    "simulation_backend": {
+      "kind": "ideal synthetic ROS planning and vehicle",
+      "actual_SUPER_used": false,
+      "actual_PX4_used": false,
+      "hardware_used": false,
+      "ledger": {
+        "goals": [
+          [
+            3.8340102670935527,
+            2.4608911302776586,
+            -0.325
+          ],
+          [
+            0.12,
+            -0.08,
+            -0.325
+          ]
+        ],
+        "commands": [
+          "OFFBOARD",
+          "ARM",
+          "AUTO.LAND"
+        ],
+        "peak_native_speed": 1.6551363157863561,
+        "max_lateral_displacement_m": 1.0744877210200343e-14,
+        "armed": false,
+        "landed": true,
+        "rest_waits": 0,
+        "future_replans": 0,
+        "accepted_goals": [
+          [
+            3.8340102670935527,
+            2.4608911302776586,
+            -0.325
+          ],
+          [
+            0.12,
+            -0.08,
+            -0.325
+          ]
+        ]
+      },
+      "scene_file": null,
+      "execution_timeout_s": null,
+      "static_snapshot_adaptation": []
+    },
+    "waypoints": {
+      "ground": [
+        0.0,
+        0.0,
+        0.085
+      ],
+      "home_hover": [
+        0.0,
+        0.0,
+        0.5
+      ],
+      "far_hover": [
+        4.5,
+        0.0,
+        0.5
+      ],
+      "return_hover": [
+        0.0,
+        0.0,
+        0.5
+      ]
+    },
+    "nominal_waypoints_reached": true
+  },
+  "release_hashes_rechecked": true,
+  "remaining": "Repeat captured-map real-SUPER rehearsal onboard. A virtual 0.5 m pass does not verify the 1.5 m physical mission."
+}

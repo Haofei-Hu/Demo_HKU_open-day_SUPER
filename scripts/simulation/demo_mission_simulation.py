@@ -442,17 +442,16 @@ def main():
     others=[n for n,_ in probe.get_node_names_and_namespaces() if n!='demo_isolation_check']
     probe.destroy_node();rclpy.shutdown()
     if others:raise SystemExit('Simulation domain is already in use; refusing: '+str(others))
-    from demo_mission import default_report_path
+    from demo_mission import DemoMission,default_report_path
     report=args.report_json or default_report_path()
     with tempfile.TemporaryDirectory(prefix='demo_geometry_') as folder:
-        mission_file=args.mission_file
+        config=DemoMission.ground_rehearsal(json.loads(args.mission_file.read_text()))
         if args.fixture_geometry:
-            config=json.loads(mission_file.read_text())
             config['takeoff'].update(forward_from_rear_m=.5,distance_from_left_m=1.4)
             for side in ('front','rear','left','right'):config['vehicle']['centre_to_'+side+'_m']=.2
             config['vehicle'].update(centre_to_top_m=.1,centre_to_bottom_m=.085)
             config['status']='SYNTHETIC_TEST_FIXTURE_NOT_AIRCRAFT_GEOMETRY'
-            mission_file=Path(folder)/'fixture.json';mission_file.write_text(json.dumps(config))
+        mission_file=Path(folder)/'rehearsal.json';mission_file.write_text(json.dumps(config))
         print('REHEARSAL ONLY: real SUPER with frozen map' if args.scene_file else
               'SIMULATION ONLY: ideal synthetic planner',flush=True)
         print('Virtual vehicle/FC only; no physical aircraft or PX4 flight',flush=True)
