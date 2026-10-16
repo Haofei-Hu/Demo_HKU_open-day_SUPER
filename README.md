@@ -10,285 +10,33 @@ The automatic ground runner subsequently completed the full aircraft workflow wi
 
 **Status — October 14, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. A disarmed 1 m vertical reference test progressed through `TRACK` to `END_HOLD`, accepting 684 samples and holding forward/left/FC-floor-height `[-0.0226, -0.0447, 1.0395] m` while suppressing subsequent restart references. These locked-frame endpoint offsets are within 10 cm per axis. A later 120-second stationary observation with online IMU–LiDAR extrinsic estimation disabled measured maximum forward/left/up coordinate excursions below 2 cm in both external and FC poses. A follow-up vertical reference trial in that fixed-extrinsic session latched a continuity fault after 409 accepted samples; detailed transition diagnostics are prepared before flight integration. See the [vertical reference result](data/observed_2026-10-13/vertical_goal_ground.json), [stationary observation](data/observed_2026-10-13/fastlio_stationary_diagnosis.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. The cause of earlier stationary attitude/position inconsistencies and stability over a complete demonstration remain under investigation.
 
-## Quick Start: restore the aircraft after reboot
+## Quick Start: after power-on or reboot
 
-For the complete demonstration test, after installing the matching script release:
+Connect to the onboard Ubuntu desktop, keep the aircraft stationary and disarmed on its takeoff floor, and open **one terminal**. With the matching scripts already installed, run:
 
 ```bash
 python3 ~/Downloads/super_demo_test.py \
-  --restart --fixed-lio-extrinsics --fixture-geometry
+  --restart --fixed-lio-extrinsics --fixture-geometry \
+  --motion-policy observe
 ```
 
-This automatically restarts the grounded stack, captures the quaternion and map, and rehearses the entire route using real SUPER and a virtual FC/vehicle in private ROS domain 197. The actual aircraft stays disarmed. The fixture geometry is explicitly synthetic while aircraft dimensions and takeoff wall distances remain unmeasured. The final `RESULT`, scope and saved report distinguish this rehearsal from flight. See [installation, stages and report interpretation](docs/DEMONSTRATION_MISSION.md).
+The runner sources ROS itself, starts the managed stack, captures and applies this run's quaternion, prepares the session map, checks the real vision chain and rehearses the complete **2 m climb → 4.5 m outbound → return → six-second hover → landing** with real SUPER and virtual vehicle feedback. The actual aircraft remains disarmed. No manual quaternion copying, numbered terminals or separate goal request is needed. A normal reboot requires no reinstall or rebuild.
 
-For the current short location, append `--route-profile short-1m` to the complete-test command. It retains climb, return, final hover and landing, but requests 1 m outbound. Its report cannot count as a completed 4.5 m demonstration. The actual map and backup planner still have to admit that route.
+Wait for `RESULT: SUCCESS` or `RESULT: FAIL` and the printed `REPORT:` path under `~/Downloads/super_demo_tests/<timestamp>/`. A rehearsal success covers every stage in the virtual mission; physical full-mission flight remains unverified. Fixture geometry is synthetic. Motion targets are 2 m/s and 1 m/s²; observation mode records exceedances with 2.4 m/s and 1.5 m/s² warning advisories while retaining position, freshness and continuity checks.
 
-During virtual integration, append `--motion-policy observe` to record speed/acceleration target exceedances as warnings while retaining position, polynomial, freshness and continuity checks. Reports retain actual peaks and counts; completion with this option does not establish 2/1 motion compliance. The demonstration preparation/controller CLIs now default to observation as well, with 2.4 m/s and 1.5 m/s² warning advisories. Strict 2/1 rejection remains an explicit diagnostic option; physical startup and position/freshness checks remain required.
-
-The following short tests remain available as diagnostics.
-
-For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing the matching script release:
+After the test finishes, inspect or stop the background stack:
 
 ```bash
-python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics
+python3 ~/Downloads/super_session.py status
+# After landing and disarming:
+python3 ~/Downloads/super_session.py stop
 ```
 
-This captures and applies a fresh quaternion, prepares the session map, runs one ground audit and saves a structured report. It preserves flight initiation as a separate operation; a passing ground result does not initiate takeoff. The manual steps below remain available for diagnosis.
+Closing the terminal does not stop the managed tmux processes. Run the same complete-test command for another fresh session. For a separate short-site rehearsal, append `--route-profile short-1m`; use the default 4.5 m route in a suitable laboratory.
 
-For the separate 5 m forward reference audit, capped at 2 m/s and 1 m/s²:
+See **[the reboot startup guide](docs/REBOOT_QUICK_START.md)** for the pinned installer, saved-result inspection, measured mission configuration and separate supervised physical-flight startup. Physical execution requires surveyed geometry, current RC/manual POSCTL and compatible PX4 readbacks, followed by an explicit start request. The latest cloud stress run stopped on a timer gap; onboard recurrence remains to be checked.
 
-```bash
-python3 ~/Downloads/super_ground_test.py --restart --fixed-lio-extrinsics \
-  --test-profile forward-5m-2mps
-```
-
-This also remains disarmed and produces debug output only. The report records the actual sampled planner peaks and `SUCCESS`/`FAIL`; it does not establish physical 2 m/s tracking. Map capture retains the 2.5 cm per-axis limit and waits up to 12 seconds for a complete stable three-second window. See [the test profile](docs/AUTOMATED_GROUND_TEST.md#forward-5-m-ground-audit) for installation and result interpretation.
-
-An earlier fresh-session trial exposed a planner map-height mismatch while localization and parameter checks remained healthy. Managed `low-speed-3d` startup now generates frozen session-relative vertical map bounds without changing the source profile, obstacle clouds or flight margins. Aircraft capture, planning and a complete disarmed audit subsequently passed using this profile; intermittent startup freshness and capture failures still require repeatability evidence. See [October 15 progress](docs/PROGRESS_2026-10-15.md).
-
-The managed disarmed SUPER-to-PX4 transport is verified: native position/yaw setpoints publish at approximately 20 Hz and PX4 reports fresh position-control intent. Use the [transport workflow](docs/SESSION_STARTUP.md#managed-disarmed-transport-test) and `wire-stop` to stop the sender; this is separate from trajectory flight. See [October 14 integration](docs/PROGRESS_2026-10-14.md).
-
-The [one-goal handover audit](docs/SUPER_HANDOVER.md) has passed a sustained aircraft ground trial: 217 references accepted, `AUDIT_END` retained for more than six seconds, and concurrent 30-second input sampling fresh. A repeated audit held `[0.3462, -0.0154, 0.0757] m` in forward/left/FC-floor-height coordinates with fresh concurrent native-vision sampling; see [the latest ground result](data/observed_2026-10-14/super_handover_vision_audit.json). The auditor emits debug output only; planner-driven aircraft flight remains pending. `super_session.py handover-check` preserves localization/planning, and `/super_flight/audit` explicitly requests the one ground goal after `READY`. The aircraft read-only `super_session.py flight-check` snapshot passed all remote preparation checks, with 7.12 mm FC/vision position separation and 0.01145° yaw difference. RC/manual POSCTL remain the two supervised-flight input blockers; see [the snapshot](data/observed_2026-10-14/remote_flight_readiness.json).
-
-For fewer terminal windows, use the [compact tmux startup](docs/SESSION_STARTUP.md). It groups persistent nodes in the background, preserves per-node logs, and keeps flight initiation explicit. After the one-time setup, the command sequence is:
-
-```bash
-python3 ~/Downloads/super_session.py start
-python3 ~/Downloads/super_session.py align
-```
-
-For the current fixed-extrinsic ground comparison, use `start --fixed-lio-extrinsics` when creating a new session, then run the same fresh survey and vision sequence. Plain `start` uses the original YAML-based baseline; the override does not edit that file. See the [comparison workflow](docs/SESSION_STARTUP.md).
-
-Then use the current measured quaternion with `super_session.py vision QX QY QZ QW`. Check fusion and preflight, and use `super_session.py hover --execute` for the existing hover controller. The separate `/first_hover/start` service still initiates the flight. For disarmed ground planning after fusion is valid:
-
-```bash
-python3 ~/Downloads/super_session.py planner --planner-profile low-speed-3d
-# Before a goal, start bounded preview and wait for WAIT_TRAJECTORY:
-python3 ~/Downloads/super_session.py reference-preview
-# After a nonempty occupancy map and preview readiness:
-python3 ~/Downloads/super_session.py goal
-# Alternative: a 1 m vertical reference, on the actual floor and before any goal:
-# python3 ~/Downloads/super_session.py goal --goal-height 1.0
-# Stop planning only; localization and vision remain running:
-python3 ~/Downloads/super_session.py planner-stop
-```
-
-These commands manage SUPER and a debug-coordinate preview. They do not execute a trajectory on the aircraft. The [session runbook](docs/SESSION_STARTUP.md#ground-planning-in-the-same-session) describes readiness checks and prerequisites. For the next low-speed preview, use `planner --planner-profile low-speed-3d` after `planner-stop`. The motion-profile helper also saves the final 2 m/s / 1 m/s² candidate; it is not a flight-ready configuration. After the low-speed goal is producing commands, `super_session.py planner-check` samples reference motion limits and freshness without flight output. The separate [bounded ground reference preview](docs/BOUNDED_REFERENCE_PREVIEW.md) adds fixed forward/floor coordinates, point-envelope checks and committed-trajectory endpoint holding. A stationary aircraft test reached `END_HOLD` and suppressed restart references; native flight execution remains pending. An optional [live RViz2 view](docs/SESSION_STARTUP.md#live-rviz2-view) shows clouds, map, and planning trajectories. The numbered commands below remain available for manual recovery.
-
-Run these commands in separate terminals on the **onboard Ubuntu computer** through NoMachine. This assumes the ROS workspaces and integration scripts are already installed. A normal reboot does not require recompilation or reinstallation.
-
-Keep the aircraft on its actual takeoff floor, stationary and disarmed, with RC connected and the arm switch OFF. Start terminals **1–4**, perform the session pairing in **5**, start **6–8**, and then use **11** for hover. Terminals **9/10** are optional ground planning tools and stay stopped during the hover test.
-
-### Before opening the ROS terminals
-
-Check the current Wi-Fi address and remote-desktop service:
-
-```bash
-nmcli device status
-ip -4 -br addr show dev wlx6c1ff7880bdf
-sudo /usr/NX/bin/nxserver --status
-```
-
-Connect NoMachine to the current IP using NX, port 4000. The last recorded address is `192.168.6.146`; DHCP may change it. See [remote recovery](docs/REMOTE_RECOVERY_2026-10-09.md) if the interface or desktop is unavailable.
-
-### Terminal 1: MID360
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-ros2 launch livox_ros_driver2 msg_MID360_launch.py
-```
-
-### Terminal 2: FAST_LIO
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/ws_livox/install/setup.zsh
-source ~/fastlio_ws/install/setup.zsh
-ros2 run fast_lio fastlio_mapping --ros-args \
-  --params-file "$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml" \
-  -p use_sim_time:=false \
-  -p publish.map_en:=false \
-  -p publish.path_en:=false \
-  -p publish.scan_publish_en:=true \
-  -p publish.scan_bodyframe_pub_en:=false
-```
-
-Wait for map initialization. The recent healthy baseline was approximately 20–35 ms odometry age, `irx≈0`, and `lidar_q=0`.
-
-### Terminal 3: MAVROS
-
-```bash
-source /opt/ros/humble/setup.zsh
-ros2 launch mavros px4.launch \
-  fcu_url:="serial:///dev/serial/by-id/usb-Matek_HKUST_UAV_NxtPX4_0-if00:2000000" \
-  gcs_url:="udp://127.0.0.1:14555@127.0.0.1:14550"
-```
-
-Verify the serial path with `ls -l /dev/serial/by-id/` if the FC is not connected. MAVROS owns the onboard USB connection; QGC uses UDP forwarding.
-
-### Terminal 4: FC-centre attitude diagnostics
-
-```bash
-source /opt/ros/humble/setup.zsh
-python3 ~/Downloads/fastlio_body_debug.py
-```
-
-### Terminal 5: parameter pull and fresh session alignment
-
-Keep terminals 6/7/11 stopped while measuring a new alignment. Confirm `connected: true` and `armed: false` before changing fusion parameters:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/super_ws/install/setup.zsh
-ros2 service call /mavros/param/pull \
-  mavros_msgs/srv/ParamPull '{force_pull: true}'
-timeout 10s ros2 topic echo /mavros/state --once
-```
-
-Then, while disarmed:
-
-```bash
-ros2 param set /mavros/param EKF2_EV_CTRL 0
-ros2 param get /mavros/param EKF2_EV_CTRL
-ros2 param get /mavros/param EKF2_HGT_REF
-python3 ~/Downloads/odom_age_check.py
-python3 ~/Downloads/frame_alignment_check.py
-```
-
-Keep the aircraft stationary for the 15-second pairing. Replace the four placeholders below with this run's `Candidate rotation quaternion xyzw`:
-
-```text
-python3 ~/Downloads/update_preview_alignment.py QX QY QZ QW
-```
-
-Remeasure after each FAST_LIO initialization. Do not reuse a historical quaternion or change the alignment during a locked flight session. Missing helper files can be obtained through the [installation instructions](docs/FIRST_HOVER_2026-10-09.md#download-and-install).
-
-### Terminal 6: aligned pose preview
-
-```bash
-source /opt/ros/humble/setup.zsh
-python3 ~/Downloads/aligned_pose_preview.py
-```
-
-Wait for fresh preview output. Its zero is a session origin; terminal 11 captures the actual takeoff-floor pose separately.
-
-### Terminal 7: continuous external-vision relay
-
-With the aircraft still disarmed, restore the recorded fusion configuration in terminal 5:
-
-```bash
-ros2 param set /mavros/param EKF2_HGT_REF 3
-ros2 param set /mavros/param EKF2_EV_POS_X 0.0
-ros2 param set /mavros/param EKF2_EV_POS_Y 0.0
-ros2 param set /mavros/param EKF2_EV_POS_Z 0.0
-ros2 param set /mavros/param EKF2_EV_QMIN 0
-ros2 param set /mavros/param EKF2_EV_CTRL 11
-```
-
-Start terminal 7:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/super_ws/install/setup.zsh
-python3 ~/Downloads/flight_pose_cov_transport.py \
-  --ros-args -p publish_to_mavros:=true
-```
-
-Keep this relay running throughout flight. Wait for `Session locked; first pose forwarded with original stamp/covariance`, then check in terminal 5:
-
-```bash
-ros2 topic info /mavros/vision_pose/pose_cov
-timeout 10s ros2 topic hz /mavros/vision_pose/pose_cov
-timeout 10s ros2 topic echo /mavros/estimator_status --once
-```
-
-Expect one vision publisher, a MAVROS subscriber, approximately 10 Hz, and valid local position/velocity. Stop historical ground/raw vision relays before running this one.
-
-### Terminal 8: QGroundControl and preflight
-
-```bash
-~/Downloads/QGroundControl-x86_64.AppImage
-```
-
-In **Application Settings → Comm Links**, disable Pixhawk auto-connect and enable UDP. Select POSCTL with RC, keep the arm switch OFF, and release Kill for the disarmed preflight check. In the MAVLink Console:
-
-```text
-listener vehicle_visual_odometry 1
-listener actuator_armed 1
-commander check
-```
-
-Confirm fresh visual odometry, `armed: False`, `kill: False`, `termination: False`, and `Preflight check: OK` in POSCTL.
-
-### Terminals 9/10: optional ground planning
-
-For hover, leave both stopped. For a separate disarmed SUPER check, prepare the diagnostic configuration in terminal 5:
-
-```bash
-if [ ! -f "$HOME/super_ws/src/SUPER/super_planner/config/mid360_ground_diagnostic_ros2.yaml" ]; then
-  python3 ~/Downloads/create_super_ground_diagnostic.py
-fi
-mkdir -p ~/super_ws/src/SUPER/super_planner/log
-```
-
-Terminal 9:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/super_ws/install/setup.zsh
-ros2 run super_planner fsm_node --ros-args \
-  -p use_sim_time:=false \
-  -p config_name:=mid360_ground_diagnostic_ros2.yaml
-```
-
-Terminal 10:
-
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/super_ws/install/setup.zsh
-python3 ~/Downloads/control_bridge_preview.py
-```
-
-The preview waits for a planner command. A small disarmed planning goal can be generated from terminal 5 using `python3 ~/Downloads/send_control_preview_goal.py`. This is separate from flight execution. Stop both processes before continuing with terminal 11.
-
-### Terminal 11: 1 m hover, 6-second hold, automatic landing
-
-Keep terminals 1–4 and 6–8 running. Stop other setpoint senders, including `ground_setpoint_transport.py`. In terminal 5, check the retained speed and OFFBOARD-loss settings:
-
-```bash
-for ros_param_name in MPC_XY_VEL_ALL MPC_Z_VEL_ALL MPC_XY_VEL_MAX MPC_Z_VEL_MAX_UP MPC_Z_VEL_MAX_DN COM_OF_LOSS_T COM_OBL_RC_ACT; do
-  printf '%s: ' "$ros_param_name"
-  ros2 param get /mavros/param "$ros_param_name"
-done
-```
-
-Expected values: `-1.0, -1.0, 0.5, 0.5, 0.5, 0.5, 4`. Keep the aircraft on the takeoff floor with no external display/power tether. Start terminal 11:
-
-```bash
-source /opt/ros/humble/setup.zsh
-python3 ~/Downloads/first_hover_terminal.py --execute --hover-height 1.0 --hold-seconds 6.0
-```
-
-Wait for `Phase: READY` and `GROUND LOCK`; confirm the startup profile shows `hover FC=1 m, hold=6 s`. Starting this process alone does not arm or take off.
-
-**Start flight — terminal 5**, after the current preflight checks pass and the flight area is clear:
-
-```bash
-ros2 service call /first_hover/start std_srvs/srv/Trigger '{}'
-```
-
-This starts one automatic flight: approximately 2 seconds of ground setpoint streaming → confirmed OFFBOARD → arming → takeoff → fixed XY/yaw hover → AUTO.LAND. The 1 m floor-relative FC target is `z_ground + 0.915 m`, accounting for the 8.5 cm ground clearance.
-
-**Early landing — terminal 5:**
-
-```bash
-ros2 service call /first_hover/land std_srvs/srv/Trigger '{}'
-```
-
-RC mode takeover has priority. Kill stops motors directly rather than commanding descent. After landing and disarming, restart only terminal 11 for another hover in the same healthy localization session; keep FAST_LIO and the vision chain running. A FAST_LIO restart requires a new alignment and relay session.
-
-For detailed guards, phase timing, check-only mode, and troubleshooting, see the [complete flight workflow](docs/FIRST_HOVER_2026-10-09.md).
+Individual tools remain documented separately: [compact tmux startup and diagnosis](docs/SESSION_STARTUP.md), [the historical 1 m hover workflow](docs/FIRST_HOVER_2026-10-09.md), [the automatic one-goal ground audit](docs/AUTOMATED_GROUND_TEST.md), and [the complete demonstration specification](docs/DEMONSTRATION_MISSION.md).
 
 ## Project progress
 
@@ -307,7 +55,7 @@ For detailed guards, phase timing, check-only mode, and troubleshooting, see the
 
 The successful flight is a functional milestone. Height error, horizontal drift, timing distributions, and repeatability will be quantified from flight logs and independent measurements in the next test campaign.
 
-- [Current progress and flight milestone](docs/PROGRESS_2026-10-10.md)
+- [Current integration progress and validation scope](docs/PROGRESS_2026-10-16.md)
 - [Complete flight workflow: terminals 1–11 and reboot recovery](docs/FIRST_HOVER_2026-10-09.md)
 - [Next development and validation steps](docs/NEXT_STEPS.md)
 - [Three-terminal bag recording and XYZ analysis](docs/BAG_XYZ_2026-10-09.md)

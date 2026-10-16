@@ -1,5 +1,7 @@
 # Compact aircraft startup
 
+For the current complete demonstration after power-on or reboot, use [the one-terminal reboot startup guide](REBOOT_QUICK_START.md). It automatically measures alignment and runs the full rehearsal. The individual commands below are for component diagnosis and the earlier hover/audit workflows.
+
 `super_session.py` groups the localization, ground planning, and hover processes in a private tmux session. One onboard command terminal is enough; a second terminal can show logs. QGC remains a separate application. The original numbered runbook is still available for diagnosis.
 
 This manager has software/isolated-fixture verification. Aircraft localization startup has been checked with current telemetry, fresh alignment, native vision, and valid local position/velocity. The disarmed SUPER-to-PX4 protocol path is verified. A separate [one-goal controller prototype](SUPER_HANDOVER.md) now provides managed `handover-check`/`handover-stop`; the manager exposes its ground audit only. Planner-driven aircraft flight remains unverified.

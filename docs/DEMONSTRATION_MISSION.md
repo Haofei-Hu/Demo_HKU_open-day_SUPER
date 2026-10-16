@@ -1,8 +1,10 @@
 # Complete demonstration test
 
-The automatic acceptance target is the entire [canonical demonstration](../configs/demonstration/open_day_mission.json): take off to an FC-centre floor height of 2 m, stabilize, travel forward 4.5 m, stop, return to the original hover point, hold six seconds, request AUTO.LAND, and confirm landed and disarmed feedback. Initial heading is retained. Horizontal speed is capped at 2 m/s and acceleration at 1 m/s²; the route need not reach either cap. Initial, endpoint and tracking errors remain limited to 10 cm per axis.
+The automatic acceptance target is the entire [canonical demonstration](../configs/demonstration/open_day_mission.json): take off to an FC-centre floor height of 2 m, stabilize, travel forward 4.5 m, stop, return to the original hover point, hold six seconds, request AUTO.LAND, and confirm landed and disarmed feedback. Initial heading is retained. Planner motion targets are 2 m/s and 1 m/s²; the selected downstream motion policy determines whether derivative exceedances stop tracking or are recorded as warnings. Initial, endpoint and tracking errors remain limited to 10 cm per axis.
 
 ## From a new terminal
+
+For the recommended commands after every power-on or reboot, including the pinned installation and separate physical entrypoint, use [the reboot quick start](REBOOT_QUICK_START.md).
 
 The existing onboard ROS workspaces, tmux, localization helpers and MAVROS installation are prerequisites. Install one matching release using `scripts/maintenance/install_demo_test.py --revision <full-commit-SHA>`. The installer validates every downloaded file against the pinned release manifest before replacing code, saves backups, preserves measured alignment and retains an existing mission configuration. It does not start ROS.
 
@@ -48,7 +50,7 @@ python3 ~/Downloads/super_demo_test.py \
   --route-profile short-1m
 ```
 
-This retains the 2 m climb, return to home, six-second hover and confirmed landing. It changes only the rehearsal's outbound distance to 1 m. Speed and acceleration remain capped at 2 m/s and 1 m/s²; a one-metre stop-to-stop route cannot establish a 2 m/s speed trial. Both the actual map's obstacles and the backup trajectory must still permit the route. No backup or obstacle checks are disabled.
+This retains the 2 m climb, return to home, six-second hover and confirmed landing. It changes only the rehearsal's outbound distance to 1 m. Planner motion targets remain 2 m/s and 1 m/s²; a one-metre stop-to-stop route does not establish a 2 m/s speed trial. Both the actual map's obstacles and the backup trajectory must still permit the route. No backup or obstacle checks are disabled.
 
 The canonical mission file remains unchanged at 4.5 m. The short test freezes a separate `short_site_1m_rehearsal` configuration and uses `SUPER_OUTBOUND_1M` in its expected/completed stages. Its virtual box is 2 m long with the test takeoff centre 0.5 m from its rear, representing 1.5 m forward room. The box width, height and aircraft extents remain labelled test geometry; this is not a survey of the current room or physical flight clearance. Short profiles cannot enable physical execution. `SUCCESS` here has `demonstration_completed=false` and cannot count as a completed 4.5 m demonstration.
 
