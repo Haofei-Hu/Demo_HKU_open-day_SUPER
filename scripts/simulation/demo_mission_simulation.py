@@ -132,8 +132,14 @@ def rehearsal_profile(source,report):
 def viewer_body_orientation(raw_to_aligned,aligned_quaternion):
     """Express the aligned body attitude in planner world, including mounting."""
     import numpy as np
-    from aligned_pose_preview import rotation
-    r=np.asarray(raw_to_aligned).T@rotation(np.asarray(aligned_quaternion))
+    # Measured previews can start ROS at module scope. Do not import them for
+    # quaternion arithmetic after the virtual backend has initialized ROS.
+    x,y,z,w=aligned_quaternion
+    aligned_body=np.array([
+        [1-2*(y*y+z*z),2*(x*y-z*w),2*(x*z+y*w)],
+        [2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w)],
+        [2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]])
+    r=np.asarray(raw_to_aligned).T@aligned_body
     q=np.zeros(4);trace=float(np.trace(r))
     if trace>0:
         scale=2*math.sqrt(1+trace)

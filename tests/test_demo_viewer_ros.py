@@ -25,12 +25,24 @@ from demo_mission_simulation import backend
 
 class Tests(unittest.TestCase):
     def test_rotated_scene_viewer_pose_matches_raw_odometry_with_original_stamp(self):
+        self.check_scene(legacy_preview=False)
+
+    def test_legacy_preview_with_module_scope_ros_init_is_not_imported(self):
+        self.check_scene(legacy_preview=True)
+
+    def check_scene(self,legacy_preview):
         with tempfile.TemporaryDirectory() as directory:
-            folder=Path(directory);alignment=folder/'alignment.py'
+            folder=Path(directory)
+            alignment=folder/('aligned_pose_preview.py' if legacy_preview else 'alignment.py')
             alignment.write_text('import numpy as np\ndef convert(p,q,c):\n'
                 ' import math\n'
                 ' # Raw IMU yaw=0; body yaw=-45deg; aligned world adds +90deg.\n'
                 ' return np.array([[0.,-1.,0.],[1.,0.,0.],[0.,0.,1.]])@p+np.array([1.,2.,3.]),np.array([0.,0.,math.sin(math.pi/8),math.cos(math.pi/8)]),c\n')
+            if legacy_preview:
+                # Deployed previews may initialize ROS at module scope. Geometry
+                # extraction must work without importing or rewriting that file.
+                with alignment.open('a') as handle:handle.write('import rclpy\nrclpy.init()\n')
+            original_alignment=alignment.read_bytes()
             cloud=PointCloud2();cloud.header.frame_id='world';cloud.width=cloud.height=1
             cloud.point_step=cloud.row_step=12
             cloud.fields=[PointField(name=a,offset=i*4,datatype=PointField.FLOAT32,count=1)
@@ -42,6 +54,7 @@ class Tests(unittest.TestCase):
                 origin=[.5,.6,.7],cloud_serialized_base64=base64.b64encode(serialize_message(cloud)).decode())))
             parent,child=multiprocessing.get_context('spawn').Pipe()
             process=multiprocessing.get_context('spawn').Process(target=backend,args=(child,None,scene))
+            sys.path.insert(0,str(folder))
             process.start();node=None
             try:
                 self.assertTrue(parent.poll(15));self.assertEqual(parent.recv(),'ready')
@@ -79,7 +92,9 @@ class Tests(unittest.TestCase):
                 process.join(timeout=5)
                 if process.is_alive():process.terminate();process.join(timeout=5)
                 parent.close();child.close()
+                sys.path.remove(str(folder))
             self.assertEqual(process.exitcode,0)
+            self.assertEqual(alignment.read_bytes(),original_alignment)
 
 
 if __name__=='__main__':unittest.main()

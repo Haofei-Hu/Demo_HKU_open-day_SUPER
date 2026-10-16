@@ -1,0 +1,51 @@
+{
+  "scope": "ROS 2 Humble virtual backend startup, viewer pose, mission sequencing and release checks; no physical aircraft or desktop rendering",
+  "onboard_run": "20261017_001531_293214",
+  "onboard_result": "FAIL before virtual backend readiness; alignment, map capture and continuous vision preparation passed",
+  "root_cause": "Viewer quaternion arithmetic imported the preserved historical aligned_pose_preview.py, executing module-scope rclpy.init() after backend ROS initialization.",
+  "before_fix": {
+    "tests": 1,
+    "result": "FAIL",
+    "exception": "RuntimeError: Context.init() must only be called once",
+    "backend_ready": false
+  },
+  "after_fix": {
+    "tests": 74,
+    "result": "PASS",
+    "modules": [
+      "test_demo_viewer",
+      "test_demo_mission",
+      "test_super_demo_test",
+      "test_demo_test_release",
+      "test_repository_layout",
+      "test_demo_tracking_ros",
+      "test_demo_accepted_goal_ros",
+      "test_demo_rest_handoff_ros",
+      "test_demo_viewer_ros"
+    ],
+    "live_ros_cases": [
+      "Rotated captured scene with ordinary alignment file",
+      "Rotated captured scene with legacy module-scope ROS initializer"
+    ],
+    "verified": [
+      "Backend readiness and clean shutdown",
+      "Viewer body heading in raw planner world",
+      "Original pose stamps and position retained",
+      "Raw odometry and virtual FC attitudes retained",
+      "Measured preview file unchanged",
+      "Five-round deterministic mission sequencing and completion accounting",
+      "Release hashes and measurement-preserving installation"
+    ]
+  },
+  "correction": "Perform quaternion-to-matrix arithmetic locally without importing the measured preview; retain existing geometry-only scene extraction.",
+  "unchanged": [
+    "Five round trips",
+    "Ground height 0.5 m",
+    "Physical height 1.5 m",
+    "Planner speed and acceleration",
+    "Venue bounds",
+    "Runtime source/freshness/continuity checks",
+    "Timing policy"
+  ],
+  "limitations": "No complete five-round real-SUPER/onboard pass or physical flight is established by these focused checks. Desktop rendering remains unverified."
+}
