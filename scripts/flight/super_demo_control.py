@@ -51,7 +51,11 @@ class DemoMissionControl(SuperFlightControl):
     EXPECTED_PARAMETERS=dict(PARAMETERS,MPC_XY_VEL_MAX=2.)
 
     def __init__(self,mission_file,report_path,execute=False,on_site_supervised=False,
-                 alignment_path=None,planner_config=None,simulation=False):
+                 alignment_path=None,planner_config=None,simulation=False,motion_policy='strict'):
+        if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
+        if motion_policy!='strict' and not simulation:
+            raise ValueError('Observe-only motion policy is restricted to the isolated virtual rehearsal')
+        self.motion_policy=motion_policy;self.motion_warned_legs=set()
         if execute and not on_site_supervised:
             raise ValueError('Flight requires explicit on-site supervision; no flight publisher created')
         self.mission_file=Path(mission_file);self.mission_bytes=self.mission_file.read_bytes()
@@ -75,6 +79,8 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['tracking_policy']='FC pose timestamp matched to previously sent position/velocity reference'
         self.mission_report.data['peak_reference_speed_mps']=0.
         self.mission_report.data['peak_reference_acceleration_mps2']=0.
+        self.mission_report.data['motion_policy']=motion_policy
+        self.mission_report.data['planner_motion_by_leg']={}
         super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
         self.offboard_budget=90.
@@ -149,7 +155,15 @@ class DemoMissionControl(SuperFlightControl):
                              str(error.round(6).tolist())+f'; FC stamp={stamp}, reference stamp={ns}')
 
     def make_follower(self):
-        return RollingGoalReference(self.frame,self.check_stage_endpoint,self.final_goal_reached)
+        return RollingGoalReference(self.frame,self.check_stage_endpoint,self.final_goal_reached,self.motion_policy)
+
+    def process_reference(self,xyz):
+        try:super().process_reference(xyz)
+        finally:
+            if self.follower is not None:
+                evidence=dict(self.follower.motion_summary,
+                    last_violation=self.follower.last_motion_violation,policy=self.motion_policy)
+                self.mission_report.data['planner_motion_by_leg'][self.leg]=evidence
 
     def check_stage_endpoint(self,plan):
         endpoint,error,detail=self.endpoint_evidence(plan)
@@ -187,6 +201,13 @@ class DemoMissionControl(SuperFlightControl):
         acceleration=math.hypot(*(getattr(msg.acceleration,a) for a in ('x','y','z')))
         self.mission_report.data['peak_reference_acceleration_mps2']=max(
             self.mission_report.data['peak_reference_acceleration_mps2'],acceleration)
+        if (self.motion_policy=='observe' and self.follower.last_motion_violation is not None
+                and self.leg not in self.motion_warned_legs):
+            self.motion_warned_legs.add(self.leg)
+            evidence=self.follower.last_motion_violation
+            self.get_logger().warning('Virtual rehearsal motion targets exceeded; observation only: '
+                f'speed={evidence["speed_mps"]:.6f} m/s, acceleration={evidence["acceleration_mps2"]:.6f} m/s^2; '
+                'position, polynomial agreement, continuity and freshness checks remain active')
 
     def request_leg(self,leg,target):
         if self.goal_count>=2:raise ValueError('Demonstration permits exactly one outbound and one return goal')

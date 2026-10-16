@@ -104,6 +104,7 @@ def backend(connection,fault,scene_file=None):
         if scene_file is not None:return  # The real isolated SUPER owns all planning output.
         distance=math.dist(pose,end)
         duration=max(1.875*distance/2.,math.sqrt(5.774*distance),1.)
+        if fault=='motion-target-exceedance':duration*=.9  # Synthetic evidence test only.
         poly=PolynomialTrajectory();poly.header.frame_id='world';poly.header.stamp=node.get_clock().now().to_msg()
         poly.start_wt_pos=node.get_clock().now().nanoseconds/1e9+.1
         poly.type=3;poly.order_pos=7;poly.piece_num_pos=1;poly.time_pos=[duration]
@@ -176,7 +177,7 @@ def backend(connection,fault,scene_file=None):
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
 
-def run(mission_file,report,fault=None,scene_file=None):
+def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict'):
     import rclpy
     from std_srvs.srv import Trigger
     from super_demo_control import DemoMissionControl
@@ -202,7 +203,8 @@ def run(mission_file,report,fault=None,scene_file=None):
                 planner_process=subprocess.Popen(['ros2','run','super_planner','fsm_node','--ros-args',
                     '-p','use_sim_time:=false','-p','config_name:='+planner.name],
                     stdout=planner_log,stderr=subprocess.STDOUT,start_new_session=True)
-            rclpy.init();node=DemoMissionControl(mission_file,report,True,True,alignment,planner,simulation=True)
+            rclpy.init();node=DemoMissionControl(mission_file,report,True,True,alignment,planner,
+                                              simulation=True,motion_policy=motion_policy)
             client=node.create_client(Trigger,'/super_demo/start');attempted=False;began=time.monotonic()
             while rclpy.ok() and node.phase not in ('DONE','STOPPED'):
                 rclpy.spin_once(node,timeout_sec=.02)
@@ -240,10 +242,13 @@ def main():
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
-    p.add_argument('--fault',choices=('return-dropout',))
+    p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
+    p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--isolated',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args()
+    if args.scene_file and args.fault:
+        raise SystemExit('Synthetic planner fault injection cannot be used with an actual SUPER scene')
     if not args.isolated:
         import super_session as manager
         env=dict(os.environ,ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1',OPENBLAS_NUM_THREADS='1')
@@ -271,7 +276,7 @@ def main():
         print('REHEARSAL ONLY: real SUPER with frozen map' if args.scene_file else
               'SIMULATION ONLY: ideal synthetic planner',flush=True)
         print('Virtual vehicle/FC only; no physical aircraft or PX4 flight',flush=True)
-        return 0 if run(mission_file,report,args.fault,args.scene_file) else 1
+        return 0 if run(mission_file,report,args.fault,args.scene_file,args.motion_policy) else 1
 
 
 if __name__=='__main__':raise SystemExit(main())

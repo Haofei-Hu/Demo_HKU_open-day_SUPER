@@ -23,6 +23,8 @@ This automatically restarts the grounded stack, captures the quaternion and map,
 
 For the current short location, append `--route-profile short-1m` to the complete-test command. It retains climb, return, final hover and landing, but requests 1 m outbound. Its report cannot count as a completed 4.5 m demonstration. The actual map and backup planner still have to admit that route.
 
+During virtual integration, append `--motion-policy observe` to record speed/acceleration target exceedances as warnings while retaining position, polynomial, freshness and continuity checks. Reports retain actual peaks and counts; completion with this option does not establish 2/1 motion compliance. Physical execution remains strict.
+
 The following short tests remain available as diagnostics.
 
 For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing the matching script release:

@@ -41,6 +41,37 @@ class Tests(unittest.TestCase):
         r.add_plan(trajectory())
         return r
 
+    def test_observe_motion_targets_keeps_polynomial_spatial_and_continuity_checks(self):
+        frame=TakeoffFrame([0,0,0],[0,0,0,1],max_forward=5.1)
+        reference=Reference(frame,2.,1.,motion_policy='observe')
+        # The 2 s quintic reaches 2.8125 m/s and >1 m/s², but stays in the box.
+        msg=trajectory(distance=3.);reference.add_plan(msg)
+        for t in np.arange(0,2.001,.01):
+            p,v,a=reference.plans[0].evaluate(t)
+            self.assertTrue(reference.command(round((100+t)*1e9),p,v,a,p,[0,0,0,1]))
+        self.assertEqual(reference.phase,'END_HOLD')
+        self.assertGreater(reference.motion_summary['speed_exceedances'],0)
+        self.assertGreater(reference.motion_summary['acceleration_exceedances'],0)
+        self.assertGreater(reference.motion_summary['peak_speed_mps'],2.)
+        self.assertIsNotNone(reference.last_motion_violation)
+
+        reference=Reference(frame,2.,1.,motion_policy='observe');reference.add_plan(msg)
+        p,v,a=reference.plans[0].evaluate(0)
+        with self.assertRaisesRegex(ValueError,'Initial reference offset'):
+            reference.command(100000000000,p,v,a,p+[.101,0,0],[0,0,0,1])
+        self.assertIsNone(reference.command(100000000000,[1,0,0],[3,0,0],[2,0,0],[1,0,0],[0,0,0,1]))
+        self.assertEqual(reference.accepted,0,'Unmatched trajectory was accepted')
+        self.assertTrue(reference.command(100000000000,p,v,a,p,[0,0,0,1]))
+        p,v,a=reference.plans[0].evaluate(.3)
+        with self.assertRaisesRegex(ValueError,'stamp gap'):
+            reference.command(100300000000,p,v,a,p,[0,0,0,1])
+
+    def test_strict_motion_failure_prints_actual_norms(self):
+        reference=Reference(TakeoffFrame([0,0,0],[0,0,0,1]),2.,1.)
+        with self.assertRaisesRegex(ValueError,'speed=2.100000000 m/s, acceleration=1.200000000'):
+            reference.command(100000000000,[0,0,0],[2.1,0,0],[1.2,0,0],[0,0,0],[0,0,0,1])
+        self.assertEqual(reference.last_motion_violation['speed_mps'],2.1)
+
     def sample(self,r,t,offset=(0,0,0)):
         p,v,a=r.plans[0].evaluate(t)
         return r.command(round((100+t)*1e9),p,v,a,p+offset,[0,0,0,1])

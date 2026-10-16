@@ -1,0 +1,30 @@
+{
+  "run_id": "20261016_143122_399793",
+  "release": "d768d0e70356334575c0d4dc5b2a68f20b3d65f1",
+  "route_profile": "short-1m",
+  "result": "FAIL",
+  "mode": "real-SUPER-ground-rehearsal",
+  "native_vision_age_max_s": 0.041,
+  "native_vision_receive_gap_max_s": 0.039,
+  "sampled_vision_chain_fresh": true,
+  "captured_occupied_points": 8202,
+  "virtual_height_fc_above_floor_m": 2.0,
+  "committed_trajectory_received": true,
+  "phase_before_fault": "TRACK",
+  "fault": "Advertised planner derivative exceeds 2/1",
+  "committed_endpoint_error_forward_left_up_m": [
+    -0.014225,
+    0.018884,
+    -0.026573
+  ],
+  "actual_rejected_speed_mps": null,
+  "actual_rejected_acceleration_mps2": null,
+  "rejected_values_available_in_old_error": false,
+  "physical_flight_requested": false,
+  "source_review": {
+    "SUPER_revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "acceleration_violation_is_squared_norm_minus_target_squared": true,
+    "exploration_velocity_final_rejection_commented_out": true,
+    "exact_motion_target_compliance_implied_by_optimizer_success": false
+  }
+}

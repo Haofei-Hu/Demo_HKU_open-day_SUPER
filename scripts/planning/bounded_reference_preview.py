@@ -90,11 +90,16 @@ class Plan:
 
 class Reference:
     """A terminal state is permanent for this process; no automatic new goal."""
-    def __init__(self, frame, max_speed=.3, max_acceleration=.5):
+    def __init__(self, frame, max_speed=.3, max_acceleration=.5, motion_policy='strict'):
+        if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         if (not all(math.isfinite(v) for v in (max_speed,max_acceleration))
                 or not 0 < max_speed <= 2. or not 0 < max_acceleration <= 1.):
             raise ValueError('Invalid reference motion limits')
         self.max_speed,self.max_acceleration = float(max_speed),float(max_acceleration)
+        self.motion_policy=motion_policy
+        self.last_motion_violation=None
+        self.motion_summary=dict(checked_samples=0,speed_exceedances=0,acceleration_exceedances=0,
+                                 peak_speed_mps=0.,peak_acceleration_mps2=0.)
         self.frame = frame
         self.plans = deque(maxlen=24)
         self.phase = 'WAIT_TRAJECTORY'
@@ -137,11 +142,24 @@ class Reference:
             if norm(position-self.last[1]) > .05:
                 self.restarts_blocked += 1
             return False  # Keep the verified endpoint; never accept another trajectory.
-        if norm(velocity) > self.max_speed+1e-9 or norm(acceleration) > self.max_acceleration+1e-9:
-            raise ValueError(f'Advertised planner derivative exceeds {self.max_speed:g}/{self.max_acceleration:g}')
+        speed,accel=norm(velocity),norm(acceleration)
+        speed_exceeded=speed>self.max_speed+1e-9
+        acceleration_exceeded=accel>self.max_acceleration+1e-9
+        if speed_exceeded or acceleration_exceeded:
+            self.last_motion_violation=dict(stamp_ns=int(stamp),speed_mps=speed,acceleration_mps2=accel,
+                speed_target_mps=self.max_speed,acceleration_target_mps2=self.max_acceleration,
+                velocity_xyz=velocity.tolist(),acceleration_xyz=acceleration.tolist())
+            if self.motion_policy=='strict':
+                raise ValueError(f'Advertised planner derivative exceeds {self.max_speed:g}/{self.max_acceleration:g}; '
+                    f'speed={speed:.9f} m/s, acceleration={accel:.9f} m/s^2; stamp_ns={stamp}')
         plan = next((p for p in reversed(self.plans) if p.matches(stamp,raw,velocity,acceleration)),None)
         if plan is None:
             return None  # DDS topics may arrive in either order; bounded node queue retries.
+        self.motion_summary['checked_samples']+=1
+        self.motion_summary['speed_exceedances']+=int(speed_exceeded)
+        self.motion_summary['acceleration_exceedances']+=int(acceleration_exceeded)
+        self.motion_summary['peak_speed_mps']=max(self.motion_summary['peak_speed_mps'],speed)
+        self.motion_summary['peak_acceleration_mps2']=max(self.motion_summary['peak_acceleration_mps2'],accel)
         self.check_plan_endpoint(plan)
         self.frame.check(position)
         if self.last is None:
@@ -196,8 +214,8 @@ class RollingGoalReference(Reference):
     Polynomial agreement, derivatives, initial offset and continuity remain the
     base Reference policy. The default short-goal Reference is unchanged.
     """
-    def __init__(self,frame,endpoint_check,final_goal_check):
-        super().__init__(frame,2.,1.)
+    def __init__(self,frame,endpoint_check,final_goal_check,motion_policy='strict'):
+        super().__init__(frame,2.,1.,motion_policy)
         self.endpoint_check=endpoint_check;self.final_goal_check=final_goal_check
 
     def check_plan_endpoint(self,plan,adding=False):

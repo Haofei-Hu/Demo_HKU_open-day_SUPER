@@ -14,14 +14,14 @@ import super_demo_test as m
 
 
 class Tests(unittest.TestCase):
-    def runner(self,folder,logic=False,fixture=True):
+    def runner(self,folder,logic=False,fixture=True,motion='strict'):
         base=Path(folder);mission=base/'mission.json'
         mission.write_bytes((ROOT/'configs/demonstration/open_day_mission.json').read_bytes())
         for name in ('demo_mission.py','demo_mission_simulation.py','super_demo_control.py','capture_demo_scene.py'):
             (base/name).touch()
         args=argparse.Namespace(scripts_dir=base,mission_file=mission,session='demo',logic_only=logic,
             fixture_geometry=fixture,restart=True,fixed_lio_extrinsics=True,test_profile='forward-5m-2mps',
-            max_alignment_spread_deg=2.)
+            max_alignment_spread_deg=2.,motion_policy=motion)
         runner=m.DemoTest(args);actions=[]
         runner.session=NS(config={'planner_config_path':'/test/planner.yaml'},load=lambda:None)
         runner.prepare=lambda planner_profile:actions.append(('prepare',planner_profile))
@@ -115,6 +115,15 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,2.])
             self.assertEqual(runner.report['mission_report']['completed_stages'][2],'SUPER_OUTBOUND_1M')
             self.assertFalse(runner.report['demonstration_completed'])
+
+    def test_observe_policy_is_explicit_and_forwarded_to_private_child(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder,motion='observe')
+            self.assertEqual(runner.run_complete(),0)
+            command=actions[-1][1]
+            self.assertEqual(command[command.index('--motion-policy')+1],'observe')
+            self.assertEqual(actions[-1][2]['ROS_DOMAIN_ID'],'197')
+            self.assertEqual(runner.report['motion_policy'],'observe')
 
 
 if __name__=='__main__':unittest.main()

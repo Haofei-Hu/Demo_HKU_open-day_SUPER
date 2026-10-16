@@ -1,0 +1,191 @@
+{
+  "strict_injected": {
+    "result": "FAIL",
+    "mode": "simulation",
+    "motion_policy": "strict",
+    "error": "Advertised planner derivative exceeds 2/1; speed=0.152299753 m/s, acceleration=1.024499416 m/s^2; stamp_ns=1792132799954408098",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME"
+    ],
+    "physical_flight_verified": false,
+    "planner_motion_by_leg": {
+      "outbound": {
+        "checked_samples": 25,
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 0,
+        "peak_speed_mps": 0.14123479490819538,
+        "peak_acceleration_mps2": 0.9996678525849689,
+        "last_violation": {
+          "stamp_ns": 1792132799954408098,
+          "speed_mps": 0.15229975342599497,
+          "acceleration_mps2": 1.0244994161430807,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            0.12569841064443596,
+            0.0859949094719078,
+            0.0
+          ],
+          "acceleration_xyz": [
+            0.845555855597056,
+            0.5784758843227986,
+            0.0
+          ]
+        },
+        "policy": "strict"
+      }
+    }
+  },
+  "first_observe_trial": {
+    "result": "FAIL",
+    "mode": "simulation",
+    "motion_policy": "observe",
+    "error": "Missing/stale local pose during demonstration landing",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_1M",
+      "STABILIZE_AT_FAR_POINT",
+      "SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND"
+    ],
+    "physical_flight_verified": false,
+    "planner_motion_by_leg": {
+      "outbound": {
+        "checked_samples": 217,
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 89,
+        "peak_speed_mps": 0.866978793002144,
+        "peak_acceleration_mps2": 1.2344611517287425,
+        "last_violation": {
+          "stamp_ns": 1792132831546878841,
+          "speed_mps": 0.14141025015170552,
+          "acceleration_mps2": 1.000078402104709,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            0.11671091576348991,
+            0.07984623340906881,
+            0.0
+          ],
+          "acceleration_xyz": [
+            -0.8254003229589784,
+            -0.5646867425533579,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      },
+      "return": {
+        "checked_samples": 217,
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 89,
+        "peak_speed_mps": 0.8669697239421197,
+        "peak_acceleration_mps2": 1.234460850325121,
+        "last_violation": {
+          "stamp_ns": 1792132834886591053,
+          "speed_mps": 0.1504939695503805,
+          "acceleration_mps2": 1.0205899534490537,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            -0.12420803289905985,
+            -0.08497528719796668,
+            0.0
+          ],
+          "acceleration_xyz": [
+            0.8423292368005163,
+            0.5762684356375951,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      }
+    }
+  },
+  "observe_udp_trial": {
+    "result": "SUCCESS",
+    "mode": "simulation",
+    "motion_policy": "observe",
+    "error": null,
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_1M",
+      "STABILIZE_AT_FAR_POINT",
+      "SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "physical_flight_verified": false,
+    "planner_motion_by_leg": {
+      "outbound": {
+        "checked_samples": 202,
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 81,
+        "peak_speed_mps": 0.8670022503521964,
+        "peak_acceleration_mps2": 1.2344266113055449,
+        "last_violation": {
+          "stamp_ns": 1792132997017453133,
+          "speed_mps": 0.14574925480890805,
+          "acceleration_mps2": 1.010055597492117,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            0.12029205084033788,
+            0.08229621973078458,
+            0.0
+          ],
+          "acceleration_xyz": [
+            -0.8336348576491198,
+            -0.570320290834448,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      },
+      "return": {
+        "checked_samples": 213,
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 90,
+        "peak_speed_mps": 0.8670000687370936,
+        "peak_acceleration_mps2": 1.2344161120301493,
+        "last_violation": {
+          "stamp_ns": 1792133000317234007,
+          "speed_mps": 0.14678740983252073,
+          "acceleration_mps2": 1.0123935386346261,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            -0.12114887715512075,
+            -0.08288240615108775,
+            0.0
+          ],
+          "acceleration_xyz": [
+            0.8355644437395965,
+            0.5716403917038042,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      }
+    }
+  },
+  "scope": "ROS 2 Humble synthetic backend; deliberately shortened trajectory duration to exceed configured motion targets",
+  "actual_SUPER_used": false,
+  "hardware_used": false,
+  "default_motion_policy_unchanged": "strict",
+  "physical_observation_policy_allowed": false,
+  "transport_validation": "First observation run failed on stale landing pose; a separate UDP-only localhost run completed. Transport root cause is not established.",
+  "regressions": {
+    "bounded_reference_cases": 13,
+    "orchestration_cases": 8,
+    "tracking_landing_physical_guard_cases": 5,
+    "rolling_reference_cases": 6,
+    "installer_cases": 3,
+    "layout_cases": 3
+  }
+}

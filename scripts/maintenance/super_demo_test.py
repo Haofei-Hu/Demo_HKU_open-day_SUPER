@@ -54,6 +54,7 @@ class DemoTest(GroundTest):
             physical_flight_verified=False,physical_venue_clearance_verified=False,
             actual_localization_tested=False,actual_SUPER_tested=False,
             route_profile=getattr(args,'route_profile','demonstration'),
+            motion_policy=getattr(args,'motion_policy','strict'),
             fixture_geometry=args.fixture_geometry,started_at=datetime.now().astimezone().isoformat())
 
     def step(self,name,command,env=None):
@@ -106,7 +107,8 @@ class DemoTest(GroundTest):
                     '--output',scene,'--alignment-path',self.args.scripts_dir/'aligned_pose_preview.py',
                     '--planner-config',self.session.config['planner_config_path']])
             command=[sys.executable,self.args.scripts_dir/'demo_mission_simulation.py',
-                     '--isolated','--mission-file',frozen,'--report-json',self.folder/'mission_report.json']
+                     '--isolated','--mission-file',frozen,'--report-json',self.folder/'mission_report.json',
+                     '--motion-policy',getattr(self.args,'motion_policy','strict')]
             if scene is not None:command+=['--scene-file',scene]
             self.step('complete_mission',command,env=dict(os.environ,ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1',
                                                         OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1'))
@@ -151,6 +153,8 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
     p.add_argument('--route-profile',choices=('demonstration','short-1m'),default='demonstration',
                    help='full 4.5 m demonstration or separate 1 m short-site rehearsal')
+    p.add_argument('--motion-policy',choices=('strict','observe'),default='strict',
+                   help='observe records derivative target exceedances only in the isolated virtual rehearsal')
     p.add_argument('--logic-only',action='store_true',help='synthetic planner, no actual aircraft stack or real SUPER')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args();args.scripts_dir=args.scripts_dir.expanduser().resolve()

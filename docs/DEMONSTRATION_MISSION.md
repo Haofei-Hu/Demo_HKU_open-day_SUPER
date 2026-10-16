@@ -52,6 +52,22 @@ This retains the 2 m climb, return to home, six-second hover and confirmed landi
 
 The canonical mission file remains unchanged at 4.5 m. The short test freezes a separate `short_site_1m_rehearsal` configuration and uses `SUPER_OUTBOUND_1M` in its expected/completed stages. Its virtual box is 2 m long with the test takeoff centre 0.5 m from its rear, representing 1.5 m forward room. The box width, height and aircraft extents remain labelled test geometry; this is not a survey of the current room or physical flight clearance. Short profiles cannot enable physical execution. `SUCCESS` here has `demonstration_completed=false` and cannot count as a completed 4.5 m demonstration.
 
+## Motion targets during virtual integration
+
+The default `--motion-policy strict` rejects any advertised speed above 2 m/s or acceleration above 1 m/s². To complete a disarmed virtual workflow while treating these configured numbers as planning targets, select observation explicitly:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics --fixture-geometry \
+  --route-profile short-1m --motion-policy observe
+```
+
+This option is forwarded only to the isolated virtual controller. It records per-leg derivative peaks, target-exceedance counts and the last violating sample, and prints one warning per affected leg. Completing with warnings does not validate compliance with the 2/1 motion targets. Default/physical execution remains strict; the physical controller refuses an observation policy before creating ROS publishers.
+
+Polynomial agreement, finite values, freshness, source identities, the original position-step/stamp-gap checks, each-axis 10 cm initial/endpoint/tracking checks, venue/obstacle checks and confirmed landing remain required. Observation does not disable SUPER's backup planner or turn a failed stage into success. It does not change YAML motion values, PX4 parameters, optimizer penalties or numerical tolerances.
+
+Pinned SUPER uses penalty-based derivative constraints: the [exploration optimizer](https://github.com/hku-mars/SUPER/blob/2ad3419c127a617c6d7df6925e81a14175a9c096/super_planner/src/traj_opt/exp_traj_optimizer_s4.cpp#L715) checks acceleration penalty against a configured margin, and its final velocity-penalty rejection is commented out. Its backup optimizer also has nonzero admission margins. Thus a planner-accepted trajectory and an exact 2/1 downstream hard check can disagree. The new mode exposes that distinction without modifying upstream behavior.
+
 ## Reports and failure interpretation
 
 Each run creates `~/Downloads/super_demo_tests/<timestamp>/report.json`, stage logs, the captured alignment, a frozen mission file and a nested `mission_report.json`. Default rehearsal runs also retain the scene snapshot and private SUPER log. Upload the top-level report to retain the failed stage and the last 80 lines of a failed subprocess; the full files remain beside it. When the private SUPER log exists, the top-level report now also retains its last 100 lines and counts exploration successes, backup optimization/constraint failures, accepted goals and missing-odometry messages. These are evidence markers, not automatic root-cause assertions.

@@ -62,5 +62,10 @@ class Tests(unittest.TestCase):
                 DemoMissionControl(source,report,execute=True,on_site_supervised=True)
             self.assertFalse(report.exists())
 
+    def test_observe_motion_policy_cannot_enable_a_physical_controller(self):
+        with self.assertRaisesRegex(ValueError,'restricted to the isolated virtual rehearsal'):
+            DemoMissionControl('unused.json','unused-report.json',execute=True,
+                               on_site_supervised=True,motion_policy='observe')
+
 
 if __name__=='__main__':unittest.main()
