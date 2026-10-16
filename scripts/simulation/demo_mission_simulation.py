@@ -127,6 +127,29 @@ def rehearsal_profile(source,report):
     return target
 
 
+def synthetic_goal_markers(goal,robot,stamp):
+    """Reproduce the pinned SUPER Ros2Adapter goal-path message contract."""
+    from geometry_msgs.msg import Point
+    from visualization_msgs.msg import Marker,MarkerArray
+    msg=MarkerArray()
+    for index,values in enumerate((goal,robot)):
+        marker=Marker();marker.header.frame_id='world';marker.header.stamp=stamp
+        marker.ns='goal';marker.id=index;marker.type=Marker.SPHERE;marker.action=Marker.ADD
+        marker.pose.orientation.w=1.;marker.scale.x=marker.scale.y=marker.scale.z=.3
+        marker.color.r=marker.color.g=marker.color.a=1.
+        for axis,value in zip(('x','y','z'),values):setattr(marker.pose.position,axis,float(value))
+        msg.markers.append(marker)
+    line=Marker();line.header.frame_id='world';line.header.stamp=stamp
+    line.ns='goal_line';line.type=Marker.LINE_LIST;line.action=Marker.ADD
+    line.pose.orientation.w=1.;line.scale.x=.15;line.color.r=line.color.g=line.color.a=1.
+    for values in (goal,robot):
+        point=Point()
+        for axis,value in zip(('x','y','z'),values):setattr(point,axis,float(value))
+        line.points.append(point)
+    msg.markers.append(line)
+    return msg
+
+
 def backend(connection,fault,scene_file=None):
     import rclpy
     from rclpy.node import Node
@@ -135,6 +158,7 @@ def backend(connection,fault,scene_file=None):
     from mavros_msgs.msg import State,ExtendedState,EstimatorStatus,RCIn,PositionTarget
     from mavros_msgs.srv import SetMode,CommandBool
     from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
+    from visualization_msgs.msg import MarkerArray
     from first_hover_terminal import PARAMETERS
     from bounded_reference_preview import Plan
     from rclpy.qos import qos_profile_sensor_data
@@ -159,7 +183,7 @@ def backend(connection,fault,scene_file=None):
         origin=np.array(scene['origin'])
     state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
                max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None,
-               future_plan=None,future_replans=0,future_replanned_goal=None)
+               future_plan=None,future_replans=0,future_replanned_goal=None,accepted_goals=[])
     state['target']=None
     kinds={'/Odometry':Odometry,'/mavros/state':State,'/mavros/extended_state':ExtendedState,
         '/mavros/estimator_status':EstimatorStatus,'/mavros/rc/in':RCIn,
@@ -169,6 +193,7 @@ def backend(connection,fault,scene_file=None):
     vehiclepub=node.create_publisher(PoseStamped,'/demo_scene/vehicle_pose',qos_profile_sensor_data)
     polypub=node.create_publisher(PolynomialTrajectory,'/planning_cmd/poly_traj',10) if scene_file is None else None
     cmdpub=node.create_publisher(PositionCommand,'/planning/pos_cmd',10) if scene_file is None else None
+    goal_feedback_pub=node.create_publisher(MarkerArray,'/visualization/goal',qos_profile_sensor_data) if scene_file is None else None
     if scene_file is not None:
         from sensor_msgs.msg import PointCloud2
         from rclpy.serialization import deserialize_message
@@ -197,6 +222,12 @@ def backend(connection,fault,scene_file=None):
         end=[msg.pose.position.x,msg.pose.position.y,msg.pose.position.z]
         state['goals'].append(end)
         if scene_file is not None:return  # The real isolated SUPER owns all planning output.
+        if fault=='relocated-goal':
+            shift=(.095523,-.009363,.198440) if len(state['goals'])==1 else (-.03,.02,.12)
+            end=[end[0]+math.cos(yaw)*shift[0]-math.sin(yaw)*shift[1],
+                 end[1]+math.sin(yaw)*shift[0]+math.cos(yaw)*shift[1],end[2]+shift[2]]
+        state['accepted_goals'].append(list(end))
+        goal_feedback_pub.publish(synthetic_goal_markers(end,pose,node.get_clock().now().to_msg()))
         if fault=='initial-plan-delay' and len(state['goals'])==1:
             def delayed_plan():
                 node.destroy_timer(timer);build_plan(end)
@@ -313,7 +344,7 @@ def backend(connection,fault,scene_file=None):
                 request=connection.recv()
                 if request=='stop':break
                 if request=='report':connection.send({k:state[k] for k in
-                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed','rest_waits','future_replans')})
+                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed','rest_waits','future_replans','accepted_goals')})
     finally:
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
@@ -390,7 +421,7 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
-                                     'initial-plan-delay','lateral-route','long-trajectory','intermediate-rest','future-replan'))
+                                     'initial-plan-delay','lateral-route','long-trajectory','intermediate-rest','future-replan','relocated-goal'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')

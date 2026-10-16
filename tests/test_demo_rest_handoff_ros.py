@@ -42,7 +42,7 @@ class Tests(unittest.TestCase):
         follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
         follower.add_plan(msg)
         for t in np.arange(0.,3.021,.02):self.sample(follower,msg,float(t))
-        control=NS(follower=follower,native_velocity=np.ones(3),leg='outbound',fresh_ns=lambda ns:False,
+        control=NS(follower=follower,native_velocity=np.ones(3),leg='outbound',accepted_target=self.goal,fresh_ns=lambda ns:False,
                    mission_report=NS(data={}),get_logger=lambda:NS(warning=lambda text:None))
         before=follower.last[0]
         for _ in range(3):DemoMissionControl.check_command_stream(control)

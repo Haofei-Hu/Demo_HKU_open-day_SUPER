@@ -1,0 +1,224 @@
+{
+  "scope": "ROS 2 Humble software validation with synthetic planner and ideal virtual vehicle; no aircraft, actual PX4, or actual SUPER execution",
+  "focused_checks": {
+    "accepted_goal_and_return_sequencing": 9,
+    "tracking_and_wait": 14,
+    "rest_handoff": 5,
+    "legacy_rolling_reference": 6,
+    "orchestration": 13,
+    "reference_and_causal_selection": 18,
+    "release_and_migration": 4,
+    "repository_layout": 3
+  },
+  "focused_checks_passed": true,
+  "upstream_contract": {
+    "revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "goal_relocation": "super_planner/src/super_core/fsm.cpp: setGoalPosiAndYaw nearest free inflated cell",
+    "goal_feedback": "/visualization/goal; world frame; two goal spheres followed by goal_line connecting goal and robot",
+    "message_construction": "super_planner/include/ros_interface/ros2/ros2_adapter.hpp: addPathToMarkerArray",
+    "upstream_modified": false
+  },
+  "full_adjusted_goal_mission": {
+    "result": "SUCCESS",
+    "stage": "DONE",
+    "completed_stages": [
+      "TAKEOFF_TO_1_5M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_4_5M",
+      "STABILIZE_AT_FAR_POINT",
+      "SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "accepted_goals": {
+      "outbound": {
+        "goal_request_stamp_ns": 1792158216824563370,
+        "feedback_stamp_ns": 1792158216825149838,
+        "requested_planner_xyz": [
+          3.8340102670935527,
+          2.4608911302776586,
+          0.675
+        ],
+        "accepted_planner_xyz": [
+          3.9181355485149676,
+          2.507099855901373,
+          0.87344
+        ],
+        "requested_aligned_xyz": [
+          3.8340102670935527,
+          2.4608911302776586,
+          0.675
+        ],
+        "accepted_aligned_xyz": [
+          3.9181355485149676,
+          2.507099855901373,
+          0.87344
+        ],
+        "adjustment_forward_left_up_m": [
+          0.09552299999999983,
+          -0.009363000000000087,
+          0.19843999999999995
+        ],
+        "feedback": "Pinned SUPER goal/path markers"
+      },
+      "return": {
+        "goal_request_stamp_ns": 1792158223171700218,
+        "feedback_stamp_ns": 1792158223172565738,
+        "requested_planner_xyz": [
+          0.12,
+          -0.08,
+          0.675
+        ],
+        "accepted_planner_xyz": [
+          0.08394708208480893,
+          -0.0804325619036575,
+          0.795
+        ],
+        "requested_aligned_xyz": [
+          0.12,
+          -0.08,
+          0.675
+        ],
+        "accepted_aligned_xyz": [
+          0.08394708208480893,
+          -0.0804325619036575,
+          0.795
+        ],
+        "adjustment_forward_left_up_m": [
+          -0.03000000000000001,
+          0.02,
+          0.12
+        ],
+        "feedback": "Pinned SUPER goal/path markers"
+      }
+    },
+    "goal_arrivals": {
+      "outbound": {
+        "measured_aligned_xyz": [
+          3.9181355485149796,
+          2.507099855901371,
+          0.87344
+        ],
+        "requested_aligned_xyz": [
+          3.8340102670935527,
+          2.4608911302776586,
+          0.675
+        ],
+        "accepted_aligned_xyz": [
+          3.9181355485149676,
+          2.507099855901373,
+          0.87344
+        ],
+        "error_to_request_forward_left_up_m": [
+          0.09552300000000848,
+          -0.00936300000000869,
+          0.19843999999999995
+        ],
+        "nominal_position_reached": false
+      },
+      "return": {
+        "measured_aligned_xyz": [
+          0.08394708208479917,
+          -0.08043256190366499,
+          0.7949999999999998
+        ],
+        "requested_aligned_xyz": [
+          0.12,
+          -0.08,
+          0.675
+        ],
+        "accepted_aligned_xyz": [
+          0.08394708208480893,
+          -0.0804325619036575,
+          0.795
+        ],
+        "error_to_request_forward_left_up_m": [
+          -0.030000000000012295,
+          0.019999999999999324,
+          0.11999999999999977
+        ],
+        "nominal_position_reached": false
+      }
+    },
+    "nominal_waypoints_reached": false,
+    "return_home_offset_forward_left_up_m": [
+      -0.03000000000000001,
+      0.02,
+      0.12
+    ],
+    "return_hover_duration_s": 6.048466303967871,
+    "planner_goals_sent": 2,
+    "superseded_command_samples": 720,
+    "execution_limits": {
+      "controller_timeout_s": null,
+      "committed_trajectory_duration_s": null,
+      "callback_gap_abort_s": null,
+      "reference_stamp_gap_abort_s": null
+    },
+    "simulation_backend": {
+      "kind": "ideal synthetic ROS planning and vehicle",
+      "actual_SUPER_used": false,
+      "actual_PX4_used": false,
+      "hardware_used": false,
+      "ledger": {
+        "goals": [
+          [
+            3.8340102670935527,
+            2.4608911302776586,
+            0.675
+          ],
+          [
+            0.12,
+            -0.08,
+            0.675
+          ]
+        ],
+        "commands": [
+          "OFFBOARD",
+          "ARM",
+          "AUTO.LAND"
+        ],
+        "peak_native_speed": 1.6780594880451924,
+        "max_lateral_displacement_m": 0.020000000000000007,
+        "armed": false,
+        "landed": true,
+        "rest_waits": 0,
+        "future_replans": 0,
+        "accepted_goals": [
+          [
+            3.9181355485149676,
+            2.507099855901373,
+            0.87344
+          ],
+          [
+            0.08394708208480893,
+            -0.0804325619036575,
+            0.795
+          ]
+        ]
+      },
+      "scene_file": null,
+      "execution_timeout_s": null,
+      "static_snapshot_adaptation": []
+    }
+  },
+  "additional_intermediate_rest_trial": {
+    "result": "FAIL",
+    "stage": "STOPPED",
+    "error": "Missing/stale local; receive_age=0.363692s (max 0.250000s); header_age=0.365492s (range -0.050000..0.250000s); local_stamp_ns=1792158253234696113; phase=RISE",
+    "completed_stages": []
+  },
+  "interpretation": "The adjusted-goal mission completed all eight stages and requested original home for return. Nominal waypoint accuracy remains false because deliberate goal adjustments exceed 10 cm vertically. A separate trial stopped during RISE on genuinely stale local feedback before navigation; it is not counted as a pass. The cloud scheduling/transport cause is not established.",
+  "queue_regression": "Newest fresh stream sample retains its original timestamp and full polynomial/continuity validation; an all-stale queue is still rejected. Earlier integration exposed overdue queue-head processing after outbound completion and return admission.",
+  "unchanged": {
+    "arrival_tolerance_per_axis_m": 0.1,
+    "requested_fc_floor_height_m": 1.5,
+    "requested_distance_m": 4.5,
+    "planner_speed_mps": 2.0,
+    "planner_acceleration_mps2": 1.0,
+    "execution_deadline_s": null,
+    "vehicle_inclusive_venue_required": true
+  },
+  "remaining_validation": "Repeat the complete real-SUPER captured-map rehearsal on the onboard computer; GUI rendering and physical flight were not tested in this cloud run."
+}

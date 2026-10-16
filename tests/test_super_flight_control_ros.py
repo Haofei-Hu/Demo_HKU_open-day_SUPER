@@ -18,6 +18,7 @@ from mavros_msgs.msg import State,ExtendedState,EstimatorStatus,RCIn,PositionTar
 from mavros_msgs.srv import SetMode,CommandBool
 from std_srvs.srv import Trigger
 from std_msgs.msg import String
+from visualization_msgs.msg import MarkerArray
 from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -96,7 +97,9 @@ def run(case):
             'estimator':(EstimatorStatus,'/mavros/estimator_status'), 'rc':(RCIn,'/mavros/rc/in'),
             'command':(PositionCommand,'/planning/pos_cmd'), 'plan':(PolynomialTrajectory,'/planning_cmd/poly_traj')}
         pubs={name:probe.create_publisher(kind,topic,10) for name,(kind,topic) in kinds.items()}
-        if demo:pubs['velocity']=probe.create_publisher(TwistStamped,'/mavros/local_position/velocity_local',10)
+        if demo:
+            pubs['velocity']=probe.create_publisher(TwistStamped,'/mavros/local_position/velocity_local',10)
+            pubs['goal_feedback']=probe.create_publisher(MarkerArray,'/visualization/goal',10)
         executor=SingleThreadedExecutor()
         for node in (params,frame,probe):executor.add_node(node)
         if demo:
@@ -179,6 +182,9 @@ def run(case):
             goals.append(msg)
             end=np.array([msg.pose.position.x,msg.pose.position.y,msg.pose.position.z])
             start=settings['pose'].copy()
+            if demo:
+                from demo_mission_simulation import synthetic_goal_markers
+                pubs['goal_feedback'].publish(synthetic_goal_markers(end,start,probe.get_clock().now().to_msg()))
             if case in ('audit_corridor','audit_speed5_corridor'):start+=bridge.frame.axes.T@np.array([0.,.11,0.])
             delay=.4 if case=='audit_overlap' else .1
             plan=make_plan(start,end,probe.get_clock().now().nanoseconds/1e9+delay)

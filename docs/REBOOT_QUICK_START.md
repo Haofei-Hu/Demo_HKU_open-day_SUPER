@@ -64,6 +64,8 @@ At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until 
 
 At a verified intermediate rest endpoint, the controller holds the committed position with zero velocity while SUPER prepares the next stage. This wait has no deadline, including when stationary endpoint commands continue after their polynomial ends. Callback scheduling gaps are recorded as advisories; the complete mission no longer aborts solely at a 0.2 s callback gap or 0.25 s reference stamp interval. Actual input validity, polynomial continuity and venue bounds remain checked. It does not complete the leg or initiate return early.
 
+SUPER may relocate a goal to a nearby free map cell. The supervisor confirms that accepted goal through the existing planner goal markers, checks it against the venue, and uses it for arrival and leg sequencing. Requested and accepted points and deviations remain in the report. Return is requested to original home; waiting and final hovering hold the actually reached accepted points without an unplanned jump. `nominal_waypoints_reached` separately reports accuracy to the original requested points.
+
 For a separate one-metre rehearsal, append `--route-profile short-1m`. This changes the virtual outbound distance and cannot count as a completed 4.5 m demonstration or enable physical flight. Use the default full route in a suitable laboratory.
 
 ## Curved routes inside the venue

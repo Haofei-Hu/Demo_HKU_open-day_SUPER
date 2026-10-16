@@ -1,0 +1,36 @@
+{
+  "run": "20261016_211610_331026",
+  "scope": "Onboard real-SUPER rehearsal with frozen aircraft map and virtual vehicle",
+  "release": "dec49d1c8d5954151d7f70c0ce39e51dcce553c4",
+  "outcome": "Operator interrupted while holding outbound endpoint",
+  "automatic_failure_observed": false,
+  "operator_interrupt": "Ctrl+C / KeyboardInterrupt",
+  "requested_planner_xyz": [
+    3.194326,
+    -3.172474,
+    1.651302
+  ],
+  "confirmed_SUPER_goal_planner_xyz": [
+    3.25,
+    -3.25,
+    1.85
+  ],
+  "committed_endpoint_planner_xyz": [
+    3.25,
+    -3.25,
+    1.85
+  ],
+  "adjustment_forward_left_up_m": [
+    0.095523,
+    -0.009363,
+    0.19844
+  ],
+  "controller_classification": "INTERMEDIATE_STOP",
+  "return_goal_sent": false,
+  "completed_stages": [
+    "TAKEOFF_TO_1_5M",
+    "STABILIZE_AT_HOME"
+  ],
+  "evidence": "Get goal at and Receive click goal confirm the accepted goal equals the committed endpoint. Original-target vertical difference exceeds the old 0.10 m arrival comparison.",
+  "correction": "Use confirmed SUPER free-space goal feedback for each leg; preserve requested and accepted targets and offsets; hold the actually reached point while requesting the original home goal for return."
+}
