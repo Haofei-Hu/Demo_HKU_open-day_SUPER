@@ -233,6 +233,8 @@ class DemoMissionControl(SuperFlightControl):
                 evidence=dict(self.follower.motion_summary,
                     last_violation=self.follower.last_motion_violation,policy=self.motion_policy)
                 self.mission_report.data['planner_motion_by_leg'][self.leg]=evidence
+                if self.follower.last_continuity_failure is not None:
+                    self.mission_report.data['reference_continuity_failure']=self.follower.last_continuity_failure
 
     def check_command_stream(self):
         if self.follower.phase=='TRACK' and self.follower.resting_at_endpoint():

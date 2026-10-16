@@ -21,6 +21,34 @@ def trajectory(start=100., distance=.1):
 
 
 class Tests(unittest.TestCase):
+    def test_future_replan_does_not_replace_the_active_motion_evidence(self):
+        # Reproduce the onboard 10.223 ms / ~15.466 mm false rejection.
+        # A nearby future plan used to match within the -30 ms tolerance,
+        # then its clamped pre-start displacement bound became zero.
+        speed=1.510530;acceleration=.482815
+        velocity0=speed-acceleration*.03
+        def replan(start):
+            dt=start-100.;msg=trajectory(start=start,distance=0.)
+            msg.coef_pos_x=[0.,0.,0.,0.,0.,acceleration/2,
+                            velocity0+acceleration*dt,velocity0*dt+acceleration*dt*dt/2]
+            return msg
+        frame=TakeoffFrame([0,0,0],[0,0,0,1],max_forward=5.1)
+        follower=RollingGoalReference(frame,lambda plan:True,lambda plan,p:False,motion_policy='observe')
+        follower.add_plan(replan(100.));follower.add_plan(replan(100.041))
+        for dt in (.03,.040223,.05):
+            p=np.array([velocity0*dt+acceleration*dt*dt/2,0.,0.])
+            v=np.array([velocity0+acceleration*dt,0.,0.]);a=np.array([acceleration,0.,0.])
+            stamp=round((100.+dt)*1e9)
+            self.assertTrue(follower.command(stamp,p,v,a,p,[0,0,0,1]))
+            self.assertLessEqual(follower.last_plan.start,stamp/1e9)
+        self.assertEqual(follower.last_plan.start,100.041)
+
+    def test_future_plan_alone_cannot_validate_an_earlier_command(self):
+        msg=trajectory(start=100.02,distance=.1);plan=Plan(msg)
+        p,v,a=plan.evaluate(0.)
+        self.assertFalse(plan.matches(100010000000,p,v,a))
+        self.assertTrue(plan.matches(100020000000,p,v,a))
+
     def test_high_speed_limits_are_explicit_and_defaults_remain_low(self):
         frame=TakeoffFrame([0,0,0],[0,0,0,1],max_forward=5.1)
         frame.check([5.099,0,0])
@@ -85,6 +113,9 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'position step') as failure:
             r.command(100020000000,p,v,a,p,[0,0,0,1])
         self.assertIn('previous committed polynomial',str(failure.exception))
+        self.assertEqual(r.last_continuity_failure['previous_plan']['start_wt_pos'],100.)
+        self.assertEqual(r.last_continuity_failure['current_plan']['start_wt_pos'],100.02)
+        self.assertGreater(r.last_continuity_failure['step_m'],r.last_continuity_failure['allowed_step_m'])
 
     def test_displacement_bound_handles_piece_boundaries_and_terminal_velocity(self):
         msg=trajectory();msg.piece_num_pos=2;msg.time_pos=[1.,1.]

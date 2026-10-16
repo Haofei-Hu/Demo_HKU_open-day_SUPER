@@ -1,0 +1,78 @@
+{
+  "scope": "Cloud ROS 2 Humble software checks; synthetic planner and ideal virtual vehicle; no hardware or actual SUPER",
+  "focused_checks": {
+    "polynomial_and_causal_selection": 18,
+    "rest_handoff_and_timing_policy": 5,
+    "tracking_and_wait": 14,
+    "legacy_rolling_reference": 6,
+    "release_and_migration": 4,
+    "repository_layout": 3
+  },
+  "focused_checks_passed": true,
+  "old_behavior_reproduced": {
+    "previously_selected_future_plan_start_s": 100.041,
+    "previous_command_time_s": 100.03,
+    "old_error": "Reference gap or discontinuity (position step): dt=0.010223s (max 0.250000s); step=0.015467m (allowed 0.015000m; previous committed polynomial); previous/current forward-left-FC-height=[0.0451, 0.0, 0.085]/[0.0606, 0.0, 0.085]; previous/current stamp_ns=100030000000/100040223000; previous/current raw xyz=[0.0451, 0.0, 0.0]/[0.0606, 0.0, 0.0]; previous speed/acc=1.510530/0.482815; previous/current plan time remaining=2.011000/2.000777s; previous raw endpoint distance=4.013957m; no automatic reconciliation"
+  },
+  "corrected_behavior": "Active polynomial retained until the future replan start at each original command timestamp",
+  "full_mission_result": "SUCCESS",
+  "completed_stages": [
+    "TAKEOFF_TO_1_5M",
+    "STABILIZE_AT_HOME",
+    "SUPER_OUTBOUND_4_5M",
+    "STABILIZE_AT_FAR_POINT",
+    "SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "simulation_backend": {
+    "kind": "ideal synthetic ROS planning and vehicle",
+    "actual_SUPER_used": false,
+    "actual_PX4_used": false,
+    "hardware_used": false,
+    "ledger": {
+      "goals": [
+        [
+          3.8340102670935527,
+          2.4608911302776586,
+          0.675
+        ],
+        [
+          0.12,
+          -0.08,
+          0.675
+        ]
+      ],
+      "commands": [
+        "OFFBOARD",
+        "ARM",
+        "AUTO.LAND"
+      ],
+      "peak_native_speed": 1.655228920729175,
+      "max_lateral_displacement_m": 4.76903345636033e-15,
+      "armed": false,
+      "landed": true,
+      "rest_waits": 0,
+      "future_replans": 2
+    },
+    "scene_file": null,
+    "execution_timeout_s": null,
+    "static_snapshot_adaptation": []
+  },
+  "return_hover_duration_s": 6.04994395095855,
+  "execution_limits": {
+    "controller_timeout_s": null,
+    "committed_trajectory_duration_s": null,
+    "callback_gap_abort_s": null,
+    "reference_stamp_gap_abort_s": null
+  },
+  "continuity_margin_m": 0.015,
+  "planner_targets": {
+    "speed_mps": 2.0,
+    "acceleration_mps2": 1.0
+  },
+  "physical_flight_verified": false,
+  "actual_SUPER_used": false,
+  "limits": "Onboard selected polynomial snapshots were unavailable. The code defect is reproduced and fixed in software; repeat the aircraft-map real-SUPER rehearsal to validate this release on the original environment."
+}

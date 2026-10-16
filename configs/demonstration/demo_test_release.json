@@ -15,11 +15,11 @@
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "dbc5fa0026bba32957326de6016022bb41d756a822f7ab0f9edef379b2876e67"
+      "sha256": "f2457de5ed2f1e720154276810c09130425518d5e419ae43e35368c5db52f74d"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "c0ac704dcee7f51ec3ca143a3eae73340ccd78b04b344239b277dc1401ea5145"
+      "sha256": "be3aa7131d5ad999ef93399b904d8f4d2a245a092fb0517ac8e2982cd38d0020"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
@@ -35,7 +35,7 @@
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "17b2f44ae340df8effdf93872f9616689f9c98615a95d61fdbcf889f2d296b92"
+      "sha256": "f8eeb9ee559095f3c485d58cb64b40058cccf7f176b765370f7f18e9067c63ac"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",

@@ -82,7 +82,9 @@ class Plan:
 
     def matches(self, stamp, position, velocity, acceleration):
         elapsed = stamp/1e9-self.start
-        if not -.03 <= elapsed <= self.duration+.03:
+        # Replans may be published before their start time. They must not
+        # displace an active plan merely because their start pose is nearby.
+        if not 0. <= elapsed <= self.duration+.03:
             return False
         predicted = self.evaluate(elapsed)
         return all(norm(a-b) <= limit for a,b,limit in
@@ -134,6 +136,7 @@ class Reference:
         self.last = None
         self.last_evidence = None
         self.last_plan = None
+        self.last_continuity_failure = None
         self.endpoint = None
         self.initial_offset = None
         self.accepted = self.restarts_blocked = 0
@@ -221,10 +224,22 @@ class Reference:
                 before = self.frame.coordinates(self.last[1]).round(4).tolist()
                 after = self.frame.coordinates(position).round(4).tolist()
                 previous = self.last_evidence
+                def snapshot(value):
+                    return dict(start_wt_pos=value.start,time_pos=value.durations.tolist(),
+                        coef_pos_x=value.coefficients[0].reshape(-1).tolist(),
+                        coef_pos_y=value.coefficients[1].reshape(-1).tolist(),
+                        coef_pos_z=value.coefficients[2].reshape(-1).tolist())
+                self.last_continuity_failure=dict(triggers=triggers,
+                    previous_stamp_ns=int(self.last[0]),current_stamp_ns=int(stamp),
+                    gap_s=dt,step_m=step,allowed_step_m=allowed_step,basis=continuity_basis,
+                    previous_position=self.last[1].tolist(),current_position=position.tolist(),
+                    previous_plan=snapshot(self.last_plan) if self.last_plan is not None else None,
+                    current_plan=snapshot(plan))
                 details = (f'Reference gap or discontinuity ({", ".join(triggers)}): '
                            f'dt={dt:.6f}s (max {max_gap:.6f}s); step={step:.6f}m (allowed {allowed_step:.6f}m; {continuity_basis}); '
                            f'previous/current forward-left-FC-height={before}/{after}; '
-                           f'previous/current stamp_ns={self.last[0]}/{stamp}')
+                           f'previous/current stamp_ns={self.last[0]}/{stamp}; '
+                           f'previous/current plan start={self.last_plan.start if self.last_plan else None}/{plan.start}')
                 if previous is not None:
                     details += (f'; previous/current raw xyz={previous["raw"].round(4).tolist()}/{raw.round(4).tolist()}; '
                                 f'previous speed/acc={norm(previous["velocity"]):.6f}/{norm(previous["acceleration"]):.6f}; '

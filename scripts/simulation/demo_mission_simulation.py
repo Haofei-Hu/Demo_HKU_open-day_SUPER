@@ -158,7 +158,8 @@ def backend(connection,fault,scene_file=None):
             raise ValueError('Scene conversion must be rigid')
         origin=np.array(scene['origin'])
     state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
-               max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None)
+               max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None,
+               future_plan=None,future_replans=0,future_replanned_goal=None)
     state['target']=None
     kinds={'/Odometry':Odometry,'/mavros/state':State,'/mavros/extended_state':ExtendedState,
         '/mavros/estimator_status':EstimatorStatus,'/mavros/rc/in':RCIn,
@@ -272,6 +273,23 @@ def backend(connection,fault,scene_file=None):
     def planning():
         plan=state['plan'];stamp_ns=node.get_clock().now().nanoseconds;now=stamp_ns/1e9
         if plan is None or now<plan.start:return
+        if state['future_plan'] is not None and now>=state['future_plan'].start:
+            plan=state['plan']=state['future_plan'];state['future_plan']=None
+        if (fault=='future-replan' and state['future_replanned_goal']!=len(state['goals'])
+                and now>=plan.start+plan.duration*.45):
+            # Publish a continuous replacement ahead of its start while the
+            # command topic continues executing the original committed plan.
+            import numpy as np
+            future=PolynomialTrajectory();future.header.frame_id='world'
+            future.header.stamp=node.get_clock().now().to_msg()
+            future.type=3;future.order_pos=7;future.piece_num_pos=1
+            future.start_wt_pos=now+.03;offset=future.start_wt_pos-plan.start
+            future.time_pos=[plan.duration-offset]
+            for axis,name in enumerate(('coef_pos_x','coef_pos_y','coef_pos_z')):
+                shifted=np.poly1d(plan.coefficients[axis,0])(np.poly1d([1.,offset])).c
+                setattr(future,name,np.pad(shifted,(8-len(shifted),0)).tolist())
+            state['future_plan']=Plan(future);state['future_replans']+=1
+            state['future_replanned_goal']=len(state['goals']);polypub.publish(future)
         if state['resume_goal'] is not None:
             if now>=plan.end+5.:
                 goal=state['resume_goal'];state['resume_goal']=None;state['rest_waits']+=1
@@ -295,7 +313,7 @@ def backend(connection,fault,scene_file=None):
                 request=connection.recv()
                 if request=='stop':break
                 if request=='report':connection.send({k:state[k] for k in
-                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed','rest_waits')})
+                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed','rest_waits','future_replans')})
     finally:
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
@@ -372,7 +390,7 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
-                                     'initial-plan-delay','lateral-route','long-trajectory','intermediate-rest'))
+                                     'initial-plan-delay','lateral-route','long-trajectory','intermediate-rest','future-replan'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')

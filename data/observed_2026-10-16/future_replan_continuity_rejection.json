@@ -1,0 +1,27 @@
+{
+  "run": "20261016_210416_482154",
+  "scope": "Onboard real-SUPER rehearsal with virtual vehicle; no physical aircraft flight",
+  "release": "f64b566d35a6088b679191f156a6081bff5331e9",
+  "result": "FAIL",
+  "leg": "outbound",
+  "preparation": {
+    "alignment": true,
+    "session_map": true,
+    "vision_chain_30s": true,
+    "captured_occupied_points": 9169
+  },
+  "error": "Reference gap or discontinuity (position step)",
+  "interval_s": 0.010223,
+  "observed_step_m": 0.015466,
+  "logged_allowed_step_m": 0.015,
+  "previous_speed_mps": 1.51053,
+  "previous_acceleration_mps2": 0.482815,
+  "approximate_motion_m": 0.015467377622403565,
+  "completed_stages": [
+    "TAKEOFF_TO_1_5M",
+    "STABILIZE_AT_HOME"
+  ],
+  "reproduced_defect": "A not-yet-started replan could match a moving command within the previous -30 ms association tolerance. Pre-start displacement evaluation clamped that future plan to zero, underestimating continuity allowance.",
+  "evidence_limit": "The provided onboard log does not include the selected polynomial start/durations/coefficients. The causal-selection defect is reproduced in software with matching timing and motion magnitudes; exact polynomial replay of this onboard run is unavailable.",
+  "correction": "Match commands only to plans that have started at the original command timestamp. Keep position-continuity margin and motion settings unchanged; capture full selected-polynomial evidence on any later continuity failure."
+}
