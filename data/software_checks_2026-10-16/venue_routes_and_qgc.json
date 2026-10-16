@@ -1,0 +1,66 @@
+{
+  "scope": "Cloud ROS 2 Humble software tests; synthetic planner/vehicle; no physical aircraft flight",
+  "checks": {
+    "qgc_startup": 4,
+    "orchestration": 13,
+    "position_tracking_and_wait": 14,
+    "mission_geometry": 8,
+    "base_reference": 15,
+    "release_manifest": 3,
+    "repository_layout": 3
+  },
+  "checks_passed": true,
+  "curved_route_result": "SUCCESS",
+  "completed_stages": [
+    "TAKEOFF_TO_2M",
+    "STABILIZE_AT_HOME",
+    "SUPER_OUTBOUND_4_5M",
+    "STABILIZE_AT_FAR_POINT",
+    "SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "post_takeoff_position_policy": {
+    "abort_boundary": "Surveyed outer venue including propeller-inclusive vehicle envelope",
+    "straight_line_corridor_m": null,
+    "tracking_error_abort_m": null,
+    "initial_offset_abort_m": null,
+    "arrival_tolerance_per_axis_m": 0.1
+  },
+  "max_lateral_displacement_m": 0.19999751516525788,
+  "return_hover_duration_s": 6.050033541978337,
+  "backend_ledger": {
+    "goals": [
+      [
+        3.8340102670935527,
+        2.4608911302776586,
+        1.175
+      ],
+      [
+        0.12,
+        -0.08,
+        1.175
+      ]
+    ],
+    "commands": [
+      "OFFBOARD",
+      "ARM",
+      "AUTO.LAND"
+    ],
+    "peak_native_speed": 1.6552576920825257,
+    "max_lateral_displacement_m": 0.19999751516525788,
+    "armed": false,
+    "landed": true
+  },
+  "physical_flight_verified": false,
+  "actual_SUPER_used": false,
+  "qgc_gui_rendering_verified": false,
+  "notes": [
+    "An executable test application was launched as a detached process, found via same-user process inspection and reused without a second launch.",
+    "Actual QGroundControl rendering and MAVLink connection require onboard desktop verification.",
+    "The exact observed left offset of 0.1007 m is accepted inside the venue; out-of-venue reference and measured positions remain rejected.",
+    "Tracking and initial offsets are recorded without the former ten-centimetre abort threshold; arrival detection remains separate.",
+    "Base one-goal diagnostic reference checks retain their previous strict initial-offset behavior."
+  ]
+}

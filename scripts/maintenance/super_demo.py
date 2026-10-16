@@ -39,6 +39,7 @@ def arguments(argv=None):
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='observe')
+    p.add_argument('--qgc-path',type=Path,help='installed QGroundControl executable; defaults to the Downloads AppImage')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     return p.parse_args(argv)
 
@@ -64,6 +65,7 @@ def main():
                 raise ValueError('Explicit on-site supervision is required for flight execution')
             for name in ('super_demo_control.py','demo_mission.py'):
                 if not (args.scripts_dir/name).is_file():raise ValueError('Missing mission dependency: '+name)
+            runner.open_qgc(required=args.execute)
             runner.prepare(planner_profile='demo')
             runner.report.update(result='SUCCESS',stage='prepared');write_report(runner.path,runner.report)
             runner.session.load()

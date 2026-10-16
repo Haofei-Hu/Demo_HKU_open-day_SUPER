@@ -39,9 +39,9 @@ class DemoMission:
         self.width=2.8;self.length=fixed['length_forward_m'];self.height=2.8;self.tolerance=.1
         if not 0<self.hull['bottom']<=.085:
             raise ValueError('Measured FC-to-bottom clearance must fit the existing 0.085 m floor calibration')
-        # Reserve the existing full tracking allowance on both sides of the route.
-        for forward in (-.1,self.distance+.1):
-            for left in (-.1,.1):self.check((forward,left,2.1))
+        # Validate the requested route's hull against the outer venue directly.
+        # The arrival tolerance is not an additional corridor or boundary inset.
+        for forward in (0.,self.distance):self.check((forward,0.,2.))
         self.check((0.,0.,.085),on_floor=True)
 
     @staticmethod

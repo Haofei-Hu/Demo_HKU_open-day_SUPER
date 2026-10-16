@@ -32,6 +32,8 @@
     "acceleration_limit_mps2": 1.0,
     "return_hover_s": 6.0,
     "axis_error_limit_m": 0.1,
+    "axis_error_limit_role": "Arrival detection only; not a path or tracking abort threshold",
+    "post_takeoff_position_policy": "Propeller-inclusive vehicle remains inside the outer venue",
     "landing": "PX4_AUTO.LAND_then_confirm_ground_and_disarmed"
   },
   "sequence": [

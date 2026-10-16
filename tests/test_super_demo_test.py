@@ -56,6 +56,27 @@ class Tests(unittest.TestCase):
             self.assertFalse(runner.report['physical_venue_clearance_verified'])
             self.assertTrue(runner.report['actual_SUPER_tested'])
 
+    def test_qgc_is_opened_before_actual_stack_preparation_and_not_in_logic_only(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder)
+            runner.open_qgc=lambda:actions.append(('qgc',))
+            self.assertEqual(runner.run_complete(),0)
+            self.assertEqual([a[0] for a in actions][:2],['qgc','prepare'])
+        with tempfile.TemporaryDirectory() as folder:
+            runner,_=self.runner(folder,logic=True)
+            with patch.object(runner,'open_qgc') as launch:
+                self.assertEqual(runner.run_complete(),0);launch.assert_not_called()
+
+    def test_physical_qgc_launch_failure_is_saved_before_preparation(self):
+        from super_ground_test import GroundTest
+        with tempfile.TemporaryDirectory() as folder:
+            runner,_=self.runner(folder)
+            with patch('qgc_startup.open_qgc',return_value={'status':'unavailable','reason':'missing app'}):
+                with self.assertRaisesRegex(RuntimeError,'Open QGroundControl'):
+                    GroundTest.open_qgc(runner,required=True)
+            saved=json.loads(runner.path.read_text())
+            self.assertEqual(saved['stage'],'qgc');self.assertEqual(saved['qgc']['status'],'unavailable')
+
     def test_real_mode_rejects_synthetic_fallback(self):
         with tempfile.TemporaryDirectory() as folder,self.gate():
             runner,_=self.runner(folder);step=runner.step

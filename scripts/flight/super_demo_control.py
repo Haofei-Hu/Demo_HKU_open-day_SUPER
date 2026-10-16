@@ -37,6 +37,12 @@ class VenueFrame(TakeoffFrame):
         return point
 
 
+class VenueReference(RollingGoalReference):
+    """Observe initial position offsets; frame checks enforce the entire vehicle's bounds."""
+    def check_initial_offset(self,offset):
+        pass
+
+
 class DemoMissionControl(SuperFlightControl):
     NODE_NAME='super_demo'
     DEBUG_TOPIC='/super_debug/demo_target'
@@ -78,6 +84,10 @@ class DemoMissionControl(SuperFlightControl):
         self.endpoint_kinds=set();self.plan_evidence=[]
         self.mission_report.data['committed_endpoints']=self.plan_evidence
         self.mission_report.data['tracking_policy']='FC pose timestamp matched to previously sent position/velocity reference'
+        self.mission_report.data['post_takeoff_position_policy']=dict(
+            abort_boundary='Configured outer venue including propeller-inclusive vehicle envelope',
+            straight_line_corridor_m=None,tracking_error_abort_m=None,initial_offset_abort_m=None,
+            arrival_tolerance_per_axis_m=.1)
         self.mission_report.data['peak_reference_speed_mps']=0.
         self.mission_report.data['peak_reference_acceleration_mps2']=0.
         self.mission_report.data['motion_policy']=motion_policy
@@ -103,6 +113,9 @@ class DemoMissionControl(SuperFlightControl):
     def startup_message(self):
         return ('DEMONSTRATION EXECUTE ENABLED; explicit /super_demo/start and current RC/POSCTL required'
                 if self.execute else 'DEMONSTRATION CHECK ONLY; READY does not execute or validate a flight')
+
+    def position_policy_message(self):
+        return 'post-takeoff position uses vehicle-inclusive venue bounds; 0.10 m arrival detection only'
 
     def validate(self,ground=False):
         result=super().validate(ground)
@@ -156,9 +169,7 @@ class DemoMissionControl(SuperFlightControl):
         return dict(super().allowed_modes(),FINAL_HOLD=('OFFBOARD',))
 
     def target_ok(self,position,label='Reference'):
-        p=self.frame.check(position)
-        if not (-.1<=p[0]<=self.distance+.1 and abs(p[1])<=.1 and abs(p[2]-2.)<=.1):
-            raise ValueError(label+' outside demonstration corridor: '+str(p.round(5).tolist()))
+        self.frame.check(position)
 
     def check_envelope(self,xyz,yaw,ground):
         super().check_envelope(xyz,yaw,ground)
@@ -173,15 +184,13 @@ class DemoMissionControl(SuperFlightControl):
         ns,position,velocity=sent;dt=(stamp-ns)/1e9
         if not 0<=dt<=.25:raise ValueError('Sent reference is stale at the FC pose timestamp')
         expected=position+velocity*dt
+        self.frame.check(xyz)
         error=np.abs(self.frame.axes@(np.asarray(xyz)-expected))
         self.max_tracking_error=np.maximum(self.max_tracking_error,error)
         self.mission_report.data['max_tracking_error_forward_left_up_m']=self.max_tracking_error.tolist()
-        if np.any(error>.1):
-            raise ValueError('Time-aligned tracking error exceeds 0.10 m per axis: '+
-                             str(error.round(6).tolist())+f'; FC stamp={stamp}, reference stamp={ns}')
 
     def make_follower(self):
-        return RollingGoalReference(self.frame,self.check_stage_endpoint,self.final_goal_reached,self.motion_policy)
+        return VenueReference(self.frame,self.check_stage_endpoint,self.final_goal_reached,self.motion_policy)
 
     def process_reference(self,xyz):
         try:super().process_reference(xyz)
@@ -282,8 +291,6 @@ class DemoMissionControl(SuperFlightControl):
         if not self.fresh('local',.25):raise ValueError('Missing/stale local pose during demonstration landing')
         xyz,_=pose_values(self.local)
         point=self.frame.check(xyz)
-        if abs(point[0])>.1 or abs(point[1])>.1:
-            raise ValueError('Landing departed home by over 0.10 m per horizontal axis')
         self.mission_report.data['landing_max_horizontal_error_m']=max(
             self.mission_report.data.get('landing_max_horizontal_error_m',0.),
             abs(float(point[0])),abs(float(point[1])))

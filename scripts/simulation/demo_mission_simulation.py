@@ -157,7 +157,8 @@ def backend(connection,fault,scene_file=None):
         if not np.allclose(raw_rotation.T@raw_rotation,np.eye(3),atol=1e-8,rtol=0):
             raise ValueError('Scene conversion must be rigid')
         origin=np.array(scene['origin'])
-    state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.)
+    state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
+               max_lateral_displacement_m=0.)
     state['target']=None
     kinds={'/Odometry':Odometry,'/mavros/state':State,'/mavros/extended_state':ExtendedState,
         '/mavros/estimator_status':EstimatorStatus,'/mavros/rc/in':RCIn,
@@ -189,6 +190,8 @@ def backend(connection,fault,scene_file=None):
             pose[:]=state['target'][1]
             velocity[:]=[msg.velocity.x,msg.velocity.y,msg.velocity.z]
             state['peak_native_speed']=max(state['peak_native_speed'],math.hypot(*velocity))
+            state['max_lateral_displacement_m']=max(state['max_lateral_displacement_m'],
+                abs(-math.sin(yaw)*(pose[0]-ground[0])+math.cos(yaw)*(pose[1]-ground[1])))
     def goal(msg):
         end=[msg.pose.position.x,msg.pose.position.y,msg.pose.position.z]
         state['goals'].append(end)
@@ -209,7 +212,13 @@ def backend(connection,fault,scene_file=None):
         poly.type=3;poly.order_pos=7;poly.piece_num_pos=1;poly.time_pos=[duration]
         for axis,name in enumerate(('coef_pos_x','coef_pos_y','coef_pos_z')):
             d=end[axis]-pose[axis]
-            setattr(poly,name,[0.,0.,6*d/duration**5,-15*d/duration**4,10*d/duration**3,0.,0.,pose[axis]])
+            coefficients=[0.,0.,6*d/duration**5,-15*d/duration**4,10*d/duration**3,0.,0.,pose[axis]]
+            if fault=='lateral-route':
+                # Smooth 20 cm left excursion, with zero endpoint velocity/acceleration.
+                offset=.2*(-math.sin(yaw),math.cos(yaw),0.)[axis]
+                for index,value in ((1,-64.),(2,192.),(3,-192.),(4,64.)):
+                    coefficients[index]+=value*offset/duration**(7-index)
+            setattr(poly,name,coefficients)
         state['plan']=Plan(poly);polypub.publish(poly)
     node.create_service(SetMode,'/mavros/set_mode',mode);node.create_service(CommandBool,'/mavros/cmd/arming',arm)
     node.create_subscription(PositionTarget,'/mavros/setpoint_raw/local',target,qos_profile_sensor_data)
@@ -276,7 +285,8 @@ def backend(connection,fault,scene_file=None):
             if connection.poll():
                 request=connection.recv()
                 if request=='stop':break
-                if request=='report':connection.send({k:state[k] for k in ('goals','commands','peak_native_speed','armed','landed')})
+                if request=='report':connection.send({k:state[k] for k in
+                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed')})
     finally:
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
@@ -354,7 +364,7 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
-                                     'initial-plan-delay'))
+                                     'initial-plan-delay','lateral-route'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')

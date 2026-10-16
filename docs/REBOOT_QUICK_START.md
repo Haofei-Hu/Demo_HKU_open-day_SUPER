@@ -34,13 +34,21 @@ No manual `source` commands, quaternion copying, numbered terminals or separate 
 
 The runner performs the following sequence:
 
-1. Start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
+1. Open or reuse QGroundControl, then start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
 2. Measure and apply a fresh alignment quaternion, start external vision, and capture the session-relative map configuration.
 3. Sample the real vision chain for 30 seconds and capture a fresh occupied scene.
 4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 2 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
 The actual aircraft receives localization initialization. All flight requests in the rehearsal address the virtual backend. `--fixture-geometry` supplies explicitly synthetic aircraft dimensions and placement; it does not measure laboratory walls or establish physical clearance. A larger laboratory still needs a clear route in the captured map and a valid backup trajectory.
+
+### Automatic QGroundControl startup
+
+Before the actual stack is prepared, the demonstration rehearsal and physical preparation entrypoints open QGC or reuse an existing same-user instance. The default is `~/Downloads/QGroundControl-x86_64.AppImage`, with `QGroundControl.AppImage` and installed executable names as fallbacks. Use `--qgc-path /path/to/QGroundControl.AppImage` for another installed location. The launcher starts the existing executable; it does not download QGC or change its settings.
+
+Retain the existing QGC setup: disable flight-controller USB/serial auto-connect and receive MAVROS UDP forwarding instead. QGC may open before that stream is available; opening the application is not proof of FC connection or preflight readiness. The run report records `qgc` and the launch log is `qgc.log`. Existing instances are reused without creating a second window. QGC is left open after test completion and managed stack shutdown.
+
+`--no-qgc` skips it for the disarmed rehearsal, and `--logic-only` does not open the aircraft ground station. Missing desktop or executable is recorded during remote ground testing. Physical execution requires QGC to have been launched or already running; a launch failure is reported before stack preparation or any flight request. No application-start deadline is added.
 
 ### Automatic RViz2 preview
 
@@ -52,9 +60,15 @@ Append `--no-rviz` to disable the viewer. Without a graphical desktop or an inst
 
 The planner targets 2 m/s and 1 m/s². Observation mode records exceedances and uses 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [the complete test specification](DEMONSTRATION_MISSION.md).
 
-At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. Waiting is excluded from the existing 90-second controller execution budget and 105-second rehearsal execution budget, so those outer limits cannot act as replacement planning deadlines. Planner exit, invalid input, stale telemetry, tracking errors and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
+At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. Waiting is excluded from the existing 90-second controller execution budget and 105-second rehearsal execution budget, so those outer limits cannot act as replacement planning deadlines. Planner exit, invalid input, stale telemetry, venue violations and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
 
 For a separate one-metre rehearsal, append `--route-profile short-1m`. This changes the virtual outbound distance and cannot count as a completed 4.5 m demonstration or enable physical flight. Use the default full route in a suitable laboratory.
+
+## Curved routes inside the venue
+
+After takeoff, the entire configured vehicle envelope must remain inside the outer operating box. SUPER can replan curved routes around obstacles within that box; it is not constrained to a 10 cm tube around the starting heading. Initial-reference, tracking and landing-position offsets are recorded without a separate 10 cm abort rule. The 10 cm arrival tolerance still determines when the requested hover point has been reached; it does not define the permissible path. The former extra 10 cm route inset is removed from geometry validation.
+
+Both planned positions/stage endpoints and measured vehicle positions are checked against the same venue. Freshness, source consistency, finite values, polynomial matching, reference continuity, planner backup constraints, heading policy and operator takeover remain separate requirements. These are data/control checks rather than a fixed straight-line route. QGC and RViz startup do not initiate a physical flight.
 
 ## Read the result and retain the report
 

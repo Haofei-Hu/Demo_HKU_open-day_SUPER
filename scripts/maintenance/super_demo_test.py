@@ -98,6 +98,7 @@ class DemoTest(GroundTest):
             print(f'ROUTE: {config["mission_id"]}; 2 m height, {mission.distance:g} m outbound, return, 6 s hover, LAND',flush=True)
             scene=None
             if not self.args.logic_only:
+                self.open_qgc()
                 self.prepare(planner_profile='demo')
                 self.step('vision_chain',[sys.executable,self.args.scripts_dir/'control_chain_age_check.py',
                                           '--vision-chain','--seconds','30'])
@@ -162,6 +163,8 @@ def main():
                    help='observe records derivative target exceedances only in the isolated virtual rehearsal')
     p.add_argument('--logic-only',action='store_true',help='synthetic planner, no actual aircraft stack or real SUPER')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')
+    p.add_argument('--qgc-path',type=Path,help='installed QGroundControl executable; defaults to the Downloads AppImage')
+    p.add_argument('--no-qgc',action='store_true',help='skip QGroundControl during the disarmed rehearsal')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args();args.scripts_dir=args.scripts_dir.expanduser().resolve()
     if not args.ros_env:

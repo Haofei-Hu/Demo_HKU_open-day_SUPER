@@ -3,23 +3,23 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "1b970ef7d1f973877c414b67a4d7c1357373981789700492a5f9f0a863dfc195"
+      "sha256": "c093761ce99f20f85ad410d26e6f91582bb78ab3791fec9e69a76fd5f72918c2"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "b08450fb57f854bac9dfd2996f2092ca5bc4b22ff28c9a6d39ed42a59b2f8092"
+      "sha256": "b716c12d2db46d861467953611b9ab7db4b2b7d04869435c57b4e7f2b69003d2"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "a5589e74276ea51687a1bccfdd8aaff422018260a80d9412a6bd6759e42130ed"
+      "sha256": "eac4be506bce850f69fa0bb45f26392a6cda496a958a1a2b774e9f15c0ce9dfe"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "bfc4a7c3ed700bee424dfec95d902fc0c284128a48de5968d3ceb41afa96921a"
+      "sha256": "60d63e941215e299f13c37f7a888e9febbcb088cff3cea56216625033a8e9d82"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "f93452e631f86953babdb02550b0de8adb46d4034f5f1e8bb7d77af3b81376d6"
+      "sha256": "01b25c240b12582826feb0fa5913afd9d9c9f3a131a0825b328a01049f37e74f"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
@@ -31,11 +31,11 @@
     },
     "super_flight_control.py": {
       "path": "scripts/flight/super_flight_control.py",
-      "sha256": "864b762c1331c7da469a01862a5ef5a9d6e3c207920fac3c302c73a39c19a245"
+      "sha256": "838ceca8c6b51d8573d5bd42d03ce97f3ad28ba44ada7d25fd335b0c2185bb56"
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "8bc5c0cd647383047d998be0da176549f00b9621de7090680932b9624cea3035"
+      "sha256": "b5af04a95be49be4f9896e0c45fad7529e5ac022fe32bd7aa498787fa996a33e"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",
@@ -43,7 +43,7 @@
     },
     "super_ground_test.py": {
       "path": "scripts/maintenance/super_ground_test.py",
-      "sha256": "93d24ef92244fdd271429100acebb9e8ae0cd07e277c4e3b591848b14aa9f8e5"
+      "sha256": "35c00b9b2971cd461c5975e18f981cc0ef91fa59e6e8114090464a46a30b0e0b"
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
@@ -79,8 +79,12 @@
     },
     "open_day_mission.json": {
       "path": "configs/demonstration/open_day_mission.json",
-      "sha256": "3240d549ebfb4beebb7e79a671c4bd914602a8b73e716f8bf28e0756d309eae8",
+      "sha256": "036ca9fbec36b5f235fe7faab904f230c3205ba86d67fe0bc6d25604bf5d5287",
       "preserve_existing": true
+    },
+    "qgc_startup.py": {
+      "path": "scripts/maintenance/qgc_startup.py",
+      "sha256": "237af5c4dbcf04b424a5c14c61ad382a106d3982cc2d2ba674fb09b53b3ee260"
     }
   }
 }

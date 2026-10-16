@@ -34,17 +34,22 @@ class Tests(unittest.TestCase):
 
     def test_short_edge_does_not_allow_a_centre_on_a_wall(self):
         for key,value in (('forward_from_rear_m',0.),('distance_from_left_m',0.),
-                          ('forward_from_rear_m',1.1),('distance_from_left_m',2.8)):
+                          ('forward_from_rear_m',1.1001),('distance_from_left_m',2.8)):
             cfg=fixture();cfg['takeoff'][key]=value
             with self.assertRaisesRegex(ValueError,'outside venue'):DemoMission(cfg)
-        cfg=fixture();cfg['vehicle']['centre_to_top_m']=.71
+        cfg=fixture();cfg['vehicle']['centre_to_top_m']=.8001
         with self.assertRaisesRegex(ValueError,'outside venue'):DemoMission(cfg)
 
-    def test_body_and_ten_cm_allowance_are_not_silently_removed(self):
+    def test_body_bounds_and_source_geometry_are_preserved(self):
         cfg=fixture();before=deepcopy(cfg);mission=DemoMission(cfg)
         self.assertEqual(cfg,before)
         for p in ((-.301,0,2),(5.101,0,2),(0,1.201,2),(0,0,2.701)):
             with self.assertRaises(ValueError):mission.check(p)
+
+    def test_no_extra_ten_cm_corridor_or_inset_is_added_to_venue_geometry(self):
+        cfg=fixture();cfg['takeoff'].update(forward_from_rear_m=1.1,distance_from_left_m=.2)
+        mission=DemoMission(cfg)
+        mission.check((4.5,0.,2.));mission.check((1.,-.8,2.4))
 
     def test_partial_or_out_of_order_sequence_cannot_succeed(self):
         with tempfile.TemporaryDirectory() as folder:

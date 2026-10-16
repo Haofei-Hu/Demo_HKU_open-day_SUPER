@@ -276,6 +276,16 @@ class GroundTest:
             if args.test_profile=='forward-5m-2mps' else dict(forward_m=.3,speed_limit_mps=.25,acceleration_limit_mps2=.45))
         self.observer = None
 
+    def open_qgc(self,required=False):
+        from qgc_startup import open_qgc
+        self.report['stage']='qgc'
+        self.report['qgc']=open_qgc(self.folder,getattr(self.args,'qgc_path',None),
+                                  not getattr(self.args,'no_qgc',False))
+        write_report(self.path,self.report)
+        if required and self.report['qgc']['status'] not in ('launched','already_running'):
+            raise RuntimeError('Open QGroundControl before physical execution: '+
+                               self.report['qgc'].get('reason','QGC startup disabled'))
+
     def action(self, action, *extra):
         self.report['stage'] = action
         write_report(self.path, self.report)

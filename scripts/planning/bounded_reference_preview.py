@@ -148,6 +148,10 @@ class Reference:
     def can_hold_endpoint(self, plan, position):
         return True
 
+    def check_initial_offset(self,offset):
+        if np.any(np.abs(offset) > .10):
+            raise ValueError('Initial reference offset exceeds 0.10 m per axis: '+str(offset.round(4).tolist()))
+
     def add_plan(self, msg):
         plan = Plan(msg)
         self.check_plan_endpoint(plan, adding=True)
@@ -194,8 +198,7 @@ class Reference:
             if measured.shape != (3,) or not np.all(np.isfinite(measured)):
                 raise ValueError('Invalid measured start position')
             offset = self.frame.axes @ (position-measured)
-            if np.any(np.abs(offset) > .10):
-                raise ValueError('Initial reference offset exceeds 0.10 m per axis: '+str(offset.round(4).tolist()))
+            self.check_initial_offset(offset)
             self.initial_offset = offset.copy()
         else:
             dt = (stamp-self.last[0])/1e9

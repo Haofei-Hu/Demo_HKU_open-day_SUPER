@@ -12,7 +12,7 @@ import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'scripts/flight'),str(ROOT/'scripts/planning'),str(ROOT/'scripts/maintenance')]
-from super_demo_control import DemoMissionControl,arguments
+from super_demo_control import DemoMissionControl,VenueFrame,VenueReference,arguments
 from super_flight_control import SuperFlightControl
 
 
@@ -20,15 +20,16 @@ class Tests(unittest.TestCase):
     def control(self):
         return NS(stamp=SuperFlightControl.stamp,local=NS(header=NS(stamp=NS(sec=12,nanosec=100_000_000))),
             sent_references=deque([(12_000_000_000,np.zeros(3),np.array([2.,0.,0.]))]),
-            frame=NS(axes=np.eye(3)),max_tracking_error=np.zeros(3),mission_report=NS(data={}))
+            frame=NS(axes=np.eye(3),check=lambda xyz:np.asarray(xyz)),
+            max_tracking_error=np.zeros(3),mission_report=NS(data={}))
 
     def test_new_target_is_not_compared_with_an_older_measurement(self):
         control=self.control();before=control.local.header.stamp.nanosec
         DemoMissionControl.tracking_ok(control,[.2,0.,0.],[.4,0.,0.])
         np.testing.assert_allclose(control.max_tracking_error,np.zeros(3),atol=1e-12)
         self.assertEqual(control.local.header.stamp.nanosec,before)
-        with self.assertRaisesRegex(ValueError,'0.10 m per axis'):
-            DemoMissionControl.tracking_ok(control,[.301,0.,0.],[.4,0.,0.])
+        DemoMissionControl.tracking_ok(control,[.301,0.,0.],[.4,0.,0.])
+        self.assertAlmostEqual(control.max_tracking_error[0],.101)
 
     def waiting(self):
         control=NS(started=True,execute=True,armed_at=0.,offboard_budget=90.,phase='WAIT_PLAN',phase_at=5.,
@@ -49,9 +50,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(control.tracking_ok.call_count,4)
         self.assertEqual(control.phase,'WAIT_PLAN')
 
-    def test_wait_does_not_hide_tracking_failure_or_disarming(self):
-        control=self.waiting();control.tracking_ok.side_effect=ValueError('Tracking error exceeds 0.10 m per axis')
-        with self.assertRaisesRegex(ValueError,'Tracking error'):
+    def test_wait_does_not_hide_venue_boundary_failure_or_disarming(self):
+        control=self.waiting();control.tracking_ok.side_effect=ValueError('Aircraft envelope outside venue')
+        with self.assertRaisesRegex(ValueError,'outside venue'):
             DemoMissionControl.mission_tick(control,200.,control.home,.4)
         control.publish.assert_not_called()
         control=self.waiting();control.state.armed=False
@@ -72,17 +73,20 @@ class Tests(unittest.TestCase):
         control=self.control();control.local.header.stamp.nanosec=300_000_000
         with self.assertRaisesRegex(ValueError,'reference is stale'):DemoMissionControl.tracking_ok(control,[.6,0,0],[.6,0,0])
 
-    def test_landing_checks_home_xy_and_fresh_pose_without_flight_output(self):
+    def test_landing_observes_home_error_but_checks_venue_and_freshness(self):
         from geometry_msgs.msg import PoseStamped
+        from demo_mission import DemoMission
+        from test_demo_mission import fixture
         pose=PoseStamped();pose.pose.orientation.w=1.
         control=NS(fresh=lambda *a:True,local=pose,
-            frame=NS(check=lambda xyz:np.asarray(xyz)),mission_report=NS(data={}))
+            frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False),mission_report=NS(data={}))
         pose.pose.position.x=.09;pose.pose.position.z=1.
         DemoMissionControl.check_landing_feedback(control)
         self.assertEqual(control.mission_report.data['landing_max_horizontal_error_m'],.09)
         pose.pose.position.x=.101
-        with self.assertRaisesRegex(ValueError,'Landing departed home'):
-            DemoMissionControl.check_landing_feedback(control)
+        DemoMissionControl.check_landing_feedback(control)
+        pose.pose.position.y=1.201
+        with self.assertRaisesRegex(ValueError,'outside venue'):DemoMissionControl.check_landing_feedback(control)
         control.fresh=lambda *a:False
         with self.assertRaisesRegex(ValueError,'stale local pose during'):
             DemoMissionControl.check_landing_feedback(control)
@@ -131,6 +135,7 @@ class Tests(unittest.TestCase):
                 self.assertFalse(node.mission_report.data['physical_flight_verified'])
                 self.assertEqual(node.mission_report.data['motion_advisories']['speed_mps'],2.4)
                 self.assertIsNone(node.mission_report.data['planning_wait_policy']['timeout_s'])
+                self.assertIsNone(node.mission_report.data['post_takeoff_position_policy']['straight_line_corridor_m'])
             finally:
                 if node is not None:node.destroy_node()
                 rclpy.shutdown()
@@ -149,6 +154,38 @@ class Tests(unittest.TestCase):
         self.assertEqual(advisory['acceleration_exceedances'],2)
         self.assertEqual(advisory['last_exceedance']['speed_mps'],2.6)
         self.assertEqual(len(logs),1,'Warnings should not repeat every command')
+
+    def test_observed_left_excursion_and_larger_in_box_detours_are_allowed(self):
+        from demo_mission import DemoMission
+        from test_demo_mission import fixture
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        control=NS(frame=frame)
+        for point in ([.53255,.1007,2.05995-.085],[2.,.8,2.3]):
+            DemoMissionControl.target_ok(control,point)
+        for point in ([2.,1.201,2.],[5.101,0.,2.],[2.,0.,2.701-.085]):
+            with self.assertRaisesRegex(ValueError,'outside venue'):DemoMissionControl.target_ok(control,point)
+
+    def test_measured_pose_outside_venue_is_rejected_even_without_tracking_error_cap(self):
+        from demo_mission import DemoMission
+        from test_demo_mission import fixture
+        control=self.control()
+        control.frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        with self.assertRaisesRegex(ValueError,'outside venue'):
+            DemoMissionControl.tracking_ok(control,[.2,1.201,2.],[.2,1.201,2.])
+
+    def test_venue_reference_records_initial_offset_without_the_legacy_ten_cm_gate(self):
+        from demo_mission import DemoMission
+        from test_demo_mission import fixture
+        from test_bounded_reference import trajectory
+        # A stationary committed polynomial 20 cm left of the measured start.
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        follower=VenueReference(frame,lambda plan:True,lambda plan,pos:False,'observe')
+        msg=trajectory(distance=0.)
+        msg.coef_pos_y[-1]=.2;msg.coef_pos_z[-1]=1.915
+        follower.add_plan(msg)
+        plan=follower.plans[-1];stamp=int((plan.start+.1)*1e9);raw,v,a=plan.evaluate(.1)
+        self.assertTrue(follower.command(stamp,raw,v,a,raw,[0,0,0,1],measured_position=[0,0,1.915]))
+        self.assertAlmostEqual(follower.initial_offset[1],.2)
 
 
 if __name__=='__main__':unittest.main()
