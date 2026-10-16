@@ -107,7 +107,8 @@ class DemoMissionControl(SuperFlightControl):
     ADVISORY_ACCELERATION=1.5
 
     def __init__(self,mission_file,report_path,execute=False,on_site_supervised=False,
-                 alignment_path=None,planner_config=None,simulation=False,motion_policy='strict'):
+                 alignment_path=None,planner_config=None,simulation=False,motion_policy='strict',
+                 mission_class=DemoMission):
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         self.motion_policy=motion_policy;self.motion_warned_legs=set()
         if execute and not on_site_supervised:
@@ -118,7 +119,7 @@ class DemoMissionControl(SuperFlightControl):
             raise ValueError('Short-site rehearsal profiles cannot enable physical flight')
         if execute and not simulation and str(config.get('status','')).startswith('SYNTHETIC'):
             raise ValueError('Synthetic test geometry cannot enable a physical flight')
-        self.mission=DemoMission(config)
+        self.mission=mission_class(config)
         if self.mission.rehearsal_only and not simulation:
             raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
         self.MAX_DISTANCE=self.mission.distance
@@ -516,7 +517,7 @@ class DemoMissionControl(SuperFlightControl):
                     self.mission_report.data['nominal_waypoints_reached']=all(
                         entry['nominal_position_reached'] for entry in arrivals.values())
                     if self.leg=='outbound':
-                        outbound='SUPER_OUTBOUND_4_5M' if self.mission.demonstration else 'SUPER_OUTBOUND_1M'
+                        outbound=self.mission.outbound_stage
                         self.mission_report.completed(self.mission.round_stage(outbound,self.round_index))
                         self.mission_report.completed(self.mission.round_stage('STABILIZE_AT_FAR_POINT',self.round_index))
                         self.request_leg('return',self.home)

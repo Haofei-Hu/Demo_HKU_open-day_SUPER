@@ -26,11 +26,12 @@ import time
 
 class RehearsalViewer:
     """Own only this run's optional viewer, after the domain isolation check."""
-    def __init__(self,report,enabled=True):
+    def __init__(self,report,enabled=True,domain_id=197):
         self.folder=Path(report).parent
+        self.domain_id=domain_id
         self.process=None;self.log=None
         self.state=dict(requested=enabled,status='pending' if enabled else 'disabled',
-                        domain_id=197,localhost_only=True,rendering_verified=False,
+                        domain_id=domain_id,localhost_only=True,rendering_verified=False,
                         arrow_direction='vehicle body +X in raw planner world; not velocity',
                         arrow_anchor='raw FAST_LIO localization reference point')
 
@@ -42,8 +43,8 @@ class RehearsalViewer:
         if not self.state['requested']:
             self.save();return
         reason=None
-        if os.environ.get('ROS_DOMAIN_ID')!='197' or os.environ.get('ROS_LOCALHOST_ONLY')!='1':
-            raise ValueError('Rehearsal viewer requires isolated localhost domain 197')
+        if self.domain_id not in (197,198) or os.environ.get('ROS_DOMAIN_ID')!=str(self.domain_id) or os.environ.get('ROS_LOCALHOST_ONLY')!='1':
+            raise ValueError(f'Rehearsal viewer requires isolated localhost domain {self.domain_id}')
         if not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
             reason='No graphical desktop is available'
         elif shutil.which('rviz2') is None:reason='rviz2 executable is not installed'
@@ -59,7 +60,7 @@ class RehearsalViewer:
             self.log=logpath.open('w')
             self.process=subprocess.Popen(['rviz2','-d',str(config),'--ros-args',
                 '-r','__node:=super_demo_rviz'],stdout=self.log,stderr=subprocess.STDOUT,
-                start_new_session=True,env=dict(os.environ,ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1'))
+                start_new_session=True,env=dict(os.environ,ROS_DOMAIN_ID=str(self.domain_id),ROS_LOCALHOST_ONLY='1'))
             self.state.update(status='launched',pid=self.process.pid)
             print('RVIZ: launched for this rehearsal; log: '+str(logpath),flush=True)
         except OSError as exc:
@@ -380,13 +381,15 @@ def backend(connection,fault,scene_file=None):
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
 
-def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rviz=True):
+def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rviz=True,
+        controller_class=None,domain_id=197):
     import rclpy
     from std_srvs.srv import Trigger
     from super_demo_control import DemoMissionControl
+    controller_class=controller_class or DemoMissionControl
     parent,child=multiprocessing.get_context('spawn').Pipe()
     process=multiprocessing.get_context('spawn').Process(target=backend,args=(child,fault,scene_file))
-    node=None;planner_process=None;planner_log=None;viewer=RehearsalViewer(report,rviz);process.start()
+    node=None;planner_process=None;planner_log=None;viewer=RehearsalViewer(report,rviz,domain_id);process.start()
     try:
         if not parent.poll(15) or parent.recv()!='ready':raise RuntimeError('Synthetic ROS backend startup failed')
         with tempfile.TemporaryDirectory(prefix='demo_simulation_') as directory:
@@ -408,7 +411,7 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
                     '-p','use_sim_time:=false','-p','config_name:='+planner.name],
                     stdout=planner_log,stderr=subprocess.STDOUT,start_new_session=True)
             viewer.start(scene)
-            rclpy.init();node=DemoMissionControl(mission_file,report,True,True,alignment,planner,
+            rclpy.init();node=controller_class(mission_file,report,True,True,alignment,planner,
                                               simulation=True,motion_policy=motion_policy)
             client=node.create_client(Trigger,'/super_demo/start');attempted=False
             while rclpy.ok() and node.phase not in ('DONE','STOPPED'):

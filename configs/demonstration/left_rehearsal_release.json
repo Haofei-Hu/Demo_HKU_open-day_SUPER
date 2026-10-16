@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "files": {
+    "super_demo_test.py": {
+      "path": "scripts/maintenance/super_demo_test.py",
+      "sha256": "173b0ebe93ea2ded14c1b9b3dd872d01c6ce444acbbd1e67857e189dbdf90b70"
+    },
+    "super_demo.py": {
+      "path": "scripts/maintenance/super_demo.py",
+      "sha256": "8c156b6b1010c46761412dc87732cb01488ea168990005e127da2b12abb1e3d7"
+    },
+    "demo_mission.py": {
+      "path": "scripts/flight/demo_mission.py",
+      "sha256": "841e1c3588ba917ec4c510fa4b504b6ffbda20fe42bd2b0863240385ed035ec7"
+    },
+    "super_demo_control.py": {
+      "path": "scripts/flight/super_demo_control.py",
+      "sha256": "166677705f1a5b373dd1907b5d5e586634a00d0b0a98a0d201ec4cf1200057a4"
+    },
+    "demo_mission_simulation.py": {
+      "path": "scripts/simulation/demo_mission_simulation.py",
+      "sha256": "47b2dd27c4c78beda08353983dd407dcbe6128594619e17365e3b476d109ec5a"
+    },
+    "capture_demo_scene.py": {
+      "path": "scripts/simulation/capture_demo_scene.py",
+      "sha256": "7847dd8373a67f07ba987fb9151818d314de11a613de1902db2a4ce2cb9b67c1"
+    },
+    "first_hover_terminal.py": {
+      "path": "first_hover_terminal.py",
+      "sha256": "4fe642ca7491dae0a7b894136046013e225d013a20e84929e2eb530d734cce81"
+    },
+    "super_flight_control.py": {
+      "path": "scripts/flight/super_flight_control.py",
+      "sha256": "19a05db2f57876d99fa43750131020fba5ee417ed0c08a85d06bc0a4b73829cf"
+    },
+    "bounded_reference_preview.py": {
+      "path": "scripts/planning/bounded_reference_preview.py",
+      "sha256": "f8eeb9ee559095f3c485d58cb64b40058cccf7f176b765370f7f18e9067c63ac"
+    },
+    "ground_speed_audit.py": {
+      "path": "scripts/planning/ground_speed_audit.py",
+      "sha256": "33515574bc61d2a1f396a7f5e56fdb7df03747164a651d9557cf0db5255b03a5"
+    },
+    "super_ground_test.py": {
+      "path": "scripts/maintenance/super_ground_test.py",
+      "sha256": "35c00b9b2971cd461c5975e18f981cc0ef91fa59e6e8114090464a46a30b0e0b"
+    },
+    "super_session.py": {
+      "path": "scripts/maintenance/super_session.py",
+      "sha256": "ca3439ddee54fd86469893639893e5728db03262d847f55e35608cd65b539072"
+    },
+    "create_super_speed_ground_profile.py": {
+      "path": "scripts/maintenance/create_super_speed_ground_profile.py",
+      "sha256": "f562c8880d1af3c8909726e396dd88d0f85d902c1daa75a1a4946873ac516e88"
+    },
+    "create_super_motion_profiles.py": {
+      "path": "scripts/maintenance/create_super_motion_profiles.py",
+      "sha256": "63b437528fd3b5bb2bd98eb838fb5c67992dac800f56fe507227120234143258"
+    },
+    "create_session_map_profile.py": {
+      "path": "scripts/maintenance/create_session_map_profile.py",
+      "sha256": "f306c21b908ae5a3ddd8721a2dd86f753703e6b65fc78e07823b922af8627a6d"
+    },
+    "control_chain_age_check.py": {
+      "path": "scripts/analysis/control_chain_age_check.py",
+      "sha256": "9dfcb370169398f09267dcdb17b5b18798a228a474cc8db127aa907d49bb8451"
+    },
+    "frame_alignment_check.py": {
+      "path": "scripts/localization/frame_alignment_check.py",
+      "sha256": "39bb2e1b0dd43951cbe46d2ad8d53d45f68b83033ef0ae7eb3b64639466e87a7"
+    },
+    "control_bridge_preview.py": {
+      "path": "scripts/planning/control_bridge_preview.py",
+      "sha256": "2587b2f2340dad15fe6c251413cacbe47e34a8efec54e3f2f7a0a1eab39f983d"
+    },
+    "flight_pose_cov_transport.py": {
+      "path": "scripts/localization/flight_pose_cov_transport.py",
+      "sha256": "1128e3a548be34c54514af76b78218fa87c46450733d516d3548e57ba4063876"
+    },
+    "open_day_mission.json": {
+      "path": "configs/demonstration/open_day_mission.json",
+      "sha256": "a09fd9af8488d50b48379a9b8a05149c3f4fb1061c32da1c1a90fa07c89be64a",
+      "preserve_existing": true
+    },
+    "qgc_startup.py": {
+      "path": "scripts/maintenance/qgc_startup.py",
+      "sha256": "237af5c4dbcf04b424a5c14c61ad382a106d3982cc2d2ba674fb09b53b3ee260"
+    },
+    "left_rehearsal.py": {
+      "path": "scripts/simulation/left_rehearsal.py",
+      "sha256": "7ab70260004177094749a340a37df61ff5c4e25b34acb87577fd91caf0da1b15"
+    },
+    "left_demo_control.py": {
+      "path": "scripts/simulation/left_demo_control.py",
+      "sha256": "cb7f28872af660f5c001915dd0455f1ea070979d1fc74c1832376a86d4a51d04"
+    },
+    "super_left_test.py": {
+      "path": "scripts/maintenance/super_left_test.py",
+      "sha256": "cf17357c0785064dacc0da0224f5ac37c302945e4cedbbd74380b7c9159ad43a"
+    },
+    "left_facing_48m_rehearsal.json": {
+      "path": "configs/demonstration/left_facing_48m_rehearsal.json",
+      "sha256": "fcfb01e5515ffd8b7fd2daa6d434f735cfe764853517b08727c735f523330cd6"
+    }
+  },
+  "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"
+}

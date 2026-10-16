@@ -11,15 +11,15 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "ffc094637be41cf3a8fa23a1bfbc50be14f12299dc288e41091df66ce5352130"
+      "sha256": "841e1c3588ba917ec4c510fa4b504b6ffbda20fe42bd2b0863240385ed035ec7"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "9a9a5a3f2fcba5f4497969c068502a8d655accc4d1127b54a2d1fcd376849d1f"
+      "sha256": "166677705f1a5b373dd1907b5d5e586634a00d0b0a98a0d201ec4cf1200057a4"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "d96cba932380475c16d40df5d4083ed3e5c10cd3681f2d34f7e6fd1b65c7bcc4"
+      "sha256": "47b2dd27c4c78beda08353983dd407dcbe6128594619e17365e3b476d109ec5a"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",

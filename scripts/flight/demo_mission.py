@@ -8,6 +8,8 @@ from pathlib import Path
 
 
 class DemoMission:
+    PROFILES={'open_day_out_and_back':(4.5,5.8,'SUPER_OUTBOUND_4_5M',True),
+              'short_site_1m_rehearsal':(1.,2.,'SUPER_OUTBOUND_1M',False)}
     PHASES=('TAKEOFF_TO_1_5M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
             'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME','HOLD_HOME_6S',
             'AUTO_LAND','CONFIRM_LANDED_AND_DISARMED')
@@ -16,25 +18,24 @@ class DemoMission:
         self.config=deepcopy(config)
         if config.get('schema_version')!=1:raise ValueError('Unsupported mission schema')
         profile=config.get('mission_id')
-        if profile not in ('open_day_out_and_back','short_site_1m_rehearsal'):
+        if profile not in self.PROFILES:
             raise ValueError('Unknown mission profile')
-        self.demonstration=profile=='open_day_out_and_back'
+        self.distance,venue_length,outbound,self.demonstration=self.PROFILES[profile]
         context=config.get('execution_context')
         if context not in (None,'ground_rehearsal'):raise ValueError('Unknown mission execution context')
         self.rehearsal_only=context=='ground_rehearsal'
-        self.distance=4.5 if self.demonstration else 1.
         v=config['venue'];f=config['flight'];s=config['takeoff'];body=config['vehicle']
         self.round_trips=f.get('round_trips',1)
         if isinstance(self.round_trips,bool) or not isinstance(self.round_trips,int) or self.round_trips<1:
             raise ValueError('Round trips must be a positive integer')
-        outbound='SUPER_OUTBOUND_4_5M' if self.demonstration else 'SUPER_OUTBOUND_1M'
+        self.outbound_stage=outbound
         stages=['TAKEOFF_TO_0_5M' if self.rehearsal_only else 'TAKEOFF_TO_1_5M','STABILIZE_AT_HOME']
         for number in range(1,self.round_trips+1):
             stages.extend(self.round_stage(stage,number) for stage in
                           (outbound,'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME'))
         self.PHASES=tuple(stages+['HOLD_HOME_6S','AUTO_LAND','CONFIRM_LANDED_AND_DISARMED'])
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
-        fixed={'length_forward_m':5.8 if self.demonstration else 2.,'width_left_m':2.8,'height_m':2.8}
+        fixed={'length_forward_m':venue_length,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
         expected={'height_fc_above_floor_m':.5 if self.rehearsal_only else 1.5,'outbound_forward_m':self.distance,
                   'horizontal_speed_limit_mps':2.,'acceleration_limit_mps2':1.,

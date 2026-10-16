@@ -1,0 +1,61 @@
+{
+  "scope": "Independent virtual left-facing rehearsal; no physical aircraft, no full real-SUPER left-facing run, no desktop rendering claim",
+  "mission": {
+    "initial_virtual_heading_change_deg": 90.0,
+    "height_m": 0.5,
+    "outbound_m": 4.8,
+    "round_trips": 5,
+    "planner_speed_mps": 2.0,
+    "planner_acceleration_mps2": 1.0,
+    "final_hold_s": 6.0,
+    "heading_policy": "hold rotated initial heading"
+  },
+  "isolation": {
+    "install_root": "~/Downloads/super_left_48_rehearsal/<revision>",
+    "report_root": "~/Downloads/super_left_48_tests/<timestamp>",
+    "ros_domain_id": 198,
+    "original_rehearsal_domain_id": 197,
+    "localhost_only": true,
+    "source_scene": "Latest completed successful real-SUPER rehearsal; read-only reuse"
+  },
+  "focused_validation": {
+    "existing_checks_passed": 74,
+    "new_checks_passed": 12,
+    "total_distinct_checks_passed": 86,
+    "new_check_modules": [
+      "test_left_rehearsal",
+      "test_left_rehearsal_ros"
+    ],
+    "live_ros_case": "Spawned virtual backend from a rotated scene; verified fixed FC centre, original-stamp paired localization, unchanged mapping origin, clean shutdown, disarmed state and zero goals",
+    "controller_case": "Deterministic mission state machine with ten alternating left-facing outbound/return goals, fixed 90-degree yaw, all five returns and final six-second hold before landing",
+    "entry_case": "Mocked rehearsal invocation verifies separate domain/report path and no aircraft session creation; not a complete mission pass",
+    "viewer_case": "Mocked viewer launch uses domain 198; actual GUI rendering not assessed",
+    "installer_cases": [
+      "Checksummed 25-file separate release",
+      "Idempotent installation without rewriting existing files",
+      "Original scripts and measurements retained",
+      "Corrupt download leaves no partial release"
+    ],
+    "scene_cases": [
+      "Nontrivial 3D alignment and body mounting",
+      "Exactly +90-degree aligned heading",
+      "FC centre unchanged after lever-arm compensation",
+      "Cloud payload and original files unchanged",
+      "Modified dependency and double-rotation rejected",
+      "Running/failed/synthetic reports ignored"
+    ]
+  },
+  "original_workflow": {
+    "default_mission_unchanged": true,
+    "original_quick_start_pin": "c8ab5d757a65c437d04deab141de8fdb40b81323",
+    "installation_not_updated_by_left_installer": true,
+    "operator_reported_onboard_success": true,
+    "onboard_result_report_archived": false
+  },
+  "limitations": [
+    "Full left-facing real-SUPER rehearsal must be run onboard with the saved scene",
+    "Frozen map does not reflect later room changes",
+    "Synthetic hull and venue placement are not a surveyed physical clearance claim",
+    "No physical flight was attempted"
+  ]
+}

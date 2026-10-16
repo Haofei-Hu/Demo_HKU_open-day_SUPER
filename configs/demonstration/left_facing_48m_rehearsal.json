@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "mission_id": "left_facing_48m_rehearsal",
+  "execution_context": "ground_rehearsal",
+  "units": "metres_seconds",
+  "venue": {
+    "boundary_type": "outer",
+    "length_forward_m": 5.8,
+    "width_left_m": 2.8,
+    "height_m": 2.8
+  },
+  "takeoff": {
+    "forward_from_rear_m": 0.5,
+    "distance_from_left_m": 1.4,
+    "heading_along_length_confirmed": true
+  },
+  "vehicle": {
+    "centre_to_front_m": 0.2,
+    "centre_to_rear_m": 0.2,
+    "centre_to_left_m": 0.2,
+    "centre_to_right_m": 0.2,
+    "centre_to_top_m": 0.1,
+    "centre_to_bottom_m": 0.085
+  },
+  "flight": {
+    "height_fc_above_floor_m": 0.5,
+    "outbound_forward_m": 4.8,
+    "horizontal_speed_limit_mps": 2.0,
+    "acceleration_limit_mps2": 1.0,
+    "return_hover_s": 6.0,
+    "axis_error_limit_m": 0.1,
+    "yaw_policy": "hold_takeoff_heading",
+    "round_trips": 5
+  },
+  "sequence": [
+    "TAKEOFF_TO_0_5M",
+    "STABILIZE_AT_HOME",
+    "ROUND_01_SUPER_OUTBOUND_4_8M",
+    "ROUND_01_STABILIZE_AT_FAR_POINT",
+    "ROUND_01_SUPER_RETURN_HOME",
+    "ROUND_02_SUPER_OUTBOUND_4_8M",
+    "ROUND_02_STABILIZE_AT_FAR_POINT",
+    "ROUND_02_SUPER_RETURN_HOME",
+    "ROUND_03_SUPER_OUTBOUND_4_8M",
+    "ROUND_03_STABILIZE_AT_FAR_POINT",
+    "ROUND_03_SUPER_RETURN_HOME",
+    "ROUND_04_SUPER_OUTBOUND_4_8M",
+    "ROUND_04_STABILIZE_AT_FAR_POINT",
+    "ROUND_04_SUPER_RETURN_HOME",
+    "ROUND_05_SUPER_OUTBOUND_4_8M",
+    "ROUND_05_STABILIZE_AT_FAR_POINT",
+    "ROUND_05_SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "virtual_heading_rotation_deg": 90.0,
+  "status": "SYNTHETIC_LEFT_FACING_REHEARSAL_NOT_A_FLIGHT_CONFIGURATION",
+  "geometry_note": "Virtual 5.8 x 2.8 x 2.8 m box follows the rotated virtual heading; not a surveyed room boundary"
+}

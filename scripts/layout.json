@@ -37,6 +37,9 @@
   "ground_xy_fusion_transport.py": "scripts/localization/ground_xy_fusion_transport.py",
   "hover_reference.py": "scripts/flight/hover_reference.py",
   "install_demo_test.py": "scripts/maintenance/install_demo_test.py",
+  "install_left_rehearsal.py": "scripts/maintenance/install_left_rehearsal.py",
+  "left_demo_control.py": "scripts/simulation/left_demo_control.py",
+  "left_rehearsal.py": "scripts/simulation/left_rehearsal.py",
   "odom_age_check.py": "odom_age_check.py",
   "qgc_startup.py": "scripts/maintenance/qgc_startup.py",
   "raw_pose_cov_transport.py": "scripts/localization/raw_pose_cov_transport.py",
@@ -49,6 +52,7 @@
   "super_demo_test.py": "scripts/maintenance/super_demo_test.py",
   "super_flight_control.py": "scripts/flight/super_flight_control.py",
   "super_ground_test.py": "scripts/maintenance/super_ground_test.py",
+  "super_left_test.py": "scripts/maintenance/super_left_test.py",
   "super_session.py": "scripts/maintenance/super_session.py",
   "update_preview_alignment.py": "update_preview_alignment.py"
 }

@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 17, 2026:** the canonical mission now performs **five consecutive 4.5 m out-and-back rounds**, followed by one six-second hover and landing. Ground rehearsal requests 0.5 m height; physical tests retain 1.5 m. Per-round reports and ordered completion checks are implemented. Long cloud ROS trials stopped on stale virtual pose feedback, so a complete five-round ROS/onboard pass remains unverified. See [the current progress](docs/PROGRESS_2026-10-17.md).
+**Status — October 17, 2026:** the canonical mission now performs **five consecutive 4.5 m out-and-back rounds**, followed by one six-second hover and landing. Ground rehearsal requests 0.5 m height; physical tests retain 1.5 m. Per-round reports and ordered completion checks are implemented. The forward rehearsal is reported successful onboard; its full result file has not yet been archived here. Earlier cloud ROS trials stopped on stale virtual pose feedback and remain recorded as failures. Physical demonstration flight remains unverified. See [the current progress](docs/PROGRESS_2026-10-17.md).
 
 **Status — October 16, 2026:** the complete demonstration supervisor and automatic test entrypoint are implemented: 1.5 m physical takeoff target (0.5 m for ground rehearsal), 4.5 m outbound, return, six-second hover and confirmed landing. The full synthetic ROS lifecycle and an injected return-failure test have passed. The new ground workflow captures the actual scene and runs real SUPER with virtual vehicle feedback in an isolated domain; the first onboard attempt passed preparation but failed backup planning for the 4.5 m route in a location subsequently reported to have approximately 1.5 m forward room. A separate 1 m rehearsal is available; the subsequent 1 m real-SUPER/virtual-vehicle sequence has been reported complete, with detailed report archival pending. Physical full-mission flight remains unverified. See [the complete mission test](docs/DEMONSTRATION_MISSION.md).
 
@@ -181,6 +181,8 @@ FIRST_HOVER_TEST_MODULE=first_hover_terminal python3 tests/test_first_hover_cont
 The deployment, reference, bag-export, motion-profile, height-goal, session-lifecycle, control-chain metric, bounded-reference and exact-start patch suites contain 58 unit tests. Separate 3D-goal generation, session-profile checks and bounded-reference checks passed for this update; the bounded-reference ROS fixture also passed; earlier motion-profile, control-chain metric, reference and bag-export results are recorded separately in the progress report. Real tmux dummy-node and isolated ROS parameter-service checks also passed for the compact manager. Isolated ROS checks cover pose/covariance conversion, planning preview, continuous vision forwarding, and one-shot hover control. The generated standalone controller matches the canonical implementation. Physical takeoff/hover/landing success is recorded separately from these software checks.
 
 ## Versions and references
+
+An optional [left-facing 4.8 m rehearsal](docs/LEFT_48M_REHEARSAL.md) rotates only the virtual initial heading by 90 degrees and reuses a successful saved obstacle map. It has a separate installation, ROS domain and report directory; the original forward mission remains available with its existing startup command.
 
 | Component | Recorded version |
 | --- | --- |

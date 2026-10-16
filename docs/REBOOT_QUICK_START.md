@@ -22,6 +22,8 @@ The installer validates the matching release manifest and backs up replaced scri
 
 ## Run the complete ground rehearsal after each reboot
 
+An optional [independent left-facing 4.8 m rehearsal](LEFT_48M_REHEARSAL.md) reuses a saved successful map in a separate installation and ROS domain. It leaves this forward-demonstration startup workflow unchanged.
+
 Connect NoMachine if needed, open one terminal on onboard Ubuntu, and run:
 
 ```bash
