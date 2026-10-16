@@ -1,0 +1,30 @@
+{
+  "run_id": "20261016_214910_522676",
+  "release": "57f283d2622e923019b15d04a244de10b7717cb8",
+  "result": "FAIL",
+  "failed_stage": "planner/session-map capture",
+  "quaternion_xyzw": [
+    -0.011442313584190029,
+    0.00567193728768256,
+    0.7361788649480441,
+    0.6766665215533088
+  ],
+  "capture_window_s": 3.001,
+  "capture_samples": 151,
+  "raw_range_xyz_cm": [
+    0.847,
+    0.77,
+    3.282
+  ],
+  "raw_first_to_last_change_xyz_cm": [
+    0.122,
+    0.257,
+    -0.821
+  ],
+  "stationarity_limit_per_axis_cm": 2.5,
+  "old_capture_deadline_s": 12,
+  "interpretation": "The final reported window exceeded the unchanged Z stability criterion. No qualifying three-second window was accepted before the old capture deadline. Initialization stopped before private SUPER rehearsal or virtual takeoff; the accepted-goal return fix was not exercised.",
+  "physical_flight_requested": false,
+  "virtual_takeoff_started": false,
+  "map_profile_written": false
+}

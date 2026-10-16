@@ -66,6 +66,20 @@ class MemorySession(m.Session):
 
 
 class Tests(unittest.TestCase):
+    def test_complete_demo_map_capture_waits_without_changing_diagnostic_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory)
+            (folder/'create_session_map_profile.py').write_text('# fixture\n')
+            source=folder/'planner.yaml';source.write_text('# fixture\n')
+            for profile in ('demo','low-speed-3d','forward-5m-2mps'):
+                session=self.manager(['planner','--planner-profile',profile,'--scripts-dir',directory])
+                def create_profile(command):
+                    Path(command[command.index('--target')+1]).write_text('# generated\n')
+                with patch.object(m,'run',side_effect=create_profile) as command:
+                    result=session.session_map_profile(source,FakeGate())
+                self.assertTrue(result.is_file())
+                self.assertEqual('--wait-until-stable' in command.call_args.args[0],profile=='demo')
+
     def test_speed_auditor_requires_separate_profile_and_no_execution_flag(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

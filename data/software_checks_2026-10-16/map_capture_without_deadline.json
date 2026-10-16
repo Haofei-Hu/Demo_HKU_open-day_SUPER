@@ -1,0 +1,28 @@
+{
+  "scope": "Cloud ROS 2 Humble map-initialization regression checks; no aircraft, actual SUPER, PX4, or complete mission execution in this validation",
+  "unit_checks_passed": 67,
+  "unit_suites": [
+    "test_super_session",
+    "test_session_map_profile",
+    "test_super_demo_test",
+    "test_demo_test_release",
+    "test_repository_layout"
+  ],
+  "live_ros_checks": {
+    "settles_late": "PASS: fresh raw Z alternated by 4 cm for 13 seconds; capture continued beyond the old 12-second budget and accepted only after a full qualifying three-second window",
+    "raw_gap": "PASS: missing fresh raw odometry still raises during indefinite stability wait",
+    "armed": "PASS: loss of grounded/disarmed state still raises during indefinite stability wait",
+    "duplicate": "PASS: multiple raw sources still raise during indefinite stability wait"
+  },
+  "release_manifest_rechecked": true,
+  "policy": {
+    "complete_demo_capture_deadline_s": null,
+    "window_s": 3.0,
+    "maximum_range_per_raw_axis_m": 0.025,
+    "progress_interval_s": 5.0,
+    "other_diagnostic_profiles_unchanged": true
+  },
+  "motion_or_px4_parameters_changed": false,
+  "new_complete_mission_pass_claimed": false,
+  "remaining": "Repeat the from-scratch rehearsal on the onboard system. Indefinite waiting does not correct persistent estimator drift or authorize accepting an unstable map anchor."
+}

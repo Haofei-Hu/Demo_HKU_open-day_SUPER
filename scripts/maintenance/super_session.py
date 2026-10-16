@@ -449,10 +449,12 @@ class Session:
         if not helper.is_file():raise RuntimeError('Missing session map helper: '+str(helper))
         token=hashlib.sha256(str(self.config['logs']).encode()).hexdigest()[:12]
         target=source.with_name(source.stem+'_session_'+token+'.yaml')
-        run(['python3',helper,'--source',source,'--target',target,
+        command=['python3',helper,'--source',source,'--target',target,
              '--record',Path(self.config['logs'])/'map_reference.json',
-             '--alignment-path',self.scripts/'aligned_pose_preview.py'])
-        # The helper observes three seconds in a separate ROS process. Refresh
+             '--alignment-path',self.scripts/'aligned_pose_preview.py']
+        if self.args.planner_profile=='demo':command.append('--wait-until-stable')
+        run(command)
+        # The helper waits for a stable window in a separate ROS process. Refresh
         # this gate's telemetry before any process launch, rather than using
         # the samples cached before that observation.
         gate.wait(gate.grounded,'fresh ground state after session-map observation')

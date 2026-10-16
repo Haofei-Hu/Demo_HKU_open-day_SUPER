@@ -40,6 +40,8 @@ The runner performs the following sequence:
 4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 1.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
+During complete-demo map initialization, `Map capture WAIT` means the runner is still waiting for a fresh three-second raw-odometry window whose range is at most 2.5 cm per axis. There is no capture deadline: passing 12 seconds does not fail the rehearsal. Progress and observed ranges appear in the planner-stage log. Lost ground state, stale odometry or changed sources still stop initialization; a stable window is required before a map profile is written. Ctrl+C cancels the run.
+
 The actual aircraft receives localization initialization. All flight requests in the rehearsal address the virtual backend. `--fixture-geometry` supplies explicitly synthetic aircraft dimensions and placement; it does not measure laboratory walls or establish physical clearance. A larger laboratory still needs a clear route in the captured map and a valid backup trajectory.
 
 ### Automatic QGroundControl startup

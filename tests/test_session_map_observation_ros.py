@@ -24,7 +24,7 @@ m=load('map_profile','scripts/maintenance/create_session_map_profile.py')
 manager=load('session','scripts/maintenance/super_session.py')
 
 
-def run(case):
+def run(case,wait_until_stable=False):
     ctx=Context();rclpy.init(context=ctx);probe=Node('map_reference_fixture',context=ctx)
     kinds={'/Odometry':Odometry,'/mavros/state':State,'/mavros/extended_state':ExtendedState,
            '/mavros/estimator_status':EstimatorStatus,'/mavros/local_position/pose':PoseStamped,
@@ -48,8 +48,13 @@ def run(case):
                 msg.pos_horiz_rel_status_flag=msg.pos_vert_abs_status_flag=True
             elif kind is Odometry:
                 msg.header.frame_id='camera_init';msg.child_frame_id='body';msg.pose.pose.orientation.w=1.
-                offset=.02*elapsed if case=='movement' else (
-                    .02676 if case=='settles' and .5<elapsed<1.5 else 0.)
+                if case=='settles_late':
+                    # Alternate full 4 cm excursions until 13 s, then remain
+                    # exactly still. A qualifying window must age them all out.
+                    offset=.04 if elapsed<13. and int(elapsed*2)%2 else 0.
+                else:
+                    offset=.02*elapsed if case=='movement' else (
+                        .02676 if case=='settles' and .5<elapsed<1.5 else 0.)
                 msg.pose.pose.position.z=-1.1827+offset
             elif kind is PoseStamped:msg.header.frame_id='map';msg.pose.orientation.w=1.
             else:msg.header.frame_id='px4_enu_preview';msg.pose.pose.orientation.w=1.
@@ -60,9 +65,13 @@ def run(case):
     try:
         gate=manager.GroundGate();gate.wait(gate.localization_ready,'fresh fixture localization')
         began=time.monotonic()
-        if case in ('healthy','settles'):
-            observation=m.observe(gate)
+        if case in ('healthy','settles','settles_late'):
+            observation=m.observe(gate,wait_until_stable=wait_until_stable or case=='settles_late')
             assert abs(observation['raw_z']+1.1827)<1e-8 and observation['raw_source_gid']
+            if case=='settles_late':
+                assert 15.5<time.monotonic()-began<24.
+                print('PASS: capture remained pending beyond 12 s, then accepted a full stable window without relaxing 2.5 cm',flush=True)
+                return
             if case=='settles':
                 assert 4.<time.monotonic()-began<8.
                 print('PASS: initial 2.676 cm excursion aged out; later full stable window accepted',flush=True)
@@ -87,7 +96,7 @@ def run(case):
         else:
             expected={'movement':'not stationary','raw_gap':'odometry gap','armed':'Ground state lost',
                       'duplicate':'Multiple raw'}[case]
-            try:m.observe(gate)
+            try:m.observe(gate,wait_until_stable=wait_until_stable)
             except RuntimeError as exc:
                 assert expected in str(exc),str(exc)
                 if case=='movement':

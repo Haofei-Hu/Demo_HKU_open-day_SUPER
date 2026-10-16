@@ -93,7 +93,7 @@ def capture_summary(rows):
     return span,ranges,change
 
 
-def observe(gate):
+def observe(gate,wait_until_stable=False):
     from nav_msgs.msg import Odometry
     from rclpy.qos import QoSProfile,ReliabilityPolicy
     rows=[];last_receipt=None;bad=None;last_stamp=0;unstable_detail=None
@@ -117,6 +117,7 @@ def observe(gate):
     subscription=gate.node.create_subscription(Odometry,'/Odometry',receive,
         QoSProfile(depth=16,reliability=ReliabilityPolicy.BEST_EFFORT))
     identity=None
+    started=time.monotonic();last_progress=started
     def ready():
         nonlocal identity,unstable_detail
         if not gate.grounded():raise RuntimeError('Ground state lost while observing map reference')
@@ -143,7 +144,18 @@ def observe(gate):
         return True
     try:
         try:
-            gate.wait(ready,'three seconds of fresh stationary raw odometry')
+            if wait_until_stable:
+                # Complete demonstrations wait for evidence, not a capture deadline.
+                # ready() still rejects lost ground state, stale input and source changes.
+                while not ready():
+                    now=time.monotonic()
+                    if now-last_progress>=5.:
+                        detail=unstable_detail or 'collecting fresh raw odometry'
+                        print(f'Map capture WAIT: {now-started:.1f} s; {detail}; no capture deadline',flush=True)
+                        last_progress=now
+                    gate.ros.spin_once(gate.node,timeout_sec=.05)
+            else:
+                gate.wait(ready,'three seconds of fresh stationary raw odometry')
         except RuntimeError as exc:
             if str(exc).startswith('Timed out waiting for three seconds') and unstable_detail:
                 raise RuntimeError(unstable_detail+'; no stable 3 s window within the 12 s observation budget') from exc
@@ -157,6 +169,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('source','target','record','alignment-path'):
         parser.add_argument('--'+name,type=Path,required=True)
+    parser.add_argument('--wait-until-stable',action='store_true',
+                        help='wait without a capture deadline; preserve fresh 3 s / 2.5 cm criteria')
     args=parser.parse_args()
     from super_session import GroundGate,NATIVE_CONTROL_TOPICS
     gate=GroundGate()
@@ -165,8 +179,9 @@ def main():
         if any(gate.node.count_publishers(topic) for topic in NATIVE_CONTROL_TOPICS):
             raise RuntimeError('Native control writer present; no session-map update')
         digest=hashlib.sha256(args.alignment_path.read_bytes()).hexdigest()
-        print('Map capture: wait up to 12 s for a fresh 3 s window within 2.5 cm per raw axis',flush=True)
-        observation=observe(gate)
+        policy='wait without a capture deadline' if args.wait_until_stable else 'wait up to 12 s'
+        print(f'Map capture: {policy} for a fresh 3 s window within 2.5 cm per raw axis',flush=True)
+        observation=observe(gate,wait_until_stable=args.wait_until_stable)
         if hashlib.sha256(args.alignment_path.read_bytes()).hexdigest()!=digest:
             raise RuntimeError('Alignment changed during map observation')
         gate.check()

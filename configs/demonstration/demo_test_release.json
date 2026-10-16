@@ -47,7 +47,7 @@
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
-      "sha256": "f09ba62fc1a7ee3242403d557a446d71b94ed949ce2ac66c2dd09f508517f1cf"
+      "sha256": "ca3439ddee54fd86469893639893e5728db03262d847f55e35608cd65b539072"
     },
     "create_super_speed_ground_profile.py": {
       "path": "scripts/maintenance/create_super_speed_ground_profile.py",
@@ -59,7 +59,7 @@
     },
     "create_session_map_profile.py": {
       "path": "scripts/maintenance/create_session_map_profile.py",
-      "sha256": "3932991a00cb8361db3dccfddfb31581b7b0be25a2921b06452aae79a7d08629"
+      "sha256": "f306c21b908ae5a3ddd8721a2dd86f753703e6b65fc78e07823b922af8627a6d"
     },
     "control_chain_age_check.py": {
       "path": "scripts/analysis/control_chain_age_check.py",
