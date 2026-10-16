@@ -133,5 +133,15 @@ class Tests(unittest.TestCase):
             self.assertEqual(actions[-1][2]['ROS_DOMAIN_ID'],'197')
             self.assertEqual(runner.report['motion_policy'],'observe')
 
+    def test_viewer_defaults_on_and_headless_choice_reaches_private_child(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder)
+            self.assertEqual(runner.run_complete(),0)
+            self.assertNotIn('--no-rviz',actions[-1][1])
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder);runner.args.no_rviz=True
+            self.assertEqual(runner.run_complete(),0)
+            self.assertIn('--no-rviz',actions[-1][1])
+
 
 if __name__=='__main__':unittest.main()

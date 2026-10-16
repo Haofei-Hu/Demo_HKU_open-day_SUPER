@@ -16,11 +16,101 @@ import math
 import multiprocessing
 import os
 import signal
+import shutil
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import time
+
+
+class RehearsalViewer:
+    """Own only this run's optional viewer, after the domain isolation check."""
+    def __init__(self,report,enabled=True):
+        self.folder=Path(report).parent
+        self.process=None;self.log=None
+        self.state=dict(requested=enabled,status='pending' if enabled else 'disabled',
+                        domain_id=197,localhost_only=True,rendering_verified=False)
+
+    def save(self):
+        self.folder.mkdir(parents=True,exist_ok=True)
+        (self.folder/'rviz_status.json').write_text(json.dumps(self.state,indent=2)+'\n')
+
+    def start(self,scene):
+        if not self.state['requested']:
+            self.save();return
+        reason=None
+        if os.environ.get('ROS_DOMAIN_ID')!='197' or os.environ.get('ROS_LOCALHOST_ONLY')!='1':
+            raise ValueError('Rehearsal viewer requires isolated localhost domain 197')
+        if not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
+            reason='No graphical desktop is available'
+        elif shutil.which('rviz2') is None:reason='rviz2 executable is not installed'
+        if reason:
+            self.state.update(status='skipped',reason=reason);self.save()
+            print('RVIZ: skipped; '+reason,flush=True);return
+        # RViz accepts JSON as a YAML subset. The installer already verifies JSON artifacts.
+        config=self.folder/'rehearsal_view.rviz'
+        config.write_text(json.dumps(rehearsal_view_config(scene),indent=2)+'\n')
+        logpath=self.folder/'rviz.log'
+        self.state.update(config=str(config),log=str(logpath))
+        try:
+            self.log=logpath.open('w')
+            self.process=subprocess.Popen(['rviz2','-d',str(config),'--ros-args',
+                '-r','__node:=super_demo_rviz'],stdout=self.log,stderr=subprocess.STDOUT,
+                start_new_session=True,env=dict(os.environ,ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1'))
+            self.state.update(status='launched',pid=self.process.pid)
+            print('RVIZ: launched for this rehearsal; log: '+str(logpath),flush=True)
+        except OSError as exc:
+            if self.log is not None:self.log.close();self.log=None
+            self.state.update(status='unavailable',reason=str(exc))
+            print('RVIZ: unavailable; '+str(exc),flush=True)
+        self.save()
+
+    def close(self):
+        if self.process is not None:
+            code=self.process.poll()
+            if code is None:
+                try:os.killpg(self.process.pid,signal.SIGTERM)
+                except ProcessLookupError:pass
+                try:code=self.process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    try:os.killpg(self.process.pid,signal.SIGKILL)
+                    except ProcessLookupError:pass
+                    code=self.process.wait(timeout=3)
+                self.state.update(status='closed',closed_by_runner=True,returncode=code)
+            else:self.state.update(status='exited',closed_by_runner=False,returncode=code)
+        if self.log is not None:self.log.close();self.log=None
+        self.save()
+
+
+def rehearsal_view_config(scene):
+    """All visible data uses raw planner/world coordinates, including the vehicle."""
+    def topic(name):
+        return {'Value':name,'Depth':5,'Reliability Policy':'Best Effort',
+                'Durability Policy':'Volatile','History Policy':'Keep Last'}
+    def display(kind,name,path,**properties):
+        return dict(Class='rviz_default_plugins/'+kind,Name=name,Enabled=True,
+                    Topic=topic(path),**properties)
+    displays=[display('Pose','VirtualVehicle','/demo_scene/vehicle_pose',Shape='Arrow',Color='255; 85; 0',
+                      **{'Alpha':1.,'Shaft Length':.25,'Shaft Radius':.03,'Head Length':.12,'Head Radius':.07})]
+    if scene:
+        for name,path in (('CapturedScene','/demo_scene/occupied_points'),('OccupiedMap','/rog_map/occ')):
+            displays.append(display('PointCloud2',name,path,Style='Points',Alpha=1.,
+                **{'Position Transformer':'XYZ','Color Transformer':'AxisColor','Axis':'Z',
+                   'Size (Pixels)':2,'Size (m)':.02,'Decay Time':0}))
+        for name,path in (('ExpTraj','/visualization/exp_traj'),
+                          ('BackupTraj','/visualization/backup_traj'),('PlannerGoal','/visualization/goal')):
+            displays.append(display('MarkerArray',name,path))
+        displays.append(display('Path','PlannerPath','/fsm/path',Color='245; 121; 0',
+                                **{'Line Style':'Lines','Line Width':.03,'Buffer Length':1}))
+    return {'Panels':[{'Class':'rviz_common/Displays','Name':'Displays'}],
+        'Visualization Manager':{'Class':'','Enabled':True,'Displays':displays,
+            'Global Options':{'Fixed Frame':'world','Frame Rate':20,'Background Color':'35; 35; 35'},
+            'Tools':[{'Class':'rviz_default_plugins/'+tool} for tool in ('Interact','MoveCamera','FocusCamera')],
+            'Views':{'Current':{'Class':'rviz_default_plugins/Orbit','Name':'Current View',
+                'Target Frame':'world','Distance':8.,'Pitch':.7,'Yaw':.8,
+                'Focal Point':dict(zip(('X','Y','Z'),scene['raw_position'] if scene else [.12,-.08,.175]))}}},
+        'Window Geometry':{'Width':1100,'Height':750,'Hide Left Dock':False,'Hide Right Dock':False}}
 
 
 def rehearsal_profile(source,report):
@@ -74,6 +164,7 @@ def backend(connection,fault,scene_file=None):
         '/mavros/local_position/pose':PoseStamped,'/mavros/local_position/velocity_local':TwistStamped,
         '/super_debug/aligned_pose_cov':PoseWithCovarianceStamped,'/mavros/vision_pose/pose_cov':PoseWithCovarianceStamped}
     pubs={name:node.create_publisher(kind,name,qos_profile_sensor_data) for name,kind in kinds.items()}
+    vehiclepub=node.create_publisher(PoseStamped,'/demo_scene/vehicle_pose',qos_profile_sensor_data)
     polypub=node.create_publisher(PolynomialTrajectory,'/planning_cmd/poly_traj',10) if scene_file is None else None
     cmdpub=node.create_publisher(PositionCommand,'/planning/pos_cmd',10) if scene_file is None else None
     if scene_file is not None:
@@ -153,6 +244,11 @@ def backend(connection,fault,scene_file=None):
                 for a,v in zip(('x','y','z'),values):setattr(p.position,a,float(v))
                 for a,v in zip(('x','y','z','w'),quaternion):setattr(p.orientation,a,float(v))
             pubs[topic].publish(msg)
+            if kind is Odometry:
+                # Visualization-only alias: SUPER world numerically matches raw camera_init.
+                # Never alias the aligned ENU or MAVROS map frame to world.
+                visible=PoseStamped();visible.header.stamp=stamp;visible.header.frame_id='world'
+                visible.pose=msg.pose.pose;vehiclepub.publish(visible)
     def planning():
         plan=state['plan'];stamp_ns=node.get_clock().now().nanoseconds;now=stamp_ns/1e9
         if plan is None or now<plan.start:return
@@ -178,13 +274,13 @@ def backend(connection,fault,scene_file=None):
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
 
-def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict'):
+def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rviz=True):
     import rclpy
     from std_srvs.srv import Trigger
     from super_demo_control import DemoMissionControl
     parent,child=multiprocessing.get_context('spawn').Pipe()
     process=multiprocessing.get_context('spawn').Process(target=backend,args=(child,fault,scene_file))
-    node=None;planner_process=None;planner_log=None;process.start()
+    node=None;planner_process=None;planner_log=None;viewer=RehearsalViewer(report,rviz);process.start()
     try:
         if not parent.poll(15) or parent.recv()!='ready':raise RuntimeError('Synthetic ROS backend startup failed')
         with tempfile.TemporaryDirectory(prefix='demo_simulation_') as directory:
@@ -192,6 +288,7 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict'):
             planner=Path(directory)/'planner.json'
             planner.write_text(json.dumps(dict(fsm=dict(click_height=-6.,click_goal_topic='/goal_pose',
                 click_goal_en=True,cmd_topic='/planning/pos_cmd'),traj_opt=dict(boundary=dict(max_vel=2.,max_acc=1.)))))
+            scene=None
             if scene_file is not None:
                 scene=json.loads(Path(scene_file).read_text());alignment=Path(scene['alignment_path'])
                 if hashlib.sha256(alignment.read_bytes()).hexdigest()!=scene['alignment_sha256']:
@@ -204,6 +301,7 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict'):
                 planner_process=subprocess.Popen(['ros2','run','super_planner','fsm_node','--ros-args',
                     '-p','use_sim_time:=false','-p','config_name:='+planner.name],
                     stdout=planner_log,stderr=subprocess.STDOUT,start_new_session=True)
+            viewer.start(scene)
             rclpy.init();node=DemoMissionControl(mission_file,report,True,True,alignment,planner,
                                               simulation=True,motion_policy=motion_policy)
             client=node.create_client(Trigger,'/super_demo/start');attempted=False;began=time.monotonic()
@@ -224,6 +322,10 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict'):
             node.mission_report.save()
             return node.phase=='DONE'
     finally:
+        viewer.close()
+        if node is not None:
+            node.mission_report.data['rehearsal_viewer']=viewer.state
+            node.mission_report.save()
         if node is not None:node.destroy_node()
         if rclpy.ok():rclpy.shutdown()
         if process.is_alive():parent.send('stop')
@@ -246,6 +348,7 @@ def main():
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
+    p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')
     p.add_argument('--isolated',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args()
     if args.scene_file and args.fault:
@@ -277,7 +380,7 @@ def main():
         print('REHEARSAL ONLY: real SUPER with frozen map' if args.scene_file else
               'SIMULATION ONLY: ideal synthetic planner',flush=True)
         print('Virtual vehicle/FC only; no physical aircraft or PX4 flight',flush=True)
-        return 0 if run(mission_file,report,args.fault,args.scene_file,args.motion_policy) else 1
+        return 0 if run(mission_file,report,args.fault,args.scene_file,args.motion_policy,not args.no_rviz) else 1
 
 
 if __name__=='__main__':raise SystemExit(main())

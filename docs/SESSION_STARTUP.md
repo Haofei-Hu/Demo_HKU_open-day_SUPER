@@ -246,6 +246,8 @@ The separate [bounded ground reference preview](BOUNDED_REFERENCE_PREVIEW.md) lo
 
 ## Live RViz2 view
 
+The complete demonstration runner now [opens and closes its rehearsal viewer automatically](REBOOT_QUICK_START.md#automatic-rviz2-preview). Use that entrypoint for the private-domain virtual mission. The manual viewer below is for the actual stack's map and planning topics in its normal ROS domain; it does not display the isolated virtual vehicle.
+
 The pinned SUPER planner's `rviz/real_svc.rviz` uses ROS 1 plugin identifiers. The simulator's `rviz2/benchmark.rviz` is a ROS 2 configuration, but its camera targets `perfect_drone` and includes simulation topics. The repository provides [super_ground_ros2.rviz](../configs/rviz/super_ground_ros2.rviz), derived from that ROS 2 configuration with the real planning topics, a `world` view, visible docks, and no goal-publishing tool.
 
 Download it into a new directory in the onboard Ubuntu desktop terminal:

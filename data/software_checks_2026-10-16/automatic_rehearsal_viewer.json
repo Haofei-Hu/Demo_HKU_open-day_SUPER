@@ -1,0 +1,23 @@
+{
+  "scope": "Automatic private-domain rehearsal viewer; no physical aircraft operations",
+  "checks": {
+    "viewer_lifecycle_and_configuration": 7,
+    "rotated_scene_pose_ros_integration": 1,
+    "whole_flow_orchestration": 10,
+    "snapshot_planner_profile": 1,
+    "release_manifest_and_preservation": 3,
+    "repository_layout": 3
+  },
+  "checks_passed": true,
+  "verified_behavior": [
+    "The viewer launches only in localhost-only domain 197; missing desktop or RViz and launch errors are recorded independently of mission success.",
+    "A real owned child process was launched and reaped; timeout cleanup targets only the owned process group.",
+    "A ROS backend with a rotated/translated scene published a world-frame display pose identical to raw odometry, preserving its sample stamp, without arming or navigation goals.",
+    "The default orchestration retains automatic viewing and forwards --no-rviz to the isolated child when selected.",
+    "Point clouds use Points style; the camera starts near the captured raw position; no goal publishing tools are configured."
+  ],
+  "actual_rviz_rendering_verified": false,
+  "reason": "The cloud ROS test image has no RViz2 or graphical desktop; Qt rendering requires onboard desktop validation.",
+  "full_mission_rerun_for_this_viewer_change": false,
+  "physical_flight_verified": false
+}

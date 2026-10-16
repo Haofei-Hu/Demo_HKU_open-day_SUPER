@@ -109,6 +109,7 @@ class DemoTest(GroundTest):
             command=[sys.executable,self.args.scripts_dir/'demo_mission_simulation.py',
                      '--isolated','--mission-file',frozen,'--report-json',self.folder/'mission_report.json',
                      '--motion-policy',getattr(self.args,'motion_policy','strict')]
+            if getattr(self.args,'no_rviz',False):command+=['--no-rviz']
             if scene is not None:command+=['--scene-file',scene]
             self.step('complete_mission',command,env=dict(os.environ,ROS_DOMAIN_ID='197',ROS_LOCALHOST_ONLY='1',
                                                         OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1'))
@@ -156,6 +157,7 @@ def main():
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict',
                    help='observe records derivative target exceedances only in the isolated virtual rehearsal')
     p.add_argument('--logic-only',action='store_true',help='synthetic planner, no actual aircraft stack or real SUPER')
+    p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args();args.scripts_dir=args.scripts_dir.expanduser().resolve()
     if not args.ros_env:

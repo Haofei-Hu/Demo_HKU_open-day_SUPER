@@ -24,6 +24,8 @@ The entrypoint sources the installed workspaces itself. It:
 5. Runs every mission stage in order, checks the final return hold and landing confirmation, and confirms the actual aircraft remains grounded and disarmed.
 6. Saves the report and prints `RESULT: SUCCESS` or `RESULT: FAIL`, `REPORT: <path>` and the execution scope. Any failure exits nonzero. It never substitutes a synthetic planner when real SUPER fails.
 
+On a desktop, RViz2 is managed automatically in private domain 197: it starts after the isolation check and backend startup, and closes when the rehearsal finishes or is interrupted. It displays the frozen occupied scene, real SUPER planning markers, and a raw-world virtual-vehicle pose arrow. No identity transform is applied to aligned ENU or MAVROS map poses. `--no-rviz` disables it; missing desktop/RViz is recorded as skipped. Viewer logs/status are stored beside the report, and the nested mission report records its lifecycle independently of mission success. See [automatic preview behavior](REBOOT_QUICK_START.md#automatic-rviz2-preview).
+
 The actual aircraft receives localization initialization but no native flight setpoints, mode or arming requests from this test. The existing guarded EV initialization is retained; the test does not change PX4 speed caps, aircraft geometry or error limits. The real source YAML remains intact. The private rehearsal profile changes only the input cloud topic and disables raycasting so a frozen occupied model does not invent clearing rays from virtual viewpoints. Both adaptations are reported.
 
 ## Geometry and scope

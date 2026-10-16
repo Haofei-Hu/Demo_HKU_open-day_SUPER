@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "2dbab6d1eb1b5dcf035e0d394b9a76d1f5cfb50a8e78e60411a121141eb00f63"
+      "sha256": "edddd532811b4693b2646aaeb36b2dddf17b9be66345906d4f384aadab3309b8"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -19,7 +19,7 @@
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "8bb46d0da899120bd448cc4f2547b9d0f40d918faa74eaced932973e3a866079"
+      "sha256": "80e91ea95418eea8209745fdc10347f6215e5bc529bad1f92782c9c2ec0c8d4b"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",

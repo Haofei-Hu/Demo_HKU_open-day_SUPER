@@ -42,6 +42,14 @@ The runner performs the following sequence:
 
 The actual aircraft receives localization initialization. All flight requests in the rehearsal address the virtual backend. `--fixture-geometry` supplies explicitly synthetic aircraft dimensions and placement; it does not measure laboratory walls or establish physical clearance. A larger laboratory still needs a clear route in the captured map and a valid backup trajectory.
 
+### Automatic RViz2 preview
+
+On the onboard desktop, the same command opens RViz2 after the isolated domain 197 check and virtual backend startup, before the controller starts its mission. No second terminal, configuration download or manual launch timing is needed. RViz shows the captured scene and occupied map as points, SUPER's exploration/backup trajectories and goals when published, and an orange virtual-vehicle position arrow. The scene is a frozen snapshot; planning and virtual vehicle feedback update during the rehearsal. The arrow uses raw planner/world coordinates, not the aligned ENU pose as an identity overlay.
+
+The runner owns this viewer process and closes it on completion, failure or interruption. Closing the viewer manually does not stop the test. Other desktop windows are unaffected. Close a viewer launched manually in domain 197 before starting a new rehearsal; the isolation check still rejects pre-existing nodes.
+
+Append `--no-rviz` to disable the viewer. Without a graphical desktop or an installed `rviz2` executable, the runner skips the viewer and records why; the mission still has to pass its normal checks. Each run saves `rehearsal_view.rviz`, `rviz.log` when launched, and `rviz_status.json`; the nested mission report includes `rehearsal_viewer`. A successful process launch is not proof that the remote desktop rendered the window. Inspect `rviz.log` if no window appears.
+
 The planner targets 2 m/s and 1 m/s². Observation mode records exceedances and uses 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [the complete test specification](DEMONSTRATION_MISSION.md).
 
 For a separate one-metre rehearsal, append `--route-profile short-1m`. This changes the virtual outbound distance and cannot count as a completed 4.5 m demonstration or enable physical flight. Use the default full route in a suitable laboratory.
