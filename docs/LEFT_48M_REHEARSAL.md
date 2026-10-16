@@ -9,7 +9,7 @@ The original forward demonstration, installed scripts, measured mission and repo
 ```bash
 (
 set -e
-left_revision='LEFT_RELEASE_REVISION'
+left_revision='a0912ecdc06e50358b33cf19a9e6adbce36a9950'
 left_download_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$left_revision/scripts/maintenance/install_left_rehearsal.py" \
@@ -21,7 +21,7 @@ python3 "$left_download_dir/install_left_rehearsal.py" --revision "$left_revisio
 The installer prints the exact launch command. After the current original rehearsal finishes, use:
 
 ```bash
-python3 ~/Downloads/super_left_48_rehearsal/LEFT_RELEASE_REVISION/super_left_test.py
+python3 ~/Downloads/super_left_48_rehearsal/a0912ecdc06e50358b33cf19a9e6adbce36a9950/super_left_test.py
 ```
 
 No `--restart` or new alignment is needed. The launcher automatically selects the newest **successful real-SUPER** report with a saved scene beneath `~/Downloads/super_demo_tests`. It ignores active, failed and synthetic-only runs. To select a particular original capture, append `--scene-file /absolute/path/to/original/run/scene.json`.
