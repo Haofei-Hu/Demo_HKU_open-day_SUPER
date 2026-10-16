@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 class DemoMission:
+    MOTION_LIMITS=(2.,1.)
     PROFILES={'open_day_out_and_back':(4.5,5.8,'SUPER_OUTBOUND_4_5M',True),
               'short_site_1m_rehearsal':(1.,2.,'SUPER_OUTBOUND_1M',False)}
     PHASES=('TAKEOFF_TO_1_5M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
@@ -38,7 +39,7 @@ class DemoMission:
         fixed={'length_forward_m':venue_length,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
         expected={'height_fc_above_floor_m':.5 if self.rehearsal_only else 1.5,'outbound_forward_m':self.distance,
-                  'horizontal_speed_limit_mps':2.,'acceleration_limit_mps2':1.,
+                  'horizontal_speed_limit_mps':self.MOTION_LIMITS[0],'acceleration_limit_mps2':self.MOTION_LIMITS[1],
                   'return_hover_s':6.,'axis_error_limit_m':.1}
         if any(f.get(k)!=n for k,n in expected.items()):raise ValueError('Final demonstration settings differ')
         if f.get('yaw_policy')!='hold_takeoff_heading':raise ValueError('Need fixed takeoff heading')

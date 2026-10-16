@@ -46,7 +46,7 @@ def main():
         command=manager.source_prefix()+'exec '+manager.shell_command(
             [sys.executable,Path(__file__).resolve(),'--ros-env',*sys.argv[1:]])
         return subprocess.run(['bash','--noprofile','--norc','-c',command],env=env).returncode
-    from left_rehearsal import LeftMission,mission_fixture,rotated_scene,successful_scene
+    from left_rehearsal import LeftMission,mission_fixture,rotated_scene,successful_scene,left_planner_profile
     from left_demo_control import LeftMissionControl
     from demo_mission_simulation import run
     folder=args.reports_dir.expanduser()/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -60,7 +60,7 @@ def main():
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
             check_private_domain()
             source=args.scene_file or successful_scene(args.source_reports.expanduser())
-            scene=rotated_scene(source);scene_path=folder/'scene.json'
+            scene=left_planner_profile(rotated_scene(source),report);scene_path=folder/'scene.json'
             scene_path.write_text(json.dumps(scene,indent=2)+'\n')
             mission=mission_fixture();LeftMission(mission)
             mission_path=folder/'mission.json';mission_path.write_text(json.dumps(mission,indent=2)+'\n')

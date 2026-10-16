@@ -12,6 +12,7 @@ from demo_mission import DemoMission
 
 
 class LeftMission(DemoMission):
+    MOTION_LIMITS=(2.,1.5)
     PROFILES={'left_facing_48m_rehearsal':(4.8,5.8,'SUPER_OUTBOUND_4_8M',False)}
 
     def __init__(self,config):
@@ -88,3 +89,27 @@ def rotated_scene(source):
         source_scene_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
         actual_aircraft_moved=False,obstacle_map_rotated=False)
     return scene
+
+
+def left_planner_profile(scene,report):
+    """Apply left-only motion limits in a new YAML, preserving the source file."""
+    import yaml
+    source=Path(scene['planner_config'])
+    data=source.read_bytes()
+    if hashlib.sha256(data).hexdigest()!=scene['planner_sha256']:
+        raise ValueError('Source planner configuration changed')
+    config=yaml.safe_load(data);before=deepcopy(config['traj_opt']['boundary'])
+    speed,acceleration=LeftMission.MOTION_LIMITS
+    config['traj_opt']['boundary'].update(max_vel=speed,max_acc=acceleration)
+    token=hashlib.sha256(str(Path(report).resolve()).encode()).hexdigest()[:12]
+    target=source.with_name('mid360_left_48m_'+token+'.yaml')
+    text='# Independent virtual left-facing profile; source YAML unchanged\n'+yaml.safe_dump(config,sort_keys=False)
+    with target.open('x') as handle:handle.write(text)
+    result=deepcopy(scene)
+    result.update(planner_config=str(target),planner_sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
+        source_planner_config=str(source),source_planner_sha256=scene['planner_sha256'],
+        left_motion_override=dict(before=before,after=config['traj_opt']['boundary'],
+            changed_fields=['traj_opt.boundary.'+key for key in ('max_vel','max_acc')
+                            if before[key]!=config['traj_opt']['boundary'][key]]))
+    print(f'LEFT PLANNER: max_vel={speed:g} m/s; max_acc={acceleration:g} m/s^2; '+str(target),flush=True)
+    return result

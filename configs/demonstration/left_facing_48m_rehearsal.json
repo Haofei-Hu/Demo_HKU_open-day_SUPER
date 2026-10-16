@@ -26,7 +26,7 @@
     "height_fc_above_floor_m": 0.5,
     "outbound_forward_m": 4.8,
     "horizontal_speed_limit_mps": 2.0,
-    "acceleration_limit_mps2": 1.0,
+    "acceleration_limit_mps2": 1.5,
     "return_hover_s": 6.0,
     "axis_error_limit_m": 0.1,
     "yaw_policy": "hold_takeoff_heading",

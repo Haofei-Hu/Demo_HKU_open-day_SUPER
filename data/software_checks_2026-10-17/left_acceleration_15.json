@@ -1,0 +1,60 @@
+{
+  "scope": "Left-only 1.5 m/s^2 planner/reference configuration and ROS initialization; no complete onboard planner pass claimed",
+  "observed_run": {
+    "path": "20261017_005722_954918",
+    "result": "RUNNING",
+    "stage": "WAIT_PLAN",
+    "completed_stages": [
+      "TAKEOFF_TO_0_5M",
+      "STABILIZE_AT_HOME"
+    ],
+    "exploration": "GenerateExpTrajectory SUCCESS",
+    "backup": "OPT_FAILED",
+    "boundary": {
+      "max_vel": 2.0,
+      "max_acc": 1.0,
+      "penna_margin": 0.05
+    },
+    "log_acc_field": 0.149380025752899,
+    "sampled_peak_acceleration_mps2": 1.0720914260234053,
+    "acceptance_boundary_mps2": 1.02469507659596
+  },
+  "upstream": {
+    "revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "source": "super_planner/src/traj_opt/backup_traj_optimizer_s4.cpp",
+    "acc_log_meaning": "Maximum sampled acceleration squared minus max_acc squared, clamped below at zero",
+    "rejection": "penna_acc > 0 and Acc > max_acc * penna_margin",
+    "warning": "Generic Omg/thr/Pos warning also covers acceleration",
+    "conclusion": "Immediate sampled acceleration rejection confirmed; optimizer convergence cause not established"
+  },
+  "change": {
+    "scope": "Independent left-facing virtual mission only",
+    "planner_speed_mps": 2.0,
+    "planner_acceleration_mps2": 1.5,
+    "actual_yaml": "New per-run mid360_left_48m_<token>.yaml; original source file retained",
+    "source_yaml_changes": [
+      "traj_opt.boundary.max_acc"
+    ],
+    "mission_controller_reference_agree": true,
+    "original_forward_limits_mps_mps2": [
+      2.0,
+      1.0
+    ],
+    "default_reference_acceleration_cap_mps2": 1.0,
+    "backup_enabled_preserved": true,
+    "optimizer_weights_preserved": true,
+    "px4_parameter_writes": false,
+    "timing_policy_changed": false
+  },
+  "validation": {
+    "result": "PASS",
+    "core_and_left_checks": 88,
+    "reference_regression_checks": 24,
+    "total_distinct_checks": 112,
+    "live_ros": "Left controller constructed with 2/1.5 configuration and virtual-only mission; reference uses 1.5, default reference still rejects 1.5",
+    "profile": "Only acceleration changes in a new YAML; original bytes and all other YAML fields preserved",
+    "mission": "All ten fixed-heading out-and-back goals and final landing sequence remain covered",
+    "release": "Matching 21-file default manifest and 25-file isolated bundle checksums verified"
+  },
+  "limitations": "No physical flight or full real-SUPER left-facing completion established; onboard rerun required"
+}

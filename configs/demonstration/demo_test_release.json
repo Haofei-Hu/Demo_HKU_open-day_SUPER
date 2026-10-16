@@ -11,7 +11,7 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "841e1c3588ba917ec4c510fa4b504b6ffbda20fe42bd2b0863240385ed035ec7"
+      "sha256": "72fd93d2b5ce4c98f4fbc103e1803fa951efc4f72928745cd5db92f8f2d182e6"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
@@ -35,7 +35,7 @@
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "f8eeb9ee559095f3c485d58cb64b40058cccf7f176b765370f7f18e9067c63ac"
+      "sha256": "bf83af1d1c8e267de5aaac14846d3970c72ff6467a40bcc5cb84f72f4055d5cc"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",

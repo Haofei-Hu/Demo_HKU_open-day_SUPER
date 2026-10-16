@@ -68,7 +68,33 @@ class Tests(unittest.TestCase):
             self.assertEqual(LeftMission(json.loads(mission.read_text())).distance,4.8)
             scene=json.loads(options['scene_file'].read_text())
             self.assertEqual(scene['virtual_heading_rotation_deg'],90.)
+            self.assertEqual(scene['left_motion_override']['after']['max_acc'],1.5)
+            self.assertEqual(scene['left_motion_override']['after']['max_vel'],2.)
             for path,data in before.items():self.assertEqual(path.read_bytes(),data)
+
+    def test_left_controller_and_reference_load_15_without_relaxing_default_reference(self):
+        import rclpy
+        from bounded_reference_preview import Reference
+        from left_rehearsal import left_planner_profile
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);source=make_scene(folder)
+            scene=left_planner_profile(rotated_scene(source),folder/'report.json')
+            mission=folder/'mission.json';mission.write_text(json.dumps(mission_fixture()))
+            rclpy.init();node=None
+            try:
+                node=LeftMissionControl(mission,folder/'report.json',
+                    alignment_path=scene['alignment_path'],planner_config=scene['planner_config'],simulation=True)
+                self.assertEqual(node.PLANNER_LIMITS,(2.,1.5))
+                self.assertEqual(node.mission.config['flight']['acceleration_limit_mps2'],1.5)
+                node.frame=VenueFrame([0,0,0],[0,0,0,1],node.mission,lambda:False)
+                follower=node.make_follower()
+                self.assertEqual(follower.max_speed,2.)
+                self.assertEqual(follower.max_acceleration,1.5)
+                with self.assertRaisesRegex(ValueError,'Invalid reference motion limits'):
+                    Reference(node.frame,2.,1.5)
+            finally:
+                if node is not None:node.destroy_node()
+                if rclpy.ok():rclpy.shutdown()
 
     def test_ten_alternating_goals_are_left_of_original_heading_with_fixed_yaw(self):
         node=Harness();node.mission=LeftMission(mission_fixture())

@@ -11,7 +11,7 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "841e1c3588ba917ec4c510fa4b504b6ffbda20fe42bd2b0863240385ed035ec7"
+      "sha256": "72fd93d2b5ce4c98f4fbc103e1803fa951efc4f72928745cd5db92f8f2d182e6"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
@@ -35,7 +35,7 @@
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "f8eeb9ee559095f3c485d58cb64b40058cccf7f176b765370f7f18e9067c63ac"
+      "sha256": "bf83af1d1c8e267de5aaac14846d3970c72ff6467a40bcc5cb84f72f4055d5cc"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",
@@ -88,19 +88,19 @@
     },
     "left_rehearsal.py": {
       "path": "scripts/simulation/left_rehearsal.py",
-      "sha256": "7ab70260004177094749a340a37df61ff5c4e25b34acb87577fd91caf0da1b15"
+      "sha256": "237004e283a3c91e8321f62c1fb2226a9dcf8513f5cfc55c5926c1fb5e132f46"
     },
     "left_demo_control.py": {
       "path": "scripts/simulation/left_demo_control.py",
-      "sha256": "cb7f28872af660f5c001915dd0455f1ea070979d1fc74c1832376a86d4a51d04"
+      "sha256": "7b2df62f027560086321169c0981f7b613757b6a386e03659ebfac4201b452d5"
     },
     "super_left_test.py": {
       "path": "scripts/maintenance/super_left_test.py",
-      "sha256": "cf17357c0785064dacc0da0224f5ac37c302945e4cedbbd74380b7c9159ad43a"
+      "sha256": "aed644e8c2dc1d74b709075ed6800026712955a3914c5353251313c01a27a739"
     },
     "left_facing_48m_rehearsal.json": {
       "path": "configs/demonstration/left_facing_48m_rehearsal.json",
-      "sha256": "fcfb01e5515ffd8b7fd2daa6d434f735cfe764853517b08727c735f523330cd6"
+      "sha256": "4c291e4c1ec1e571f7a6703a127d372dbf113ad95f27f231f1bd8ac1251ceee4"
     }
   },
   "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"

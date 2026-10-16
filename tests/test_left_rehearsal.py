@@ -9,11 +9,12 @@ import tempfile
 import unittest
 
 import numpy as np
+import yaml
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'scripts/simulation'),str(ROOT/'scripts/flight'),str(ROOT/'scripts/planning')]
 from demo_mission import DemoMission,MissionReport
-from left_rehearsal import LeftMission,mission_fixture,multiply,rotated_scene,successful_scene
+from left_rehearsal import LeftMission,mission_fixture,multiply,rotated_scene,successful_scene,left_planner_profile
 from control_bridge_preview import load_converter
 
 spec=importlib.util.spec_from_file_location('left_install',ROOT/'scripts/maintenance/install_left_rehearsal.py')
@@ -27,7 +28,10 @@ def make_scene(folder):
                           'Q_WC = np.array([0.12, -0.17, 0.31, 0.91])')
     # Importing this measured preview is never allowed, even for arithmetic.
     alignment.write_text(source+'\nraise RuntimeError("Do not import measured preview")\n')
-    planner.write_text('fixture: true\n')
+    config=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+    config['fsm']['click_height']=-6.
+    config['traj_opt']['boundary'].update(max_vel=2.,max_acc=1.)
+    planner.write_text(yaml.safe_dump(config,sort_keys=False))
     raw_q=np.array([.1,-.2,.3,.9]);raw_q/=np.linalg.norm(raw_q)
     raw_position=np.array([1.2,-.4,.3]);origin=np.array([.8,.1,-.2])
     p,q,_=load_converter(alignment)(raw_position,raw_q,np.eye(6))
@@ -55,11 +59,27 @@ class Tests(unittest.TestCase):
         self.assertEqual(mission.outbound_stage,'SUPER_OUTBOUND_4_8M')
         self.assertEqual(mission.PHASES[2],'ROUND_01_SUPER_OUTBOUND_4_8M')
         self.assertEqual(mission.config['flight']['horizontal_speed_limit_mps'],2.)
-        self.assertEqual(mission.config['flight']['acceleration_limit_mps2'],1.)
+        self.assertEqual(mission.config['flight']['acceleration_limit_mps2'],1.5)
         self.assertFalse(mission.demonstration);self.assertEqual(canonical.read_bytes(),before)
         with self.assertRaisesRegex(ValueError,'Unknown mission'):DemoMission(cfg)
         cfg.pop('execution_context')
         with self.assertRaisesRegex(ValueError,'virtual rehearsal only'):LeftMission(cfg)
+
+    def test_left_motion_override_changes_only_a_new_profile_acceleration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);source=make_scene(folder)
+            scene=rotated_scene(source);planner=Path(scene['planner_config'])
+            before=planner.read_bytes();expected=yaml.safe_load(before)
+            expected['traj_opt']['boundary']['max_acc']=1.5
+            profile=left_planner_profile(scene,folder/'report.json')
+            target=Path(profile['planner_config'])
+            self.assertNotEqual(target,planner);self.assertEqual(planner.read_bytes(),before)
+            self.assertEqual(yaml.safe_load(target.read_text()),expected)
+            self.assertEqual(profile['left_motion_override']['changed_fields'],['traj_opt.boundary.max_acc'])
+            self.assertEqual(scene['planner_config'],str(planner))
+            self.assertEqual(profile['source_planner_sha256'],hashlib.sha256(before).hexdigest())
+            with self.assertRaises(FileExistsError):left_planner_profile(scene,folder/'report.json')
+            self.assertEqual(planner.read_bytes(),before)
 
     def test_whole_report_and_virtual_only_scope(self):
         mission=LeftMission(mission_fixture())

@@ -119,10 +119,11 @@ class Plan:
 
 class Reference:
     """A terminal state is permanent for this process; no automatic new goal."""
+    MAX_ACCELERATION=1.
     def __init__(self, frame, max_speed=.3, max_acceleration=.5, motion_policy='strict'):
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         if (not all(math.isfinite(v) for v in (max_speed,max_acceleration))
-                or not 0 < max_speed <= 2. or not 0 < max_acceleration <= 1.):
+                or not 0 < max_speed <= 2. or not 0 < max_acceleration <= self.MAX_ACCELERATION):
             raise ValueError('Invalid reference motion limits')
         self.max_speed,self.max_acceleration = float(max_speed),float(max_acceleration)
         self.motion_policy=motion_policy
@@ -270,8 +271,9 @@ class RollingGoalReference(Reference):
     Polynomial agreement, derivatives, initial offset and continuity remain the
     base Reference policy. The default short-goal Reference is unchanged.
     """
-    def __init__(self,frame,endpoint_check,final_goal_check,motion_policy='strict'):
-        super().__init__(frame,2.,1.,motion_policy)
+    def __init__(self,frame,endpoint_check,final_goal_check,motion_policy='strict',
+                 max_speed=2.,max_acceleration=1.):
+        super().__init__(frame,max_speed,max_acceleration,motion_policy)
         self.endpoint_check=endpoint_check;self.final_goal_check=final_goal_check
 
     def check_plan_endpoint(self,plan,adding=False):
