@@ -113,6 +113,21 @@ class Tests(unittest.TestCase):
             self.assertFalse(evidence['cause_inferred'])
             self.assertFalse(report['physical_flight_verified'])
 
+    def test_failed_mission_still_records_observed_real_planner_participation(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,_=self.runner(folder)
+            def failed(name,command,env=None):
+                if name=='complete_mission':
+                    (runner.folder/'mission_report.json').write_text(json.dumps(dict(result='FAIL',
+                        completed_stages=['TAKEOFF_TO_2M'],simulation_backend=dict(actual_SUPER_used=True))))
+                    raise RuntimeError('No verified mission reference within 8 s')
+            runner.step=failed
+            self.assertEqual(runner.run_complete(),1)
+            report=json.loads(runner.path.read_text())
+            self.assertTrue(report['actual_SUPER_tested'])
+            self.assertEqual(report['result'],'FAIL');self.assertFalse(report['demonstration_completed'])
+            self.assertFalse(report['physical_flight_verified'])
+
     def test_short_site_choice_keeps_source_and_reports_one_metre(self):
         with tempfile.TemporaryDirectory() as folder,self.gate():
             runner,_=self.runner(folder)

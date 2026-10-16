@@ -1,0 +1,84 @@
+{
+  "scope": "Onboard real-SUPER rehearsal with frozen scene and ideal virtual vehicle; no physical flight",
+  "run_id": "20261016_155016_391056",
+  "result": "FAIL",
+  "source_sha256": {
+    "planner_log": "e1f9dc39466674a39efa53d39d3f647b9fcdb4cb2e9afdf528345fb365fdf4c7",
+    "report": "20cc9869c704dfa727143fe9526011a2acd51d469df117d337840c1954d2d946"
+  },
+  "completed_stages": [
+    "TAKEOFF_TO_2M",
+    "STABILIZE_AT_HOME"
+  ],
+  "actual_SUPER_used": true,
+  "actual_PX4_used": false,
+  "physical_flight_verified": false,
+  "observed_failure": "No verified mission reference within 8 s",
+  "goal_requested_planner_xyz": [
+    2.884479009388334,
+    -2.7330227991474514,
+    2.4726496254200234
+  ],
+  "goal_accepted_planner_xyz": [
+    2.85,
+    -2.75,
+    2.45
+  ],
+  "map_snap_delta_planner_xyz": [
+    -0.034479009,
+    -0.016977201,
+    -0.022649625
+  ],
+  "event_times": {
+    "goal_outbound": "2026-10-16T15:52:20.720760+08:00",
+    "wait_plan": "2026-10-16T15:52:20.723713+08:00",
+    "controller_stopped": "2026-10-16T15:52:28.763408+08:00"
+  },
+  "first_follow_traj_transition": {
+    "log_line": 36104,
+    "preceding_log_stamp_s": 1792137149.3266993,
+    "following_log_stamp_s": 1792137149.379405,
+    "exact_transition_stamp_available": false,
+    "seconds_after_goal_interval": [
+      8.605939308,
+      8.658645067
+    ],
+    "seconds_after_controller_stop_interval": [
+      0.563291308,
+      0.615997067
+    ]
+  },
+  "planner_marker_counts": {
+    "exploration_success": 598,
+    "backup_optimization_failure": 597,
+    "backup_constraint_rejection": 1218,
+    "goal_received": 1,
+    "missing_odometry": 0
+  },
+  "first_backup_constraint_costs": {
+    "pos": 0.0,
+    "vel": 0.0,
+    "acc": 0.13728880414627,
+    "omg": 0.0,
+    "thr": 0.0
+  },
+  "first_successful_backup_acc_costs": [
+    0.007151549026902,
+    0.007148278925951
+  ],
+  "interpretation": "Before the eight-second cutoff SUPER remained in GENERATE_TRAJ while backup optimization failed. The first FOLLOW_TRAJ transition occurred after the controller had stopped. No receive-path defect is established by this run.",
+  "integration_reporting_defect": "Top-level actual_SUPER_tested remained false on failure despite the nested backend ledger confirming real SUPER participation; this was a reporting error.",
+  "viewer": {
+    "requested": true,
+    "status": "closed",
+    "domain_id": 197,
+    "localhost_only": true,
+    "rendering_verified": false,
+    "config": "/home/mars/Downloads/super_demo_tests/20261016_155016_391056/rehearsal_view.rviz",
+    "log": "/home/mars/Downloads/super_demo_tests/20261016_155016_391056/rviz.log",
+    "pid": 11337,
+    "closed_by_runner": true,
+    "returncode": 0
+  },
+  "unresolved": "The reason backup optimization needed repeated attempts is not established. Removing the waiting deadline alone does not prove planner reliability or a complete mission."
+}

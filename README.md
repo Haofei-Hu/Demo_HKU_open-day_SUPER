@@ -24,6 +24,8 @@ The runner sources ROS itself, starts the managed stack, captures and applies th
 
 Wait for `RESULT: SUCCESS` or `RESULT: FAIL` and the printed `REPORT:` path under `~/Downloads/super_demo_tests/<timestamp>/`. A rehearsal success covers every stage in the virtual mission; physical full-mission flight remains unverified. Fixture geometry is synthetic. Motion targets are 2 m/s and 1 m/s²; observation mode records exceedances with 2.4 m/s and 1.5 m/s² warning advisories while retaining position, freshness and continuity checks.
 
+The complete mission has no deadline for the first verified trajectory of either navigation leg. During planning it holds the leg's starting hover point and prints `WAIT_PLAN` progress. Planner waiting is excluded from the execution budgets; arrival of a valid trajectory resumes the route. A failed planner process, invalid trajectory, stale feedback or operator stop still ends the run.
+
 After the test finishes, inspect or stop the background stack:
 
 ```bash

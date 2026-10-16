@@ -129,7 +129,11 @@ class DemoTest(GroundTest):
         except (Exception,KeyboardInterrupt) as exc:
             self.report.update(result='FAIL',error=type(exc).__name__+': '+str(exc),failed_stage=self.report['stage'])
             childpath=self.folder/'mission_report.json'
-            if childpath.exists():self.report['partial_mission_report']=json.loads(childpath.read_text())
+            if childpath.exists():
+                child=json.loads(childpath.read_text())
+                self.report['partial_mission_report']=child
+                # Planner participation and mission completion are independent facts.
+                self.report['actual_SUPER_tested']=child.get('simulation_backend',{}).get('actual_SUPER_used') is True
             print('ERROR:',self.report['error'],flush=True);return 1
         finally:
             if self.child is not None and self.child.poll() is None:

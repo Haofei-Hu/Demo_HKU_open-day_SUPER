@@ -6,6 +6,7 @@ import sys
 from types import SimpleNamespace as NS
 import unittest
 import tempfile
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -28,6 +29,42 @@ class Tests(unittest.TestCase):
         self.assertEqual(control.local.header.stamp.nanosec,before)
         with self.assertRaisesRegex(ValueError,'0.10 m per axis'):
             DemoMissionControl.tracking_ok(control,[.301,0.,0.],[.4,0.,0.])
+
+    def waiting(self):
+        control=NS(started=True,execute=True,armed_at=0.,offboard_budget=90.,phase='WAIT_PLAN',phase_at=5.,
+            plan_wait_started_at=5.,plan_wait_elapsed_s=0.,state=NS(armed=True),leg='outbound',
+            follower=NS(phase='WAIT_TRAJECTORY',last=None),home=np.array([0.,0.,2.]),far=np.array([4.5,0.,2.]),
+            reference=NS(yaw=.4),process_reference=Mock(),tracking_ok=Mock(),publish=Mock(),arrived_since=None)
+        control.planning_wait_seconds=lambda now=None:DemoMissionControl.planning_wait_seconds(control,now)
+        return control
+
+    def test_first_plan_wait_has_no_deadline_and_continues_holding_home(self):
+        control=self.waiting()
+        for now in (14.,40.,200.,1500.):
+            self.assertTrue(DemoMissionControl.mission_tick(control,now,control.home,.4))
+            target,yaw=control.publish.call_args.args
+            np.testing.assert_array_equal(target,control.home)
+            self.assertEqual(yaw,.4);self.assertTrue(control.publish.call_args.kwargs['native'])
+        self.assertEqual(control.process_reference.call_count,4)
+        self.assertEqual(control.tracking_ok.call_count,4)
+        self.assertEqual(control.phase,'WAIT_PLAN')
+
+    def test_wait_does_not_hide_tracking_failure_or_disarming(self):
+        control=self.waiting();control.tracking_ok.side_effect=ValueError('Tracking error exceeds 0.10 m per axis')
+        with self.assertRaisesRegex(ValueError,'Tracking error'):
+            DemoMissionControl.mission_tick(control,200.,control.home,.4)
+        control.publish.assert_not_called()
+        control=self.waiting();control.state.armed=False
+        with self.assertRaisesRegex(ValueError,'Disarmed'):
+            DemoMissionControl.mission_tick(control,200.,control.home,.4)
+        control.publish.assert_not_called()
+
+    def test_completed_wait_stays_excluded_but_execution_budget_is_still_checked(self):
+        control=self.waiting();control.plan_wait_elapsed_s=1000.;control.plan_wait_started_at=None
+        self.assertEqual(control.planning_wait_seconds(1050.),1000.)
+        self.assertTrue(DemoMissionControl.mission_tick(control,1050.,control.home,.4))
+        with self.assertRaisesRegex(ValueError,'execution budget excluding planner wait'):
+            DemoMissionControl.mission_tick(control,1091.,control.home,.4)
 
     def test_missing_or_expired_sent_reference_cannot_pass(self):
         control=self.control();control.sent_references.clear()
@@ -93,6 +130,7 @@ class Tests(unittest.TestCase):
                 self.assertFalse(response.success);self.assertFalse(node.started)
                 self.assertFalse(node.mission_report.data['physical_flight_verified'])
                 self.assertEqual(node.mission_report.data['motion_advisories']['speed_mps'],2.4)
+                self.assertIsNone(node.mission_report.data['planning_wait_policy']['timeout_s'])
             finally:
                 if node is not None:node.destroy_node()
                 rclpy.shutdown()

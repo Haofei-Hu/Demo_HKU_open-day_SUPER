@@ -52,6 +52,8 @@ Append `--no-rviz` to disable the viewer. Without a graphical desktop or an inst
 
 The planner targets 2 m/s and 1 m/s². Observation mode records exceedances and uses 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [the complete test specification](DEMONSTRATION_MISSION.md).
 
+At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. Waiting is excluded from the existing 90-second controller execution budget and 105-second rehearsal execution budget, so those outer limits cannot act as replacement planning deadlines. Planner exit, invalid input, stale telemetry, tracking errors and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
+
 For a separate one-metre rehearsal, append `--route-profile short-1m`. This changes the virtual outbound distance and cannot count as a completed 4.5 m demonstration or enable physical flight. Use the default full route in a suitable laboratory.
 
 ## Read the result and retain the report

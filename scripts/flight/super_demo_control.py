@@ -72,6 +72,7 @@ class DemoMissionControl(SuperFlightControl):
         self.velocity=None;self.leg=None;self.home=self.far=None
         self.arrived_since=self.final_hold_since=None
         self.native_velocity=np.zeros(3);self.goal_count=0;self.stages_started=False
+        self.plan_wait_started_at=None;self.plan_wait_elapsed_s=0.
         self.max_tracking_error=np.zeros(3)
         self.sent_references=deque(maxlen=512)
         self.endpoint_kinds=set();self.plan_evidence=[]
@@ -85,6 +86,9 @@ class DemoMissionControl(SuperFlightControl):
             acceleration_mps2=self.ADVISORY_ACCELERATION,action='warning_only',
             derivative_exceedance_alone_stops_motion=motion_policy=='strict')
         self.mission_report.data['motion_advisory_by_leg']={}
+        self.mission_report.data['planning_wait_policy']=dict(timeout_s=None,
+            action='Hold the leg start until a verified trajectory arrives or the operator stops',
+            excluded_from_execution_budgets=True)
         super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
         self.offboard_budget=90.
@@ -111,7 +115,12 @@ class DemoMissionControl(SuperFlightControl):
         return result
 
     def change(self,phase):
+        if self.plan_wait_started_at is not None and phase!='WAIT_PLAN':
+            self.plan_wait_elapsed_s=self.planning_wait_seconds()
+            self.plan_wait_started_at=None
         super().change(phase)
+        if phase=='WAIT_PLAN':self.plan_wait_started_at=self.phase_at
+        self.mission_report.data['planner_wait_elapsed_s']=self.planning_wait_seconds()
         if phase=='READY':
             from control_bridge_preview import quaternion_rpy
             self.frame=VenueFrame(self.reference.ground,quaternion_rpy(0,0,self.reference.yaw),
@@ -129,6 +138,19 @@ class DemoMissionControl(SuperFlightControl):
             self.mission_report.data['max_tracking_error_forward_left_up_m']=self.max_tracking_error.tolist()
             self.mission_report.finish()
         elif phase=='STOPPED':self.mission_report.finish(self.fault or 'Mission stopped')
+
+    def planning_wait_seconds(self,now=None):
+        now=time.monotonic() if now is None else now
+        active=max(0.,now-self.plan_wait_started_at) if self.plan_wait_started_at is not None else 0.
+        return self.plan_wait_elapsed_s+active
+
+    def report(self):
+        super().report()
+        self.mission_report.data['planner_wait_elapsed_s']=self.planning_wait_seconds()
+        if self.phase=='WAIT_PLAN' and self.follower is not None and self.follower.last is None:
+            self.get_logger().info('WAIT_PLAN: holding position; waiting for the first verified '
+                f'{self.leg} reference; waited {time.monotonic()-self.plan_wait_started_at:.1f} s; '
+                'no planning deadline')
 
     def allowed_modes(self):
         return dict(super().allowed_modes(),FINAL_HOLD=('OFFBOARD',))
@@ -276,8 +298,9 @@ class DemoMissionControl(SuperFlightControl):
         super().tick()
 
     def mission_tick(self,now,xyz,yaw):
-        if self.started and self.armed_at is not None and now-self.armed_at>self.offboard_budget:
-            raise ValueError('Complete mission exceeded 90-second budget')
+        if (self.started and self.armed_at is not None
+                and now-self.armed_at-self.planning_wait_seconds(now)>self.offboard_budget):
+            raise ValueError('Complete mission exceeded 90-second execution budget excluding planner wait')
         if self.phase=='RISE':
             u=min(1.,(now-self.armed_at)/self.reference.ramp_seconds)
             target=np.array(self.reference.ground)+np.array([0,0,self.reference.lift*(u**3*(10-15*u+6*u*u))])
@@ -297,7 +320,6 @@ class DemoMissionControl(SuperFlightControl):
             if not self.state.armed:raise ValueError('Disarmed during demonstration')
             if self.follower.phase!='END_HOLD':self.process_reference(xyz)
             if self.follower.last is None:
-                if now-self.phase_at>8.:raise ValueError('No verified mission reference within 8 s')
                 target=self.home if self.leg=='outbound' else self.far
             else:
                 target=self.follower.last[1]

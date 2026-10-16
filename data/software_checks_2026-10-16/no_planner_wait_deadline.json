@@ -1,0 +1,65 @@
+{
+  "scope": "Cloud ROS 2 Humble software regression; synthetic planner and vehicle; no physical flight",
+  "checks": {
+    "tracking_and_planner_wait": 11,
+    "whole_flow_orchestration": 11,
+    "release_manifest": 3,
+    "repository_layout": 3
+  },
+  "initial_plan_delay_s": 9.0,
+  "result": "SUCCESS",
+  "completed_stages": [
+    "TAKEOFF_TO_2M",
+    "STABILIZE_AT_HOME",
+    "SUPER_OUTBOUND_4_5M",
+    "STABILIZE_AT_FAR_POINT",
+    "SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "planning_wait_policy": {
+    "timeout_s": null,
+    "action": "Hold the leg start until a verified trajectory arrives or the operator stops",
+    "excluded_from_execution_budgets": true
+  },
+  "planner_wait_elapsed_s": 9.304694683058187,
+  "return_hover_duration_s": 6.050595854059793,
+  "backend_ledger": {
+    "goals": [
+      [
+        3.8340102670935527,
+        2.4608911302776586,
+        1.175
+      ],
+      [
+        0.12,
+        -0.08,
+        1.175
+      ]
+    ],
+    "commands": [
+      "OFFBOARD",
+      "ARM",
+      "AUTO.LAND"
+    ],
+    "peak_native_speed": 1.6552631377480398,
+    "armed": false,
+    "landed": true
+  },
+  "max_tracking_error_forward_left_up_m": [
+    0.0003284081431059351,
+    4.0241044413715744e-16,
+    4.4236767197558535e-05
+  ],
+  "physical_flight_verified": false,
+  "actual_SUPER_used": false,
+  "onboard_retest_pending": true,
+  "assertions": [
+    "Waiting beyond 8, 30, 105 and 1000 seconds does not itself fail the complete mission or change the held target.",
+    "Tracking error and disarming still fail while waiting.",
+    "Completed planning waits remain excluded from execution time; excessive execution time is still checked.",
+    "A nine-second initial planner delay completed all eight mission stages and confirmed virtual landing/disarming.",
+    "A failed run retains confirmed real-SUPER participation without changing FAIL into SUCCESS."
+  ]
+}

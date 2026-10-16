@@ -193,6 +193,13 @@ def backend(connection,fault,scene_file=None):
         end=[msg.pose.position.x,msg.pose.position.y,msg.pose.position.z]
         state['goals'].append(end)
         if scene_file is not None:return  # The real isolated SUPER owns all planning output.
+        if fault=='initial-plan-delay' and len(state['goals'])==1:
+            def delayed_plan():
+                node.destroy_timer(timer);build_plan(end)
+            timer=node.create_timer(9.,delayed_plan)
+            return
+        build_plan(end)
+    def build_plan(end):
         distance=math.dist(pose,end)
         duration=max(1.875*distance/2.,math.sqrt(5.774*distance),1.)
         if fault=='motion-target-exceedance':duration*=.9  # Synthetic evidence test only.
@@ -309,7 +316,8 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
                 rclpy.spin_once(node,timeout_sec=.02)
                 if planner_process is not None and planner_process.poll() is not None:
                     node.abort('Isolated SUPER exited; inspect planner_rehearsal.log')
-                if time.monotonic()-began>105:node.abort('Complete simulation timed out')
+                if time.monotonic()-began-node.planning_wait_seconds()>105:
+                    node.abort('Complete simulation execution timed out excluding planner wait')
                 if node.phase=='READY' and not attempted and client.service_is_ready():
                     attempted=True;client.call_async(Trigger.Request())
             parent.send('report')
@@ -345,7 +353,8 @@ def main():
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
-    p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance'))
+    p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
+                                     'initial-plan-delay'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')
