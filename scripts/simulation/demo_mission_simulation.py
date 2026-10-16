@@ -158,7 +158,7 @@ def backend(connection,fault,scene_file=None):
             raise ValueError('Scene conversion must be rigid')
         origin=np.array(scene['origin'])
     state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
-               max_lateral_displacement_m=0.)
+               max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None)
     state['target']=None
     kinds={'/Odometry':Odometry,'/mavros/state':State,'/mavros/extended_state':ExtendedState,
         '/mavros/estimator_status':EstimatorStatus,'/mavros/rc/in':RCIn,
@@ -202,7 +202,10 @@ def backend(connection,fault,scene_file=None):
             timer=node.create_timer(9.,delayed_plan)
             return
         build_plan(end)
-    def build_plan(end):
+    def build_plan(end,resuming=False):
+        if fault=='intermediate-rest' and not resuming:
+            state['resume_goal']=list(end)
+            end=[(a+b)/2 for a,b in zip(pose,end)]
         distance=math.dist(pose,end)
         duration=max(1.875*distance/2.,math.sqrt(5.774*distance),1.)
         if fault=='long-trajectory':duration=40.  # Exercise both former total deadlines.
@@ -269,6 +272,11 @@ def backend(connection,fault,scene_file=None):
     def planning():
         plan=state['plan'];stamp_ns=node.get_clock().now().nanoseconds;now=stamp_ns/1e9
         if plan is None or now<plan.start:return
+        if state['resume_goal'] is not None:
+            if now>=plan.end+5.:
+                goal=state['resume_goal'];state['resume_goal']=None;state['rest_waits']+=1
+                build_plan(goal,resuming=True);return
+            if now>plan.end+2.:return  # Fresh rest samples, then a silent planning wait.
         if fault=='return-dropout' and len(state['goals'])==2 and now>plan.start+1.:return
         p,v,a=plan.evaluate(now-plan.start)
         msg=PositionCommand();msg.header.frame_id='world'
@@ -287,7 +295,7 @@ def backend(connection,fault,scene_file=None):
                 request=connection.recv()
                 if request=='stop':break
                 if request=='report':connection.send({k:state[k] for k in
-                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed')})
+                    ('goals','commands','peak_native_speed','max_lateral_displacement_m','armed','landed','rest_waits')})
     finally:
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
@@ -364,7 +372,7 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
-                                     'initial-plan-delay','lateral-route','long-trajectory'))
+                                     'initial-plan-delay','lateral-route','long-trajectory','intermediate-rest'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')

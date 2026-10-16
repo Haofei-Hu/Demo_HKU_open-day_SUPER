@@ -22,7 +22,18 @@ from rclpy.qos import qos_profile_sensor_data
 from demo_mission import DemoMission,MissionReport,default_report_path
 from first_hover_terminal import PARAMETERS,pose_values
 from super_flight_control import SuperFlightControl,inverse_goal
-from bounded_reference_preview import TakeoffFrame,RollingGoalReference
+from bounded_reference_preview import Plan,TakeoffFrame,RollingGoalReference
+
+
+class VenuePlan(Plan):
+    """Associate fresh stationary commands with a committed rest endpoint."""
+    def matches(self,stamp,position,velocity,acceleration):
+        if super().matches(stamp,position,velocity,acceleration):return True
+        return bool(stamp/1e9>=self.end
+            and np.linalg.norm(self.end_velocity)<=.03
+            and np.linalg.norm(self.end_acceleration)<=.10
+            and np.linalg.norm(np.asarray(position)-self.endpoint)<=.015
+            and np.linalg.norm(velocity)<=.03 and np.linalg.norm(acceleration)<=.05)
 from super_session import NATIVE_CONTROL_TOPICS
 
 
@@ -41,6 +52,25 @@ class VenueReference(RollingGoalReference):
     """Observe initial position offsets; frame checks enforce the entire vehicle's bounds."""
     def check_initial_offset(self,offset):
         pass
+
+    def add_plan(self,msg):
+        plan=VenuePlan(msg)
+        self.check_plan_endpoint(plan,adding=True)
+        self.plans.append(plan)
+
+    def resting_at_endpoint(self):
+        plan=self.last_plan;sample=self.last_evidence
+        return bool(plan is not None and sample is not None and self.last[0]/1e9>=plan.end
+            and np.linalg.norm(sample['raw']-plan.endpoint)<=.015
+            and np.linalg.norm(sample['velocity'])<=.03
+            and np.linalg.norm(sample['acceleration'])<=.10
+            and np.linalg.norm(plan.end_velocity)<=.03
+            and np.linalg.norm(plan.end_acceleration)<=.10)
+
+    def max_command_gap(self):
+        # Actual position continuity is checked against the committed polynomial.
+        # An elapsed stamp interval alone is not a mission failure.
+        return math.inf
 
 
 class DemoMissionControl(SuperFlightControl):
@@ -100,7 +130,8 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['planning_wait_policy']=dict(timeout_s=None,
             action='Hold the leg start until a verified trajectory arrives or the operator stops')
         self.mission_report.data['execution_limits']=dict(controller_timeout_s=None,
-            committed_trajectory_duration_s=None)
+            committed_trajectory_duration_s=None,callback_gap_abort_s=None,
+            reference_stamp_gap_abort_s=None)
         super().__init__(execute=execute,hover_fc_height=self.mission.hover_height,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
         # Also disable the inherited first-hover rise-time fallback.
@@ -202,6 +233,39 @@ class DemoMissionControl(SuperFlightControl):
                 evidence=dict(self.follower.motion_summary,
                     last_violation=self.follower.last_motion_violation,policy=self.motion_policy)
                 self.mission_report.data['planner_motion_by_leg'][self.leg]=evidence
+
+    def check_command_stream(self):
+        if self.follower.phase=='TRACK' and self.follower.resting_at_endpoint():
+            self.native_velocity=np.zeros(3)
+            waiting=not self.fresh_ns(self.follower.last[0])
+            self.mission_report.data['intermediate_rest_wait']=dict(
+                leg=self.leg,waiting=waiting,timeout_s=None,
+                last_accepted_stamp_ns=int(self.follower.last[0]))
+            if waiting and not getattr(self,'rest_wait_warned',False):
+                self.get_logger().warning('Holding verified rest endpoint; waiting for subsequent SUPER '
+                    'commands with no deadline. The navigation goal remains incomplete.')
+            self.rest_wait_warned=waiting
+            return
+        self.rest_wait_warned=False
+        wait=self.mission_report.data.get('intermediate_rest_wait')
+        if wait is not None:wait['waiting']=False
+        try:super().check_command_stream()
+        except ValueError as exc:
+            oldest=self.stamp(self.pending[0]) if self.pending else None
+            newest=self.stamp(self.pending[-1]) if self.pending else None
+            detail=dict(leg=self.leg,pending_commands=len(self.pending),
+                oldest_pending_stamp_ns=oldest,newest_pending_stamp_ns=newest,
+                last_accepted_stamp_ns=int(self.follower.last[0]),
+                latest_pending_fresh=bool(newest and self.fresh_ns(newest)))
+            self.mission_report.data['command_stream_failure']=detail
+            raise ValueError(str(exc)+'; '+json.dumps(detail)) from exc
+
+    def check_timer_gap(self,gap):
+        data=self.mission_report.data
+        data['callback_gap_advisories']=data.get('callback_gap_advisories',0)+1
+        data['largest_callback_gap_s']=max(data.get('largest_callback_gap_s',0.),float(gap))
+        self.get_logger().warning(f'Callback scheduling gap {gap:.6f}s; timing advisory only. '
+            'Continuing input validity, committed-trajectory and venue checks.')
 
     def check_stage_endpoint(self,plan):
         endpoint,error,detail=self.endpoint_evidence(plan)

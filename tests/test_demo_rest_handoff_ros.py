@@ -1,0 +1,90 @@
+"""Committed rest endpoints can wait and resume without a planning deadline."""
+from pathlib import Path
+import sys
+from types import SimpleNamespace as NS
+import unittest
+import numpy as np
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(ROOT),str(ROOT/'tests'),str(ROOT/'scripts/flight'),str(ROOT/'scripts/planning'),str(ROOT/'scripts/maintenance')]
+from super_demo_control import DemoMissionControl,VenuePlan,VenueReference,VenueFrame
+from bounded_reference_preview import Plan
+from first_hover_terminal import FirstHoverControl
+from demo_mission import DemoMission
+from test_demo_mission import fixture
+from test_super_flight_control_ros import stage_plan
+
+
+class Tests(unittest.TestCase):
+    def follower(self):
+        self.begin=np.array([0.,0.,1.415]);self.stop=np.array([.8,.2,1.415])
+        self.goal=np.array([4.5,0.,1.415])
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        return VenueReference(frame,lambda plan:True,
+            lambda plan,p:np.linalg.norm(p-self.goal)<.01,'observe')
+
+    def sample(self,follower,msg,elapsed):
+        p,v,a=Plan(msg).evaluate(elapsed)
+        return follower.command(round((msg.start_wt_pos+elapsed)*1e9),p,v,a,p,[0,0,0,1],
+                                measured_position=self.begin)
+
+    def test_fresh_stationary_commands_continue_beyond_polynomial_end(self):
+        follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+        follower.add_plan(msg)
+        for t in np.arange(0.,6.001,.02):self.assertTrue(self.sample(follower,msg,float(t)))
+        self.assertEqual(follower.phase,'TRACK')
+        self.assertTrue(follower.resting_at_endpoint())
+        np.testing.assert_allclose(follower.last[1],self.stop)
+        self.assertFalse(Plan(msg).matches(106000000000,self.stop,np.zeros(3),np.zeros(3)),
+                         'Legacy diagnostics must retain their original matching rule')
+
+    def test_silent_rest_wait_has_no_deadline_and_resumes_continuously(self):
+        follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+        follower.add_plan(msg)
+        for t in np.arange(0.,3.021,.02):self.sample(follower,msg,float(t))
+        control=NS(follower=follower,native_velocity=np.ones(3),leg='outbound',fresh_ns=lambda ns:False,
+                   mission_report=NS(data={}),get_logger=lambda:NS(warning=lambda text:None))
+        before=follower.last[0]
+        for _ in range(3):DemoMissionControl.check_command_stream(control)
+        np.testing.assert_array_equal(control.native_velocity,np.zeros(3))
+        self.assertIsNone(control.mission_report.data['intermediate_rest_wait']['timeout_s'])
+        self.assertEqual(follower.last[0],before,'Do not retime a received command to keep it fresh')
+        next_msg=stage_plan(self.stop,self.goal,5000.,6.)
+        follower.add_plan(next_msg)
+        self.assertTrue(self.sample(follower,next_msg,.01))
+        self.assertEqual(follower.max_command_gap(),float('inf'))
+        self.assertTrue(self.sample(follower,next_msg,.4))
+
+    def test_rest_matching_rejects_motion_and_uncommitted_positions(self):
+        self.follower();msg=stage_plan(self.begin,self.stop,100.,3.);plan=VenuePlan(msg)
+        self.assertTrue(plan.matches(200000000000,self.stop,np.zeros(3),np.zeros(3)))
+        self.assertFalse(plan.matches(200000000000,self.stop+[.1,0,0],np.zeros(3),np.zeros(3)))
+        self.assertFalse(plan.matches(200000000000,self.stop,[.2,0,0],np.zeros(3)))
+        self.assertFalse(plan.matches(200000000000,self.stop,np.zeros(3),[.2,0,0]))
+        msg.coef_pos_x=[0.,0.,0.,0.,0.,0.,.2,0.]
+        moving=VenuePlan(msg)
+        self.assertFalse(moving.matches(200000000000,moving.endpoint,np.zeros(3),np.zeros(3)))
+
+    def test_callback_gap_is_advisory_in_complete_demo_only(self):
+        messages=[]
+        control=NS(mission_report=NS(data={}),get_logger=lambda:NS(warning=messages.append))
+        for gap in (.37561,5.,1000.):DemoMissionControl.check_timer_gap(control,gap)
+        self.assertEqual(control.mission_report.data['callback_gap_advisories'],3)
+        self.assertEqual(control.mission_report.data['largest_callback_gap_s'],1000.)
+        self.assertEqual(len(messages),3)
+        with self.assertRaisesRegex(ValueError,'Setpoint timer interrupted'):
+            FirstHoverControl.check_timer_gap(control,.37561)
+
+    def test_resume_cannot_jump_or_cross_venue_boundary(self):
+        follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+        follower.add_plan(msg)
+        for t in np.arange(0.,3.021,.02):self.sample(follower,msg,float(t))
+        jumped=stage_plan(self.stop+[.2,0,0],self.goal,5000.,6.)
+        follower.add_plan(jumped)
+        with self.assertRaisesRegex(ValueError,'position step'):self.sample(follower,jumped,.01)
+        follower=self.follower();outside=stage_plan(self.begin,[.8,1.5,1.415],100.,3.)
+        follower.add_plan(outside)
+        with self.assertRaisesRegex(ValueError,'outside venue'):self.sample(follower,outside,3.1)
+
+
+if __name__=='__main__':unittest.main()

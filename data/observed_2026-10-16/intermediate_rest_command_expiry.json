@@ -1,0 +1,24 @@
+{
+  "run": "20261016_204512_251419",
+  "scope": "Onboard real-SUPER ground rehearsal with virtual vehicle; no physical flight",
+  "result": "FAIL",
+  "completed_stages": [
+    "TAKEOFF_TO_1_5M",
+    "STABILIZE_AT_HOME"
+  ],
+  "leg_at_failure": "outbound",
+  "endpoint_kind": "INTERMEDIATE_STOP",
+  "plan_start_ros_s": 1792154840.757725,
+  "plan_duration_s": 5.761751,
+  "plan_end_ros_s": 1792154846.519476,
+  "stop_ros_s": 1792154846.773155,
+  "error": "Command stream expired before confirmed endpoint",
+  "endpoint_error_forward_left_up_m": [
+    0.099148,
+    -0.094377,
+    0.243429
+  ],
+  "interpretation": "The run stopped during outbound intermediate-stage completion, before any return goal. The expiry occurred about 254 ms after the committed stage ended.",
+  "code_defect": "The old Plan matching window ended 30 ms after polynomial completion, although an intermediate rest endpoint could continue receiving fresh stationary commands without completing the navigation goal.",
+  "evidence_limit": "No raw PositionCommand capture was provided; the log alone cannot distinguish a missing command stream from fresh terminal commands rejected by the old matching window."
+}

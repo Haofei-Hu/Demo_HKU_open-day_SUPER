@@ -153,6 +153,9 @@ class Reference:
         if np.any(np.abs(offset) > .10):
             raise ValueError('Initial reference offset exceeds 0.10 m per axis: '+str(offset.round(4).tolist()))
 
+    def max_command_gap(self):
+        return .25
+
     def add_plan(self, msg):
         plan = Plan(msg)
         self.check_plan_endpoint(plan, adding=True)
@@ -210,15 +213,16 @@ class Reference:
                 allowed_step=.015+self.last_plan.displacement_bound(
                     self.last[0]/1e9-self.last_plan.start,stamp/1e9-self.last_plan.start)
                 continuity_basis='previous committed polynomial'
-            if dt > .25 or step > allowed_step:
+            max_gap=self.max_command_gap()
+            if dt > max_gap or step > allowed_step:
                 triggers = []
-                if dt > .25:triggers.append('stamp gap')
+                if dt > max_gap:triggers.append('stamp gap')
                 if step > allowed_step:triggers.append('position step')
                 before = self.frame.coordinates(self.last[1]).round(4).tolist()
                 after = self.frame.coordinates(position).round(4).tolist()
                 previous = self.last_evidence
                 details = (f'Reference gap or discontinuity ({", ".join(triggers)}): '
-                           f'dt={dt:.6f}s (max 0.250000s); step={step:.6f}m (allowed {allowed_step:.6f}m; {continuity_basis}); '
+                           f'dt={dt:.6f}s (max {max_gap:.6f}s); step={step:.6f}m (allowed {allowed_step:.6f}m; {continuity_basis}); '
                            f'previous/current forward-left-FC-height={before}/{after}; '
                            f'previous/current stamp_ns={self.last[0]}/{stamp}')
                 if previous is not None:

@@ -137,7 +137,8 @@ class Tests(unittest.TestCase):
                 self.assertEqual(node.hover_fc_height,1.5)
                 self.assertEqual(node.offboard_budget,float('inf'))
                 self.assertEqual(node.mission_report.data['execution_limits'],
-                                 dict(controller_timeout_s=None,committed_trajectory_duration_s=None))
+                                 dict(controller_timeout_s=None,committed_trajectory_duration_s=None,
+                                      callback_gap_abort_s=None,reference_stamp_gap_abort_s=None))
                 self.assertEqual(node.phase,'CHECKING');self.assertFalse(node.started)
                 self.assertEqual(node.sent,0);self.assertEqual(node.goal_count,0)
                 response=node.start(Trigger.Request(),Trigger.Response())

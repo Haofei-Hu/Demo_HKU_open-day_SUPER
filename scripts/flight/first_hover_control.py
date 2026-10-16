@@ -321,6 +321,9 @@ class FirstHoverControl(Node):
             self.last_target = list(xyz)
             self.sent += 1
 
+    def check_timer_gap(self,gap):
+        raise ValueError('Setpoint timer interrupted for more than 0.2 seconds')
+
     def tick(self):
         now = time.monotonic()
         gap, self.last_tick = now - self.last_tick, now
@@ -345,7 +348,7 @@ class FirstHoverControl(Node):
                 self.change('LANDING')
                 return
             if self.started and gap > .2:
-                raise ValueError('Setpoint timer interrupted for more than 0.2 seconds')
+                self.check_timer_gap(gap)
             ground = self.phase in ('CHECKING', 'READY', 'PRESTREAM', 'MODE_REQUEST')
             xyz, yaw, identities = self.validate(ground=ground and self.phase != 'MODE_REQUEST')
             if self.phase == 'MODE_REQUEST':

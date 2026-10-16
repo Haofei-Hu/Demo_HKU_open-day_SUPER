@@ -1,0 +1,86 @@
+{
+  "scope": "Cloud ROS 2 Humble software checks; synthetic planner and ideal virtual vehicle only",
+  "focused_checks": {
+    "rest_and_gap_policy": 5,
+    "tracking_and_wait": 14,
+    "legacy_rolling_reference": 6,
+    "base_reference": 16,
+    "release_and_migration": 4,
+    "repository_layout": 3
+  },
+  "focused_checks_passed": true,
+  "standalone_generator_check": "PASS",
+  "result": "SUCCESS",
+  "completed_stages": [
+    "TAKEOFF_TO_1_5M",
+    "STABILIZE_AT_HOME",
+    "SUPER_OUTBOUND_4_5M",
+    "STABILIZE_AT_FAR_POINT",
+    "SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "execution_limits": {
+    "controller_timeout_s": null,
+    "committed_trajectory_duration_s": null,
+    "callback_gap_abort_s": null,
+    "reference_stamp_gap_abort_s": null
+  },
+  "backend": {
+    "kind": "ideal synthetic ROS planning and vehicle",
+    "actual_SUPER_used": false,
+    "actual_PX4_used": false,
+    "hardware_used": false,
+    "ledger": {
+      "goals": [
+        [
+          3.8340102670935527,
+          2.4608911302776586,
+          0.675
+        ],
+        [
+          0.12,
+          -0.08,
+          0.675
+        ]
+      ],
+      "commands": [
+        "OFFBOARD",
+        "ARM",
+        "AUTO.LAND"
+      ],
+      "peak_native_speed": 1.1703809308953603,
+      "max_lateral_displacement_m": 2.164284376715564e-15,
+      "armed": false,
+      "landed": true,
+      "rest_waits": 2
+    },
+    "scene_file": null,
+    "execution_timeout_s": null,
+    "static_snapshot_adaptation": []
+  },
+  "return_hover_duration_s": 6.000034829019569,
+  "intermediate_rest_test": {
+    "legs_with_intermediate_stop": 2,
+    "fresh_terminal_command_interval_s": 2.0,
+    "silent_wait_interval_s": 3.0,
+    "test_intervals_are_not_production_deadlines": true,
+    "maximum_wait_deadline_s": null,
+    "original_command_timestamps_preserved": true
+  },
+  "preceding_trial": {
+    "result": "FAIL",
+    "error": "Setpoint timer interrupted for more than 0.2 seconds",
+    "completed_stages": [
+      "TAKEOFF_TO_1_5M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_4_5M",
+      "STABILIZE_AT_FAR_POINT"
+    ],
+    "description": "Rest-endpoint handoff succeeded outbound, then the existing callback-gap abort stopped return. The final full-demo policy makes callback gaps advisory."
+  },
+  "physical_flight_verified": false,
+  "actual_SUPER_used": false,
+  "limits": "Real SUPER with the aircraft map and physical flight require separate validation. Invalid/stale localization, unverified moving commands, venue violations and PX4 fallback remain independently handled."
+}

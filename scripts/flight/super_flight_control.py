@@ -381,6 +381,9 @@ class SuperFlightControl(FirstHoverControl):
             if accepted is None:break
             if accepted:self.reference_accepted(msg)
             self.pending.popleft()
+        self.check_command_stream()
+
+    def check_command_stream(self):
         if self.follower.phase=='TRACK' and not self.fresh_ns(self.follower.last[0]):
             raise ValueError('Command stream expired before confirmed endpoint')
 
