@@ -1,0 +1,16 @@
+{
+  "run_id": "20261016_223901_065259",
+  "result": "FAIL",
+  "failed_stage": "alignment validation",
+  "printed_route_height_m": 1.5,
+  "matched_pairs": 646,
+  "body_age_mean_s": 0.017,
+  "body_age_max_s": 0.302,
+  "body_age_admission_max_s": 0.25,
+  "pairing_gap_max_s": 0.035,
+  "rotation_spread_max_deg": 0.789,
+  "failure": "Alignment quality failed: body timestamps within -0.05..0.25 s",
+  "map_capture_started": false,
+  "virtual_takeoff_started": false,
+  "interpretation": "The survey included body poses outside its age admission band, then the automated validator rejected the estimate. The transcript does not identify how many such samples existed or why their delivery was late. The onboard runner still printed the older 1.5 m rehearsal setting."
+}

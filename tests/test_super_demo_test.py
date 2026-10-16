@@ -15,6 +15,17 @@ import super_demo as physical_entry
 
 
 class Tests(unittest.TestCase):
+    def test_preparation_actions_use_completion_driven_stream_and_protect_negative_quaternion(self):
+        with tempfile.TemporaryDirectory() as folder:
+            runner,actions=self.runner(folder)
+            runner.action('planner','--planner-profile','demo')
+            runner.action('vision','-1e-5','0.','0.','1.')
+            self.assertEqual(actions[0][0],'planner')
+            command=actions[1][1]
+            self.assertEqual(command[-6:],['vision','--','-1e-5','0.','0.','1.'])
+            parsed=m.manager.arguments(command[2:])
+            self.assertEqual(parsed.quaternion,[-1e-5,0.,0.,1.])
+
     def runner(self,folder,logic=False,fixture=True,motion='strict'):
         base=Path(folder);mission=base/'mission.json'
         mission.write_bytes((ROOT/'configs/demonstration/open_day_mission.json').read_bytes())

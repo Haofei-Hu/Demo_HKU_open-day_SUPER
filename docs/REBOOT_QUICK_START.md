@@ -40,6 +40,8 @@ The runner performs the following sequence:
 4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
+Alignment excludes body samples outside the existing -0.05..0.25 s receive-time header-age band before estimation, and reports excluded counts and raw age extrema. It still requires enough valid matched pairs and the existing pairing/rotation checks. Full-rehearsal preparation streams progress without the historical 120-second action deadline.
+
 Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which remains **1.5 m** with `TAKEOFF_TO_1_5M`. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 
 During complete-demo map initialization, `Map capture WAIT` means the runner is still waiting for a fresh three-second raw-odometry window whose range is at most 2.5 cm per axis. There is no capture deadline: passing 12 seconds does not fail the rehearsal. Progress and observed ranges appear in the planner-stage log. Lost ground state, stale odometry or changed sources still stop initialization; a stable window is required before a map profile is written. Ctrl+C cancels the run.

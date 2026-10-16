@@ -1,0 +1,28 @@
+{
+  "scope": "Cloud ROS 2 Humble survey and orchestration checks; no aircraft or actual SUPER/PX4",
+  "unit_checks_passed": 47,
+  "live_ros_checks": {
+    "aged_outliers": "PASS: periodically inject 0.302 s old body poses with a deliberately different orientation; reject those poses, retain age evidence, and recover the fresh-sample quaternion with matching/spread checks",
+    "all_stale": "PASS: all body poses 0.302 s old produce no estimate and exit 2; no quaternion or usable alignment is reported"
+  },
+  "admission_band_s": [
+    -0.05,
+    0.25
+  ],
+  "unchanged": [
+    "body age bounds",
+    "pairing gap bound",
+    "minimum matched samples",
+    "rotation spread bound",
+    "original sample timestamps"
+  ],
+  "retained_evidence": [
+    "body_age_rejected",
+    "observed_body_age_min_s",
+    "observed_body_age_max_s"
+  ],
+  "preparation_subprocess_policy": "Full rehearsal actions use the streaming completion-driven subprocess path, replacing inherited 120 s preparation timeout; negative quaternion separator retained",
+  "ground_height_m": 0.5,
+  "physical_height_m": 1.5,
+  "limitations": "Input poses from the failed onboard run are unavailable; injected regressions establish filtering and report behavior, not the cause of original latency. Repeat onboard; no new complete physical/real-SUPER pass is claimed."
+}

@@ -26,6 +26,30 @@ def quaternion(q):
     return v / norm if np.all(np.isfinite(v)) and abs(norm-1) < .02 else None
 
 
+class FreshBodySamples:
+    """Exclude old/future body poses from the estimate, retaining age evidence."""
+    def __init__(self):
+        self.rejected_age=0;self.observed_min=self.observed_max=None
+
+    def receive(self,msg,now_ns):
+        q=quaternion(msg.pose.orientation)
+        if msg.header.frame_id!='camera_init' or q is None:return None
+        ns=msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec
+        age=(now_ns-ns)/1e9
+        self.observed_min=age if self.observed_min is None else min(self.observed_min,age)
+        self.observed_max=age if self.observed_max is None else max(self.observed_max,age)
+        if ns<=0 or not -.05<=age<=.25:
+            self.rejected_age+=1
+            return None
+        return stamp(msg),q,age
+
+    def evidence(self):
+        return dict(body_age_rejected=self.rejected_age,
+                    observed_body_age_min_s=self.observed_min,
+                    observed_body_age_max_s=self.observed_max,
+                    body_sample_policy='Only original body stamps within -0.05..0.25 s enter pairing/estimation')
+
+
 def summarize(rotations, gaps, ages, counts):
     report = dict(schema_version=1, received_body=counts[0], received_imu=counts[1],
                   matched=len(rotations), estimate_available=False)
@@ -69,6 +93,7 @@ def main(argv=None):
     pending = deque(maxlen=100)
     rotations, gaps, ages = [], [], []
     counts = [0, 0]
+    body_samples=FreshBodySamples()
     qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
 
     def on_imu(msg):
@@ -79,10 +104,8 @@ def main(argv=None):
 
     def on_body(msg):
         counts[0] += 1
-        q = quaternion(msg.pose.orientation)
-        if msg.header.frame_id == 'camera_init' and q is not None:
-            age = node.get_clock().now().nanoseconds / 1e9 - stamp(msg)
-            pending.append((stamp(msg), q, age))
+        sample=body_samples.receive(msg,node.get_clock().now().nanoseconds)
+        if sample is not None:pending.append(sample)
 
     subscriptions = [
         node.create_subscription(PoseStamped, '/super_debug/body_pose', on_body, qos),
@@ -103,6 +126,7 @@ def main(argv=None):
                     gaps.append(abs(nearest-t))
                     ages.append(age)
         report = summarize(rotations, gaps, ages, counts)
+        report.update(body_samples.evidence())
         report.update(ros_start_stamp_ns=start_stamp,
                       ros_end_stamp_ns=node.get_clock().now().nanoseconds,
                       completed_monotonic_s=time.monotonic())
@@ -111,6 +135,8 @@ def main(argv=None):
                 json.dump(report, handle, indent=2, allow_nan=False)
                 handle.write('\n')
         print('Received body/imu:', *counts, 'Matched:', len(rotations))
+        print('Body samples excluded by original-stamp age:',body_samples.rejected_age,
+              '; observed body age min/max:',body_samples.observed_min,body_samples.observed_max)
         if not report['estimate_available']:
             print('Insufficient matched samples; no alignment estimate.')
             if args.output_json is not None:

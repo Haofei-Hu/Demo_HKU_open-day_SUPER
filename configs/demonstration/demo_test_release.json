@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "9bcca1ba358b1fbf503418c38d4edb0efe77bd83df8832db408dcd1b47b94f61"
+      "sha256": "badfd7e32148d8a4a2463a5820aa41a297e8e1b91489876e1104559ddbad0f58"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -67,7 +67,7 @@
     },
     "frame_alignment_check.py": {
       "path": "scripts/localization/frame_alignment_check.py",
-      "sha256": "08dd78e395307c26d6e410a089e31a24e3e38710cffea6bce6880259e12e7c8a"
+      "sha256": "39bb2e1b0dd43951cbe46d2ad8d53d45f68b83033ef0ae7eb3b64639466e87a7"
     },
     "control_bridge_preview.py": {
       "path": "scripts/planning/control_bridge_preview.py",

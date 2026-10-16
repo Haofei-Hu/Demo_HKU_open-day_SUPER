@@ -76,6 +76,15 @@ class DemoTest(GroundTest):
                 if stage.get('returncode')!=0:self.report['failure_output']=stage['output_tail']
             write_report(self.path,self.report)
 
+    def action(self,action,*extra):
+        # Full rehearsal preparation uses the same completion-driven subprocess
+        # path as mission execution, including an unbounded stable-map wait.
+        command=[sys.executable,self.args.scripts_dir/'super_session.py',
+                 '--session',self.args.session,'--scripts-dir',self.args.scripts_dir,action]
+        if action=='vision':command.append('--')
+        command.extend(map(str,extra))
+        self.step(action,command)
+
     def run_complete(self):
         write_report(self.path,self.report);print('REPORT:',self.path,flush=True)
         try:
