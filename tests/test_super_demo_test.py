@@ -28,8 +28,10 @@ class Tests(unittest.TestCase):
         def step(name,command,env=None):
             actions.append((name,list(map(str,command)),env))
             if name=='complete_mission':
+                frozen=Path(command[command.index('--mission-file')+1])
+                phases=m.DemoMission.load(frozen).PHASES
                 (runner.folder/'mission_report.json').write_text(json.dumps(dict(result='SUCCESS',
-                    completed_stages=list(m.DemoMission.PHASES),simulation_backend=dict(actual_SUPER_used=not logic))))
+                    completed_stages=list(phases),simulation_backend=dict(actual_SUPER_used=not logic))))
         runner.step=step
         return runner,actions
 
@@ -82,6 +84,37 @@ class Tests(unittest.TestCase):
             runner.step=partial
             self.assertEqual(runner.run_complete(),1)
             self.assertIn('ordered mission',runner.report['error'])
+
+    def test_failed_rehearsal_retains_actual_planner_rejection_in_report(self):
+        with tempfile.TemporaryDirectory() as folder:
+            runner,_=self.runner(folder,logic=True)
+            def failed(name,command,env=None):
+                (runner.folder/'planner_rehearsal.log').write_text(
+                    'GenerateExpTrajectory SUCCESS\n'
+                    'Opt failed, Omg or thr or Pos violation.\n'
+                    'generateBackupTrajectory return [OPT_FAILED]\n')
+                raise RuntimeError('No verified mission reference within 8 s')
+            runner.step=failed
+            self.assertEqual(runner.run_complete(),1)
+            report=json.loads(runner.path.read_text())
+            evidence=report['planner_diagnostics']
+            self.assertEqual(evidence['marker_counts']['exploration_success'],1)
+            self.assertEqual(evidence['marker_counts']['backup_optimization_failure'],1)
+            self.assertEqual(evidence['marker_counts']['backup_constraint_rejection'],1)
+            self.assertIn('generateBackupTrajectory',evidence['output_tail'])
+            self.assertFalse(evidence['cause_inferred'])
+            self.assertFalse(report['physical_flight_verified'])
+
+    def test_short_site_choice_keeps_source_and_reports_one_metre(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,_=self.runner(folder)
+            runner.args.route_profile='short-1m';before=runner.args.mission_file.read_bytes()
+            self.assertEqual(runner.run_complete(),0)
+            self.assertEqual(runner.args.mission_file.read_bytes(),before)
+            self.assertEqual(runner.report['mission']['mission_id'],'short_site_1m_rehearsal')
+            self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,2.])
+            self.assertEqual(runner.report['mission_report']['completed_stages'][2],'SUPER_OUTBOUND_1M')
+            self.assertFalse(runner.report['demonstration_completed'])
 
 
 if __name__=='__main__':unittest.main()

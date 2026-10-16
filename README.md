@@ -2,7 +2,7 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 16, 2026:** the complete demonstration supervisor and automatic test entrypoint are implemented: 2 m takeoff, 4.5 m outbound, return, six-second hover and confirmed landing. The full synthetic ROS lifecycle and an injected return-failure test have passed. The new ground workflow captures the actual scene and runs real SUPER with virtual vehicle feedback in an isolated domain; that onboard rehearsal and physical full-mission flight remain pending. See [the complete mission test](docs/DEMONSTRATION_MISSION.md).
+**Status — October 16, 2026:** the complete demonstration supervisor and automatic test entrypoint are implemented: 2 m takeoff, 4.5 m outbound, return, six-second hover and confirmed landing. The full synthetic ROS lifecycle and an injected return-failure test have passed. The new ground workflow captures the actual scene and runs real SUPER with virtual vehicle feedback in an isolated domain; the first onboard attempt passed preparation but failed backup planning for the 4.5 m route in a location subsequently reported to have approximately 1.5 m forward room. A separate 1 m rehearsal is available; complete onboard rehearsal and physical full-mission flight remain unverified. See [the complete mission test](docs/DEMONSTRATION_MISSION.md).
 
 **Status — October 15, 2026:** the session-relative map correction has passed an aircraft ground audit. The controller accepted 217 matched references and retained `AUDIT_END` without faults across 18 status reports. Concurrent 30-second sampling found fresh raw, aligned, native-vision and FC poses; native-vision maximum age/gap was 35/36 ms. All remote preparation checks passed. RC/manual POSCTL remain required for supervised flight; this result does not validate airborne SUPER tracking or the 2 m/s demonstration. See [the recorded audit](data/observed_2026-10-15/session_map_ground_audit.json).
 
@@ -20,6 +20,8 @@ python3 ~/Downloads/super_demo_test.py \
 ```
 
 This automatically restarts the grounded stack, captures the quaternion and map, and rehearses the entire route using real SUPER and a virtual FC/vehicle in private ROS domain 197. The actual aircraft stays disarmed. The fixture geometry is explicitly synthetic while aircraft dimensions and takeoff wall distances remain unmeasured. The final `RESULT`, scope and saved report distinguish this rehearsal from flight. See [installation, stages and report interpretation](docs/DEMONSTRATION_MISSION.md).
+
+For the current short location, append `--route-profile short-1m` to the complete-test command. It retains climb, return, final hover and landing, but requests 1 m outbound. Its report cannot count as a completed 4.5 m demonstration. The actual map and backup planner still have to admit that route.
 
 The following short tests remain available as diagnostics.
 

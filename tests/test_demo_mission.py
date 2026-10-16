@@ -65,5 +65,24 @@ class Tests(unittest.TestCase):
                 self.assertEqual(saved['physical_flight_verified'],mode=='flight')
                 with self.assertRaises(ValueError):MissionReport(path,DemoMission(fixture()),mode)
 
+    def test_short_site_route_is_separate_and_cannot_pass_as_demonstration(self):
+        original=fixture();before=deepcopy(original)
+        short=DemoMission.short_site_fixture(original);mission=DemoMission(short)
+        self.assertEqual(original,before)
+        self.assertEqual(original['flight']['outbound_forward_m'],4.5)
+        self.assertEqual(mission.distance,1.)
+        self.assertEqual(mission.waypoints()['far_hover'],[1.,0.,2.])
+        self.assertEqual(mission.PHASES[2],'SUPER_OUTBOUND_1M')
+        self.assertEqual(mission.config['flight']['horizontal_speed_limit_mps'],2.)
+        self.assertEqual(mission.config['flight']['axis_error_limit_m'],.1)
+        with tempfile.TemporaryDirectory() as folder:
+            report=MissionReport(Path(folder)/'short.json',mission,'simulation')
+            with self.assertRaisesRegex(ValueError,'out of order'):
+                report.completed('SUPER_OUTBOUND_4_5M')
+            for stage in mission.PHASES:report.completed(stage)
+            report.finish();self.assertEqual(report.data['result'],'SUCCESS')
+            self.assertFalse(report.data['demonstration_completed'])
+            self.assertFalse(report.data['physical_flight_verified'])
+
 
 if __name__=='__main__':unittest.main()

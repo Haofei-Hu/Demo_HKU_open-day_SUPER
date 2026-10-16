@@ -1,0 +1,36 @@
+{
+  "run_id": "20261016_133912_117078",
+  "release": "b08ff1fe95c2b133132469c1dc4eabcb70e12042",
+  "result": "FAIL",
+  "mode": "real-SUPER-ground-rehearsal",
+  "passed": [
+    "core_start",
+    "automatic_alignment",
+    "vision_start",
+    "session_map_capture",
+    "30_second_vision_chain",
+    "scene_snapshot",
+    "virtual_takeoff_to_2m",
+    "virtual_home_stabilization"
+  ],
+  "failed_stage": "outbound_initial_planning",
+  "fault": "No verified mission reference within 8 s",
+  "native_vision_age_max_s": 0.043,
+  "native_vision_receive_gap_max_s": 0.037,
+  "captured_occupied_points": 8656,
+  "planner_evidence": [
+    "GenerateExpTrajectory SUCCESS",
+    "BackOpt: Opt failed, Omg or thr or Pos violation",
+    "generateBackupTrajectory return [OPT_FAILED]",
+    "PlanFromRest failed, try replan"
+  ],
+  "requested_forward_m": 4.5,
+  "user_reported_forward_obstacle_distance_approx_m": 1.5,
+  "user_reported_height_sufficient": true,
+  "route_site_mismatch": true,
+  "exact_backup_constraint_cause_verified": false,
+  "drift_as_failure_cause_verified": false,
+  "physical_flight_requested": false,
+  "next_test_profile": "short-1m",
+  "canonical_demonstration_distance_m": 4.5
+}

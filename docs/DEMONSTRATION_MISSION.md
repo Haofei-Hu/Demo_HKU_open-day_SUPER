@@ -38,9 +38,23 @@ python3 ~/Downloads/super_demo_test.py --logic-only --fixture-geometry
 
 This is explicitly a synthetic logic test. Its report has `actual_localization_tested=false` and `actual_SUPER_tested=false`. It cannot establish real planning, physical tracking, or flight completion.
 
+## Short-site rehearsal
+
+For a current location with approximately 1.5 m from the aircraft centre to the forward obstacle and sufficient height, select the separate one-metre test:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics --fixture-geometry \
+  --route-profile short-1m
+```
+
+This retains the 2 m climb, return to home, six-second hover and confirmed landing. It changes only the rehearsal's outbound distance to 1 m. Speed and acceleration remain capped at 2 m/s and 1 m/s²; a one-metre stop-to-stop route cannot establish a 2 m/s speed trial. Both the actual map's obstacles and the backup trajectory must still permit the route. No backup or obstacle checks are disabled.
+
+The canonical mission file remains unchanged at 4.5 m. The short test freezes a separate `short_site_1m_rehearsal` configuration and uses `SUPER_OUTBOUND_1M` in its expected/completed stages. Its virtual box is 2 m long with the test takeoff centre 0.5 m from its rear, representing 1.5 m forward room. The box width, height and aircraft extents remain labelled test geometry; this is not a survey of the current room or physical flight clearance. Short profiles cannot enable physical execution. `SUCCESS` here has `demonstration_completed=false` and cannot count as a completed 4.5 m demonstration.
+
 ## Reports and failure interpretation
 
-Each run creates `~/Downloads/super_demo_tests/<timestamp>/report.json`, stage logs, the captured alignment, a frozen mission file and a nested `mission_report.json`. Default rehearsal runs also retain the scene snapshot and private SUPER log. Upload the top-level report to retain the failed stage and the last 80 lines of a failed subprocess; the full files remain beside it.
+Each run creates `~/Downloads/super_demo_tests/<timestamp>/report.json`, stage logs, the captured alignment, a frozen mission file and a nested `mission_report.json`. Default rehearsal runs also retain the scene snapshot and private SUPER log. Upload the top-level report to retain the failed stage and the last 80 lines of a failed subprocess; the full files remain beside it. When the private SUPER log exists, the top-level report now also retains its last 100 lines and counts exploration successes, backup optimization/constraint failures, accepted goals and missing-odometry messages. These are evidence markers, not automatic root-cause assertions.
 
 A complete result requires all eight ordered stages, two navigation goals, the return hold, fresh landing-position feedback within 10 cm per horizontal axis of home, and fresh landed/disarmed confirmation. Completing the outbound leg alone cannot pass. The report identifies actual localization and SUPER usage, the virtual backend, completed stages, reference peaks, time-aligned tracking extrema and any fault. Native publication in the private graph is not proof of MAVROS-to-PX4 transport on the aircraft.
 
@@ -50,4 +64,4 @@ SUPER may commit an exploration prefix followed by a backup braking segment. Suc
 
 The complete synthetic ROS lifecycle has passed from the flat deployment directory, including return, six-second hold and confirmed landing. An injected return-command dropout produced `FAIL` rather than partial success. Source identity, snapshot capture, time-aligned tracking, rolling-stage handling, release checks and existing ground-manager tests have regression coverage. See [the software validation record](PROGRESS_2026-10-16.md).
 
-The default real-SUPER rehearsal still needs to run on the onboard installation. Actual full-mission flight, dynamic obstacle response, physical tracking and surveyed clearance remain unverified. The existing separate 1 m / six-second aircraft hover and landing result does not validate this new mission. Future supervised execution uses a separate entrypoint and requires measured geometry, compatible readback-confirmed PX4 limits, fresh RC/manual POSCTL and an explicit start request; restarting a terminal cannot initiate flight.
+The first onboard real-SUPER rehearsal passed real alignment, map capture and 30-second vision sampling, then failed at outbound planning: exploration optimization succeeded while backup optimization repeatedly failed. The current site was subsequently reported to have only approximately 1.5 m forward room, compared with the requested 4.5 m route. A complete onboard real-SUPER rehearsal is still unverified. Actual full-mission flight, dynamic obstacle response, physical tracking and surveyed clearance remain unverified. The existing separate 1 m / six-second aircraft hover and landing result does not validate this new mission. Future supervised execution uses a separate entrypoint and requires measured geometry, compatible readback-confirmed PX4 limits, fresh RC/manual POSCTL and an explicit start request; restarting a terminal cannot initiate flight.

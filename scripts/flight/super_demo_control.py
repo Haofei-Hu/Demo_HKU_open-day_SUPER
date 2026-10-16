@@ -28,7 +28,7 @@ from super_session import NATIVE_CONTROL_TOPICS
 
 class VenueFrame(TakeoffFrame):
     def __init__(self,position,quaternion,mission,on_floor):
-        super().__init__(position,quaternion,max_forward=4.6)
+        super().__init__(position,quaternion,max_forward=mission.distance+.1)
         self.mission,self.on_floor=mission,on_floor
 
     def check(self,position):
@@ -56,9 +56,13 @@ class DemoMissionControl(SuperFlightControl):
             raise ValueError('Flight requires explicit on-site supervision; no flight publisher created')
         self.mission_file=Path(mission_file);self.mission_bytes=self.mission_file.read_bytes()
         config=json.loads(self.mission_bytes)
+        if execute and not simulation and config.get('mission_id')!='open_day_out_and_back':
+            raise ValueError('Short-site rehearsal profiles cannot enable physical flight')
         if execute and not simulation and str(config.get('status','')).startswith('SYNTHETIC'):
             raise ValueError('Synthetic test geometry cannot enable a physical flight')
         self.mission=DemoMission(config)
+        self.MAX_DISTANCE=self.mission.distance
+        self.FRAME_FORWARD_LIMIT=self.mission.distance+.1
         self.mission_report=MissionReport(report_path,self.mission,'simulation' if simulation else
                                          ('flight' if execute else 'check-only'))
         self.velocity=None;self.leg=None;self.home=self.far=None
@@ -71,13 +75,13 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['tracking_policy']='FC pose timestamp matched to previously sent position/velocity reference'
         self.mission_report.data['peak_reference_speed_mps']=0.
         self.mission_report.data['peak_reference_acceleration_mps2']=0.
-        super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=4.5,
+        super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
         self.offboard_budget=90.
         self.create_subscription(TwistStamped,'/mavros/local_position/velocity_local',
                                  lambda msg:self.store('velocity',msg),qos_profile_sensor_data)
-        self.get_logger().info('DEMONSTRATION: 2 m rise, 4.5 m outbound, return, 6 s hold, LAND; '
-                               'venue 5.8 x 2.8 x 2.8 m OUTER; no parameter writes.')
+        self.get_logger().info(f'MISSION {config["mission_id"]}: 2 m rise, {self.distance:g} m outbound, '
+                               'return, 6 s hold, LAND; no parameter writes.')
 
     def make_native_publisher(self):
         return self.create_publisher(PositionTarget,self.NATIVE_TOPIC,10)
@@ -103,7 +107,7 @@ class DemoMissionControl(SuperFlightControl):
             self.frame=VenueFrame(self.reference.ground,quaternion_rpy(0,0,self.reference.yaw),
                 self.mission,lambda:self.extended is not None and self.extended.landed_state==1)
             self.home=np.array(self.reference.ground)+np.array([0.,0.,1.915])
-            self.far=self.home+self.frame.axes.T@np.array([4.5,0.,0.])
+            self.far=self.home+self.frame.axes.T@np.array([self.distance,0.,0.])
         self.mission_report.event(phase,leg=self.leg)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
@@ -121,7 +125,7 @@ class DemoMissionControl(SuperFlightControl):
 
     def target_ok(self,position,label='Reference'):
         p=self.frame.check(position)
-        if not (-.1<=p[0]<=4.6 and abs(p[1])<=.1 and abs(p[2]-2.)<=.1):
+        if not (-.1<=p[0]<=self.distance+.1 and abs(p[1])<=.1 and abs(p[2]-2.)<=.1):
             raise ValueError(label+' outside demonstration corridor: '+str(p.round(5).tolist()))
 
     def check_envelope(self,xyz,yaw,ground):
@@ -209,7 +213,7 @@ class DemoMissionControl(SuperFlightControl):
 
     def start(self,request,response):
         response=super().start(request,response)
-        if response.success:response.message='Accepted one full demonstration: 2 m rise, 4.5 m outbound, return, 6 s hold, LAND'
+        if response.success:response.message=f'Accepted one mission: 2 m rise, {self.distance:g} m outbound, return, 6 s hold, LAND'
         return response
 
     def arrived(self,xyz,target):
@@ -270,7 +274,7 @@ class DemoMissionControl(SuperFlightControl):
                 if self.arrived_since is None:self.arrived_since=now
                 if now-self.arrived_since>=1.:
                     if self.leg=='outbound':
-                        self.mission_report.completed('SUPER_OUTBOUND_4_5M')
+                        self.mission_report.completed(self.mission.PHASES[2])
                         self.mission_report.completed('STABILIZE_AT_FAR_POINT')
                         self.request_leg('return',self.home)
                     else:

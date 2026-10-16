@@ -1,0 +1,66 @@
+{
+  "scope": "Cloud ROS 2 Humble synthetic logic validation; no actual SUPER or aircraft flight",
+  "runs": [
+    {
+      "route_profile": "short-1m",
+      "result": "SUCCESS",
+      "mode": "logic-simulation",
+      "demonstration_completed": false,
+      "completed_stages": [
+        "TAKEOFF_TO_2M",
+        "STABILIZE_AT_HOME",
+        "SUPER_OUTBOUND_1M",
+        "STABILIZE_AT_FAR_POINT",
+        "SUPER_RETURN_HOME",
+        "HOLD_HOME_6S",
+        "AUTO_LAND",
+        "CONFIRM_LANDED_AND_DISARMED"
+      ],
+      "peak_reference_speed_mps": 0.7802484489095437,
+      "peak_reference_acceleration_mps2": 0.9999126081915729,
+      "return_hover_duration_s": 6.000004280009307,
+      "planner_goals_sent": 2,
+      "physical_flight_verified": false,
+      "actual_SUPER_tested": false,
+      "virtual_final_armed": false,
+      "virtual_final_landed": true
+    },
+    {
+      "route_profile": "demonstration",
+      "result": "SUCCESS",
+      "mode": "logic-simulation",
+      "demonstration_completed": true,
+      "completed_stages": [
+        "TAKEOFF_TO_2M",
+        "STABILIZE_AT_HOME",
+        "SUPER_OUTBOUND_4_5M",
+        "STABILIZE_AT_FAR_POINT",
+        "SUPER_RETURN_HOME",
+        "HOLD_HOME_6S",
+        "AUTO_LAND",
+        "CONFIRM_LANDED_AND_DISARMED"
+      ],
+      "peak_reference_speed_mps": 1.6552589688147992,
+      "peak_reference_acceleration_mps2": 0.9999120706223409,
+      "return_hover_duration_s": 6.05053389002569,
+      "planner_goals_sent": 2,
+      "physical_flight_verified": false,
+      "actual_SUPER_tested": false,
+      "virtual_final_armed": false,
+      "virtual_final_landed": true
+    }
+  ],
+  "earlier_failed_trial": {
+    "route_profile": "short-1m",
+    "result": "FAIL",
+    "error": "Setpoint timer interrupted for more than 0.2 seconds",
+    "observed_timer_gap_s": 0.241944,
+    "previous_tick_runtime_s": 0.001067
+  },
+  "rerun_environment": "ROS processes restricted to CPUs 0-2 and numerical suites kept separate; thresholds unchanged",
+  "timer_stall_root_cause_verified": false,
+  "pending": [
+    "Actual SUPER short-site map rehearsal",
+    "Physical flight and surveyed current-room clearance"
+  ]
+}
