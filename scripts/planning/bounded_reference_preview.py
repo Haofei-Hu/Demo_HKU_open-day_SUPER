@@ -108,10 +108,17 @@ class Reference:
     def fault(self, reason):
         self.phase, self.reason = 'FAULT', str(reason)
 
+    def check_plan_endpoint(self, plan, adding=False):
+        if self.endpoint is not None and (not adding or self.phase == 'TRACK') and norm(plan.endpoint-self.endpoint) > .02:
+            raise ValueError('Committed endpoint changed; explicit new session required' if adding else
+                             'Command belongs to a different goal')
+
+    def can_hold_endpoint(self, plan, position):
+        return True
+
     def add_plan(self, msg):
         plan = Plan(msg)
-        if self.phase == 'TRACK' and norm(plan.endpoint-self.endpoint) > .02:
-            raise ValueError('Committed endpoint changed; explicit new session required')
+        self.check_plan_endpoint(plan, adding=True)
         self.plans.append(plan)
 
     def command(self, stamp, raw, velocity, acceleration, position, quaternion, measured_position=None):
@@ -135,8 +142,7 @@ class Reference:
         plan = next((p for p in reversed(self.plans) if p.matches(stamp,raw,velocity,acceleration)),None)
         if plan is None:
             return None  # DDS topics may arrive in either order; bounded node queue retries.
-        if self.endpoint is not None and norm(plan.endpoint-self.endpoint) > .02:
-            raise ValueError('Command belongs to a different goal')
+        self.check_plan_endpoint(plan)
         self.frame.check(position)
         if self.last is None:
             measured = self.frame.origin if measured_position is None else np.asarray(measured_position,dtype=float)
@@ -177,9 +183,28 @@ class Reference:
         # sample or PositionCommand flag alone cannot establish completion.
         if (stamp/1e9 >= plan.end and norm(raw-plan.endpoint) <= .015
                 and norm(velocity) <= .03 and norm(acceleration) <= .10
-                and norm(plan.end_velocity) <= .03 and norm(plan.end_acceleration) <= .10):
+                and norm(plan.end_velocity) <= .03 and norm(plan.end_acceleration) <= .10
+                and self.can_hold_endpoint(plan,position)):
             self.phase = 'END_HOLD'
         return True
+
+
+class RollingGoalReference(Reference):
+    """Allow changing committed stages, but hold only the fixed navigation goal.
+
+    Callbacks check the stage endpoint/corridor and the final requested goal.
+    Polynomial agreement, derivatives, initial offset and continuity remain the
+    base Reference policy. The default short-goal Reference is unchanged.
+    """
+    def __init__(self,frame,endpoint_check,final_goal_check):
+        super().__init__(frame,2.,1.)
+        self.endpoint_check=endpoint_check;self.final_goal_check=final_goal_check
+
+    def check_plan_endpoint(self,plan,adding=False):
+        if adding:self.endpoint_check(plan)
+
+    def can_hold_endpoint(self,plan,position):
+        return self.final_goal_check(plan,position)
 
 
 def node_type():

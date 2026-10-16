@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-16",
+  "scope": "Cloud ROS 2 Humble software validation; no aircraft or PX4 flight",
+  "nominal": {
+    "result": "SUCCESS",
+    "entrypoint": "super_demo_test.py --logic-only --fixture-geometry",
+    "mode": "logic-simulation",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_4_5M",
+      "STABILIZE_AT_FAR_POINT",
+      "SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "planner_goals_sent": 2,
+    "return_hover_duration_s": 6.050187557004392,
+    "peak_reference_speed_mps": 1.6552565026353785,
+    "peak_reference_acceleration_mps2": 0.9999136964849328,
+    "max_tracking_error_forward_left_up_m": [
+      0.0001432825075701308,
+      4.528781957643406e-16,
+      1.2712722619157013e-05
+    ],
+    "backend": {
+      "kind": "ideal synthetic ROS planning and vehicle",
+      "actual_SUPER_used": false,
+      "actual_PX4_used": false,
+      "hardware_used": false,
+      "ledger": {
+        "goals": [
+          [
+            3.8340102670935527,
+            2.4608911302776586,
+            1.175
+          ],
+          [
+            0.12,
+            -0.08,
+            1.175
+          ]
+        ],
+        "commands": [
+          "OFFBOARD",
+          "ARM",
+          "AUTO.LAND"
+        ],
+        "peak_native_speed": 1.6552565026353787,
+        "armed": false,
+        "landed": true
+      },
+      "scene_file": null,
+      "static_snapshot_adaptation": []
+    },
+    "landing_max_horizontal_error_m": 0.0
+  },
+  "injected_return_dropout": {
+    "expected_result": "FAIL",
+    "actual_result": "FAIL",
+    "error": "Command stream expired before confirmed endpoint",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME",
+      "SUPER_OUTBOUND_4_5M",
+      "STABILIZE_AT_FAR_POINT"
+    ]
+  },
+  "actual_SUPER_full_rehearsal_verified": false,
+  "physical_flight_verified": false,
+  "physical_venue_clearance_verified": false,
+  "limitations": [
+    "Ideal synthetic planning and vehicle metrics are not physical flight accuracy.",
+    "The real-SUPER captured-scene branch has orchestration and snapshot unit/subprocess coverage, but requires an onboard end-to-end run.",
+    "Earlier development fixture runs failed freshness and planning-stamp checks; those failures are not counted as passes.",
+    "Aircraft dimensions and takeoff wall distances remain unmeasured."
+  ],
+  "regression_checks": {
+    "canonical_and_standalone_hover_lifecycles": "PASS, ROS 2 Humble / Python 3.10, isolated simulated telemetry",
+    "python_310_generated_artifact_exact_check": "PASS",
+    "demo_tracking_and_landing_observer": "3 cases PASS, ROS 2 Humble / Python 3.10",
+    "rolling_goal_reference": "6 cases PASS",
+    "ground_manager": "41 cases PASS",
+    "automatic_ground_runner": "13 cases PASS",
+    "deployment_layout": "3 cases PASS",
+    "mission_geometry_and_report": "6 cases PASS",
+    "automatic_demo_orchestration": "5 cases PASS, mocked real-stack orchestration",
+    "pinned_installer": "3 cases PASS",
+    "private_snapshot_profile": "1 case PASS",
+    "scene_capture_subprocess": "PASS for map/paired geometry/frozen files and native-writer refusal"
+  }
+}

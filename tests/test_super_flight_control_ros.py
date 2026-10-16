@@ -1,6 +1,7 @@
 """Isolated SUPER handover fixture. All telemetry/command services are simulated."""
 import math
 import copy
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -11,9 +12,9 @@ import yaml
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped,PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped,PoseWithCovarianceStamped,TwistStamped
 from nav_msgs.msg import Odometry
-from mavros_msgs.msg import State,ExtendedState,EstimatorStatus,RCIn
+from mavros_msgs.msg import State,ExtendedState,EstimatorStatus,RCIn,PositionTarget
 from mavros_msgs.srv import SetMode,CommandBool
 from std_srvs.srv import Trigger
 from std_msgs.msg import String
@@ -50,6 +51,17 @@ def speed_plan(start,end,when,scale=1.):
     return msg
 
 
+def stage_plan(start,end,when,duration):
+    msg=PolynomialTrajectory();msg.header.frame_id='world'
+    msg.type=3;msg.order_pos=7;msg.piece_num_pos=1
+    msg.start_wt_pos=float(when);msg.time_pos=[float(duration)]
+    for axis,name in enumerate(('coef_pos_x','coef_pos_y','coef_pos_z')):
+        delta=end[axis]-start[axis]
+        setattr(msg,name,[0.,0.,float(6*delta/duration**5),float(-15*delta/duration**4),
+                         float(10*delta/duration**3),0.,0.,float(start[axis])])
+    return msg
+
+
 def run(case):
     with tempfile.TemporaryDirectory() as directory:
         alignment=Path(directory)/'alignment.py'
@@ -57,12 +69,14 @@ def run(case):
         config=Path(directory)/'planner.yaml'
         cfg=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
         cfg['fsm']['click_height']=-6.
-        fast=case.startswith('audit_speed5')
+        demo=case.startswith('flight_demo')
+        fast=case.startswith('audit_speed5') or demo
         cfg['traj_opt']['boundary'].update(max_vel=2. if fast else .25,max_acc=1. if fast else .45)
         config.write_text(yaml.safe_dump(cfg))
         rclpy.init()
         params=Node('param',namespace='/mavros')
-        for key,value in PARAMETERS.items():
+        expected=dict(PARAMETERS,MPC_XY_VEL_MAX=2.) if demo else PARAMETERS
+        for key,value in expected.items():
             if case=='param_value_mismatch' and key=='MPC_XY_VEL_MAX':value=.6
             params.declare_parameter(key,value)
         frame=Node('setpoint_position',namespace='/mavros')
@@ -82,9 +96,20 @@ def run(case):
             'estimator':(EstimatorStatus,'/mavros/estimator_status'), 'rc':(RCIn,'/mavros/rc/in'),
             'command':(PositionCommand,'/planning/pos_cmd'), 'plan':(PolynomialTrajectory,'/planning_cmd/poly_traj')}
         pubs={name:probe.create_publisher(kind,topic,10) for name,(kind,topic) in kinds.items()}
+        if demo:pubs['velocity']=probe.create_publisher(TwistStamped,'/mavros/local_position/velocity_local',10)
         executor=SingleThreadedExecutor()
         for node in (params,frame,probe):executor.add_node(node)
-        if fast:
+        if demo:
+            from super_demo_control import DemoMissionControl
+            mission=json.loads((ROOT/'configs/demonstration/open_day_mission.json').read_text())
+            mission['takeoff'].update(forward_from_rear_m=.5,distance_from_left_m=1.4)
+            for name in ('front','rear','left','right'):mission['vehicle']['centre_to_'+name+'_m']=.2
+            mission['vehicle'].update(centre_to_top_m=.1,centre_to_bottom_m=.085)
+            mission_file=Path(directory)/'mission.json';mission_file.write_text(json.dumps(mission))
+            demo_report=Path(directory)/'report.json'
+            bridge=DemoMissionControl(mission_file,demo_report,execute=True,on_site_supervised=True,
+                                     alignment_path=alignment,planner_config=config,simulation=True)
+        elif fast:
             from ground_speed_audit import GroundSpeedAudit
             bridge=GroundSpeedAudit(alignment_path=alignment,planner_config=config)
         else:
@@ -130,6 +155,11 @@ def run(case):
                     ns=msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec+100_000_000
                     msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(ns,1_000_000_000)
                 pubs[name].publish(msg)
+            if demo:
+                velocity=TwistStamped();stamp(velocity);velocity.header.frame_id='map'
+                values=settings.get('native_velocity',np.zeros(3))
+                for axis,value in zip(('x','y','z'),values):setattr(velocity.twist.linear,axis,float(value))
+                pubs['velocity'].publish(velocity)
 
         def make_plan(start,end,when):
             if fast:
@@ -152,13 +182,28 @@ def run(case):
             if case in ('audit_corridor','audit_speed5_corridor'):start+=bridge.frame.axes.T@np.array([0.,.11,0.])
             delay=.4 if case=='audit_overlap' else .1
             plan=make_plan(start,end,probe.get_clock().now().nanoseconds/1e9+delay)
+            if case=='audit_speed5_rolling':
+                # A committed prefix plus backup braking stop ends at 1 m.
+                # A later commit preserves that prefix and continues to 5 m.
+                stage_end=start+(end-start)/5.
+                plan=stage_plan(start,stage_end,plan.start_wt_pos,3.)
+                extension=stage_plan(stage_end,end,plan.start_wt_pos+3.,5.)
+                replacement=copy.deepcopy(plan)
+                replacement.piece_num_pos=2;replacement.time_pos=[3.,5.]
+                for name in ('coef_pos_x','coef_pos_y','coef_pos_z'):
+                    setattr(replacement,name,list(getattr(plan,name))+list(getattr(extension,name)))
+                settings['replacement']=replacement
+                stamp(plan)
             settings['plan']=plan
             if case!='audit_overlap':pubs['plan'].publish(plan)
 
         def planning():
             poly=settings['plan']
             if poly is None or settings['drop_commands']:return
-            now=probe.get_clock().now().nanoseconds/1e9
+            stamp_ns=probe.get_clock().now().nanoseconds;now=stamp_ns/1e9
+            if settings.get('replacement') is not None and now>poly.start_wt_pos+1.:
+                poly=settings.pop('replacement');stamp(poly)
+                settings['plan']=poly;pubs['plan'].publish(poly)
             if case=='audit_overlap' and now<poly.start_wt_pos:
                 if now>=poly.start_wt_pos-.05 and not settings.get('poly_sent'):
                     stamp(poly);pubs['plan'].publish(poly);settings['poly_sent']=True
@@ -181,6 +226,8 @@ def run(case):
                 pubs['plan'].publish(poly);plan=Plan(poly)
             p,v,a=plan.evaluate(now-poly.start_wt_pos)
             msg=PositionCommand();stamp(msg);msg.header.frame_id='world';msg.trajectory_flag=1;msg.yaw=yaw
+            msg.header.stamp.sec,msg.header.stamp.nanosec=divmod(stamp_ns,1_000_000_000)
+            if case=='audit_speed5_rolling' and 'replacement' in settings:msg.trajectory_flag=2
             msg.attitude.z=yaw
             for field,values in (('position',p),('velocity',v),('acceleration',a)):
                 for axis,value in zip(('x','y','z'),values):setattr(getattr(msg,field),axis,float(value))
@@ -190,6 +237,7 @@ def run(case):
             requests.append(request.custom_mode);settings['mode']=request.custom_mode;response.mode_sent=True
             if request.custom_mode=='AUTO.LAND':
                 settings['armed']=False;settings['landed']=ExtendedState.LANDED_STATE_ON_GROUND
+                if demo:settings['pose']=ground.copy();settings['native_velocity']=np.zeros(3)
             return response
         def arm(request,response):
             requests.append('ARM' if request.value else 'DISARM')
@@ -198,16 +246,19 @@ def run(case):
         def target(msg):
             native.append(msg)
             if execute and settings['armed']:
-                settings['pose']=np.array([msg.pose.position.x,msg.pose.position.y,msg.pose.position.z])
+                p=msg.position if demo else msg.pose.position
+                settings['pose']=np.array([p.x,p.y,p.z])
+                if demo:settings['native_velocity']=np.array([msg.velocity.x,msg.velocity.y,msg.velocity.z])
         probe.create_service(SetMode,'/mavros/set_mode',mode)
         probe.create_service(CommandBool,'/mavros/cmd/arming',arm)
-        probe.create_subscription(PoseStamped,NATIVE,target,10)
+        probe.create_subscription(PositionTarget if demo else PoseStamped,
+                                  bridge.NATIVE_TOPIC if demo else NATIVE,target,10)
         probe.create_subscription(PoseStamped,bridge.DEBUG_TOPIC,debug.append,10)
         probe.create_subscription(String,'/super_debug/super_flight_status',
                                   lambda msg:statuses.append(msg.data),10)
         probe.create_subscription(PoseStamped,'/goal_pose',goal_received,10)
         probe.create_timer(.02,telemetry);probe.create_timer(.01,planning)
-        start_client=probe.create_client(Trigger,'/super_flight/start')
+        start_client=probe.create_client(Trigger,bridge.START_SERVICE)
         audit_client=probe.create_client(Trigger,'/super_flight/audit')
 
         def spin(seconds):
@@ -261,6 +312,26 @@ def run(case):
             else:
                 assert not call(audit_client).success
                 assert call(start_client).success
+            if demo:
+                wait(lambda:bridge.phase in ('DONE','STOPPED'),seconds=85.)
+                assert bridge.phase=='DONE',(bridge.phase,bridge.fault)
+                assert requests==['OFFBOARD','ARM','AUTO.LAND'],requests
+                assert len(goals)==2,'Expected outbound and return, without retries'
+                final=json.loads(demo_report.read_text())
+                from demo_mission import DemoMission
+                assert final['result']=='SUCCESS' and final['completed_stages']==list(DemoMission.PHASES)
+                assert final['mode']=='simulation' and not final['physical_flight_verified']
+                delta=np.array([goals[1].pose.position.x-goals[0].pose.position.x,
+                                goals[1].pose.position.y-goals[0].pose.position.y,
+                                goals[1].pose.position.z-goals[0].pose.position.z])
+                assert abs(np.linalg.norm(delta)-4.5)<1e-8
+                assert abs(bridge.frame.coordinates(settings['pose'])[2]-.085)<1e-8
+                assert any(math.hypot(m.velocity.x,m.velocity.y)>1. for m in native)
+                assert all(m.coordinate_frame==PositionTarget.FRAME_LOCAL_NED for m in native)
+                assert all(not m.type_mask & (PositionTarget.IGNORE_VX|PositionTarget.IGNORE_VY|PositionTarget.IGNORE_VZ)
+                           for m in native)
+                print('PASS: COMPLETE DEMONSTRATION 2 m rise / 4.5 m outbound / return / 6 s hover / confirmed LAND',flush=True)
+                return
             if case in ('audit_corridor','audit_speed5_corridor'):
                 wait(lambda:bridge.phase=='STOPPED')
                 assert 'outside initial straight-line handover corridor' in bridge.fault
@@ -307,9 +378,9 @@ def run(case):
             else:
                 wait(lambda:bridge.phase=='END_HOLD' if execute else bridge.phase=='AUDIT_END')
                 held=bridge.follower.last[1].copy()
-                spin(6.2 if case in ('audit_sustained_hold','audit_speed5_hold') else .4)
+                spin(6.2 if case in ('audit_sustained_hold','audit_speed5_hold','audit_speed5_rolling') else .4)
                 assert np.array_equal(held,bridge.follower.last[1]),'Restart altered terminal reference'
-                if case in ('audit_sustained_hold','audit_speed5_hold'):
+                if case in ('audit_sustained_hold','audit_speed5_hold','audit_speed5_rolling'):
                     assert bridge.phase=='AUDIT_END' and bridge.fault is None
                     assert sum(status.startswith('AUDIT_END:') for status in statuses)>=6
                     if fast:

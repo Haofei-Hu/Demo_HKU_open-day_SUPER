@@ -385,18 +385,19 @@ class Session:
             'low-speed-reserved': ('mid360_low_speed_reserved_ros2.yaml', .25, .45),
             'low-speed-3d': ('mid360_low_speed_3d_goal_ros2.yaml', .25, .45),
             'forward-5m-2mps': ('mid360_forward_5m_ground_ros2.yaml', 2., 1.),
+            'demo': ('mid360_demo_mission_ros2.yaml', 2., 1.),
         }
         expected = motion_profiles.get(self.args.planner_profile)
         if expected is not None:
             filename, expected_velocity, expected_acceleration = expected
             target = folder/filename
             if not target.is_file():
-                if self.args.planner_profile == 'forward-5m-2mps':
+                if self.args.planner_profile in ('forward-5m-2mps','demo'):
                     source=folder/'mid360_low_speed_3d_goal_ros2.yaml'
                     helper=self.scripts/'create_super_speed_ground_profile.py'
                     if not source.is_file() or not helper.is_file():
                         raise RuntimeError('Need existing low-speed-3d profile and create_super_speed_ground_profile.py')
-                    run(['python3',helper,'--source',source])
+                    run(['python3',helper,'--source',source]+(['--mission'] if self.args.planner_profile=='demo' else []))
                 elif self.args.planner_profile == 'low-speed-3d':
                     source = folder/'mid360_low_speed_reserved_ros2.yaml'
                     if not source.is_file():
@@ -428,7 +429,7 @@ class Session:
             limits = data.get('traj_opt', {}).get('boundary', {})
             if limits.get('max_vel') != expected_velocity or limits.get('max_acc') != expected_acceleration:
                 raise RuntimeError(f'Low-speed preview requires max_vel={expected_velocity} and max_acc={expected_acceleration}')
-        if self.args.planner_profile in ('low-speed-3d','forward-5m-2mps') and fsm.get('click_height') != -6.0:
+        if self.args.planner_profile in ('low-speed-3d','forward-5m-2mps','demo') and fsm.get('click_height') != -6.0:
             raise RuntimeError('3D goal preview requires click_height=-6 to preserve message Z')
         (folder.parent/'log').mkdir(parents=True, exist_ok=True)
         return target
@@ -443,7 +444,7 @@ class Session:
         print('Ground planning stopped; localization and vision remain running.')
 
     def session_map_profile(self,source,gate):
-        if self.args.planner_profile not in ('low-speed-3d','forward-5m-2mps'):return source
+        if self.args.planner_profile not in ('low-speed-3d','forward-5m-2mps','demo'):return source
         helper=self.scripts/'create_session_map_profile.py'
         if not helper.is_file():raise RuntimeError('Missing session map helper: '+str(helper))
         token=hashlib.sha256(str(self.config['logs']).encode()).hexdigest()[:12]
@@ -762,7 +763,7 @@ def unmanaged_processes():
     scripts = set(SCRIPTS)-{'odom_age_check.py', 'frame_alignment_check.py', 'update_preview_alignment.py'}
     scripts |= {'raw_pose_cov_transport.py', 'aligned_pose_cov_transport.py', 'ground_xy_fusion_transport.py',
                 'ground_height_fusion_transport.py', 'ground_setpoint_transport.py', 'first_hover_control.py', 'first_hover_preview.py',
-                'bounded_reference_preview.py','super_flight_control.py','ground_speed_audit.py'}
+                'bounded_reference_preview.py','super_flight_control.py','ground_speed_audit.py','super_demo_control.py'}
     found = []
     for path in Path('/proc').glob('[0-9]*/cmdline'):
         try:
@@ -785,7 +786,7 @@ def arguments(argv=None):
     parser.add_argument('--fcu-url', default=DEFAULT_FCU)
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--restart', action='store_true', help='replace only the hover window after a fresh ground-state check')
-    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d','forward-5m-2mps'), default='diagnostic',
+    parser.add_argument('--planner-profile', choices=('diagnostic', 'low-speed', 'low-speed-margin', 'low-speed-reserved', 'low-speed-3d','forward-5m-2mps','demo'), default='diagnostic',
                         help='ground profile; low-speed 0.3/0.5, margin 0.3/0.45, reserved/3d 0.25/0.45; 3d preserves message Z before map relocation')
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')

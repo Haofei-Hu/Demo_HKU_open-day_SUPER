@@ -303,7 +303,7 @@ class GroundTest:
                 self.report['failure_output']=stage['output_tail']
             write_report(self.path, self.report)
 
-    def prepare(self):
+    def prepare(self,planner_profile=None):
         """Reusable preparation; any future flight entry must add fresh flight gates."""
         required = (*manager.SCRIPTS, 'super_session.py', 'control_chain_age_check.py',
                     'super_flight_control.py', 'ground_setpoint_transport.py')
@@ -328,7 +328,7 @@ class GroundTest:
         q = alignment_quaternion(measured, self.args.max_alignment_spread_deg)
         print('Applying this run\'s measured quaternion xyzw:', q, flush=True)
         self.action('vision', *q)
-        profile='forward-5m-2mps' if self.args.test_profile=='forward-5m-2mps' else 'low-speed-3d'
+        profile=planner_profile or ('forward-5m-2mps' if self.args.test_profile=='forward-5m-2mps' else 'low-speed-3d')
         self.action('planner','--planner-profile',profile)
         self.session.load()
         self.report['session'] = self.session.config

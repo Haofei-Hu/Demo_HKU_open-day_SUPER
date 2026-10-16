@@ -200,9 +200,11 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
             samples[topic].report(now)
         if not check_motion:
             if vision_chain:
-                print(f'Sampled vision chain fresh: {all(s.fresh(now) for s in samples.values())}; '
+                fresh=all(s.fresh(now) for s in samples.values())
+                print(f'Sampled vision chain fresh: {fresh}; '
                       f'observer loop gap max={loop_gap_max:.6f}s')
                 print('Independent subscriber observation; this cannot prove controller reception or physical accuracy.')
+                return 0 if fresh else 2
             return 0
         print(f'Planner advertised 3D speed max: {motion.speed:.6f} m/s '
               f'(requested <= {max_speed:g})')

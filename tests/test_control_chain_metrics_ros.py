@@ -80,7 +80,7 @@ try:
         output=io.StringIO()
         with contextlib.redirect_stdout(output):result=m.monitor(4.,vision_chain=True)
         injection.join()
-        assert result==0,output.getvalue()  # Read-only report, not motion acceptance.
+        assert result==(2 if event is not None else 0),output.getvalue()
         assert '/super_debug/aligned_pose_cov' in output.getvalue()
         assert 'observer loop gap max=' in output.getvalue()
         if event is not None:

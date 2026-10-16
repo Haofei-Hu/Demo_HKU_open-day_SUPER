@@ -32,6 +32,9 @@ PARAMETERS = dict(LIMITS, EKF2_EV_POS_X=0.0, EKF2_EV_POS_Y=0.0,
 
 
 class FirstHoverControl(Node):
+    MAX_HOVER_HEIGHT = 1.
+    EXPECTED_PARAMETERS = PARAMETERS
+    NATIVE_TOPIC = NATIVE
     NODE_NAME = 'first_hover'
     DEBUG_TOPIC = DEBUG
     START_SERVICE = '/first_hover/start'
@@ -41,8 +44,8 @@ class FirstHoverControl(Node):
     def __init__(self, execute=False, hover_fc_height=.5, hold_seconds=2.):
         profile = HoverReference((0., 0., 0.), 0.,
                                  hover_fc_height=hover_fc_height, hold_seconds=hold_seconds)
-        if hover_fc_height > 1.:
-            raise ValueError('First-hover controller supports FC heights up to 1 m')
+        if hover_fc_height > self.MAX_HOVER_HEIGHT:
+            raise ValueError(f'Controller supports FC heights up to {self.MAX_HOVER_HEIGHT:g} m')
         super().__init__(self.NODE_NAME)
         self.execute = execute
         self.hover_fc_height = float(hover_fc_height)
@@ -65,7 +68,7 @@ class FirstHoverControl(Node):
         self.confirmed = {}
         self.parameter_futures = {}
         self.debug_pub = self.create_publisher(PoseStamped, self.DEBUG_TOPIC, 10)
-        self.native_pub = self.create_publisher(PoseStamped, NATIVE, 10) if execute else None
+        self.native_pub = self.make_native_publisher() if execute else None
         for field, msg_type, topic in (
             ('state', State, '/mavros/state'),
             ('local', PoseStamped, '/mavros/local_position/pose'),
@@ -97,6 +100,9 @@ class FirstHoverControl(Node):
             f'hold={self.hold_seconds:g} s, fixed XY/yaw, then AUTO.LAND; '
             f'OFFBOARD budget={self.offboard_budget:g} s; one flight only.')
 
+    def make_native_publisher(self):
+        return self.create_publisher(PoseStamped,self.NATIVE_TOPIC,10)
+
     def store(self, field, msg):
         setattr(self, field, msg)
         self.receipts[field] = time.monotonic()
@@ -120,7 +126,7 @@ class FirstHoverControl(Node):
             if not client.service_is_ready():
                 self.confirmed.pop(key, None)
                 continue
-            names = list(PARAMETERS) if key == 'fc' else ['mav_frame']
+            names = list(self.EXPECTED_PARAMETERS) if key == 'fc' else ['mav_frame']
             future = client.call_async(GetParameters.Request(names=names))
             self.parameter_futures[key] = (future, time.monotonic())
             future.add_done_callback(lambda result, name=key: self.parameter_result(name, result))
@@ -128,7 +134,7 @@ class FirstHoverControl(Node):
     def parameter_result(self, key, future):
         try:
             values = future.result().values
-            expected = list(PARAMETERS.values()) if key == 'fc' else ['LOCAL_NED']
+            expected = list(self.EXPECTED_PARAMETERS.values()) if key == 'fc' else ['LOCAL_NED']
             if len(values) != len(expected):
                 raise ValueError('Incomplete parameter response')
             for value, target in zip(values, expected):
@@ -183,15 +189,15 @@ class FirstHoverControl(Node):
         if self.count_publishers(self.DEBUG_TOPIC) != 1:
             raise ValueError('Another hover controller/preview is publishing')
         if self.execute:
-            if self.count_publishers(NATIVE) != 1 or self.native_pub.get_subscription_count() < 1:
+            if self.count_publishers(self.NATIVE_TOPIC) != 1 or self.native_pub.get_subscription_count() < 1:
                 raise ValueError('Need this node as sole position sender, with MAVROS subscriber')
-            for topic in ('/mavros/setpoint_raw/local', '/mavros/setpoint_raw/global',
+            for topic in (NATIVE,'/mavros/setpoint_raw/local', '/mavros/setpoint_raw/global',
                           '/mavros/setpoint_raw/attitude', '/mavros/setpoint_position/global',
                           '/mavros/setpoint_position/global_to_local',
                           '/mavros/setpoint_velocity/cmd_vel', '/mavros/setpoint_velocity/cmd_vel_unstamped',
                           '/mavros/setpoint_accel/accel', '/mavros/setpoint_attitude/attitude',
                           '/mavros/setpoint_attitude/cmd_vel', '/mavros/setpoint_attitude/thrust'):
-                if self.count_publishers(topic):
+                if topic!=self.NATIVE_TOPIC and self.count_publishers(topic):
                     raise ValueError('Other control publisher: ' + topic)
         if ground:
             rc_required = self.execute or self.RC_IN_CHECK

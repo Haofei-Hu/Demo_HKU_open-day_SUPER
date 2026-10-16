@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Canonical demonstration geometry and report; no ROS or aircraft operations."""
+from copy import deepcopy
+from datetime import datetime
+import json
+import math
+from pathlib import Path
+
+
+class DemoMission:
+    PHASES=('TAKEOFF_TO_2M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
+            'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME','HOLD_HOME_6S',
+            'AUTO_LAND','CONFIRM_LANDED_AND_DISARMED')
+
+    def __init__(self,config):
+        self.config=deepcopy(config)
+        if config.get('schema_version')!=1:raise ValueError('Unsupported mission schema')
+        v=config['venue'];f=config['flight'];s=config['takeoff'];body=config['vehicle']
+        if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
+        fixed={'length_forward_m':5.8,'width_left_m':2.8,'height_m':2.8}
+        if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Expected the 5.8 x 2.8 x 2.8 m outer venue')
+        expected={'height_fc_above_floor_m':2.,'outbound_forward_m':4.5,
+                  'horizontal_speed_limit_mps':2.,'acceleration_limit_mps2':1.,
+                  'return_hover_s':6.,'axis_error_limit_m':.1}
+        if any(f.get(k)!=n for k,n in expected.items()):raise ValueError('Final demonstration settings differ')
+        if f.get('yaw_policy')!='hold_takeoff_heading':raise ValueError('Need fixed takeoff heading')
+        if s.get('heading_along_length_confirmed') is not True:raise ValueError('Confirm heading along venue length')
+        self.hull={name:self.measure(body.get('centre_to_'+name+'_m'),'FC-centre to '+name)
+                   for name in ('front','rear','left','right','top','bottom')}
+        self.rear=self.measure(s.get('forward_from_rear_m'),'takeoff distance from rear boundary')
+        self.left=self.measure(s.get('distance_from_left_m'),'takeoff distance from left boundary')
+        self.width=2.8;self.length=5.8;self.height=2.8;self.tolerance=.1
+        if not 0<self.hull['bottom']<=.085:
+            raise ValueError('Measured FC-to-bottom clearance must fit the existing 0.085 m floor calibration')
+        # Reserve the existing full tracking allowance on both sides of the route.
+        for forward in (-.1,4.6):
+            for left in (-.1,.1):self.check((forward,left,2.1))
+        self.check((0.,0.,.085),on_floor=True)
+
+    @staticmethod
+    def measure(value,name):
+        if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or value<0:
+            raise ValueError('Missing/invalid measured geometry: '+name)
+        return float(value)
+
+    @classmethod
+    def load(cls,path):
+        return cls(json.loads(Path(path).read_text()))
+
+    def check(self,point,on_floor=False):
+        if len(point)!=3 or not all(math.isfinite(v) for v in point):raise ValueError('Invalid venue point')
+        x,y,z=self.rear+point[0],self.width-self.left+point[1],point[2]
+        h=self.hull
+        clearances={'rear':x-h['rear'],'front':self.length-x-h['front'],
+                    'right':y-h['right'],'left':self.width-y-h['left'],
+                    'ceiling':self.height-z-h['top']}
+        if not on_floor:clearances['floor']=z-h['bottom']
+        if any(value < -1e-9 for value in clearances.values()):
+            raise ValueError(f'Aircraft envelope outside venue: relative FC xyz={list(point)}; clearance m={clearances}')
+        return clearances
+
+    def waypoints(self):
+        return {'ground':[0.,0.,.085],'home_hover':[0.,0.,2.],
+                'far_hover':[4.5,0.,2.],'return_hover':[0.,0.,2.]}
+
+
+class MissionReport:
+    def __init__(self,path,mission,mode):
+        self.path=Path(path)
+        if self.path.exists():raise ValueError('Mission report already exists; use a new path')
+        self.data=dict(schema_version=1,result='RUNNING',mode=mode,
+            mission=mission.config,waypoints=mission.waypoints(),events=[],
+            completed_stages=[],error=None,physical_flight_verified=False,
+            started_at=datetime.now().astimezone().isoformat())
+        self.save()
+
+    def save(self):
+        self.path.parent.mkdir(parents=True,exist_ok=True)
+        temp=self.path.with_suffix('.tmp')
+        temp.write_text(json.dumps(self.data,indent=2,allow_nan=False)+'\n');temp.replace(self.path)
+
+    def event(self,phase,**details):
+        self.data['events'].append(dict(phase=phase,time=datetime.now().astimezone().isoformat(),**details))
+        self.data['stage']=phase;self.save()
+
+    def completed(self,stage):
+        if stage in self.data['completed_stages']:raise ValueError('Mission stage repeated: '+stage)
+        expected=DemoMission.PHASES[len(self.data['completed_stages'])]
+        if stage!=expected:raise ValueError('Mission stage out of order: '+stage+'; expected '+expected)
+        self.data['completed_stages'].append(stage);self.save()
+
+    def finish(self,error=None):
+        complete=self.data['completed_stages']==list(DemoMission.PHASES)
+        self.data.update(result='SUCCESS' if complete and error is None else 'FAIL',error=error,
+            physical_flight_verified=bool(complete and error is None and self.data['mode']=='flight'),
+            finished_at=datetime.now().astimezone().isoformat())
+        self.save()
+        print('RESULT:',self.data['result'],flush=True);print('REPORT:',self.path,flush=True)
+
+
+def default_report_path():
+    return Path.home()/'Downloads/super_demo_reports'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')/'report.json'

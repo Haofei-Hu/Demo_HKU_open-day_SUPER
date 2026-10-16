@@ -2,6 +2,8 @@
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
+**Status — October 16, 2026:** the complete demonstration supervisor and automatic test entrypoint are implemented: 2 m takeoff, 4.5 m outbound, return, six-second hover and confirmed landing. The full synthetic ROS lifecycle and an injected return-failure test have passed. The new ground workflow captures the actual scene and runs real SUPER with virtual vehicle feedback in an isolated domain; that onboard rehearsal and physical full-mission flight remain pending. See [the complete mission test](docs/DEMONSTRATION_MISSION.md).
+
 **Status — October 15, 2026:** the session-relative map correction has passed an aircraft ground audit. The controller accepted 217 matched references and retained `AUDIT_END` without faults across 18 status reports. Concurrent 30-second sampling found fresh raw, aligned, native-vision and FC poses; native-vision maximum age/gap was 35/36 ms. All remote preparation checks passed. RC/manual POSCTL remain required for supervised flight; this result does not validate airborne SUPER tracking or the 2 m/s demonstration. See [the recorded audit](data/observed_2026-10-15/session_map_ground_audit.json).
 
 The automatic ground runner subsequently completed the full aircraft workflow with `RESULT: SUCCESS`: fresh quaternion capture/application, session-map creation, one audit and saved report. It accepted 217 references with no controller fault. See [the automatic run](data/observed_2026-10-15/automatic_ground_success.json); long-term localization stability and supervised flight remain unverified.
@@ -9,6 +11,17 @@ The automatic ground runner subsequently completed the full aircraft workflow wi
 **Status — October 14, 2026:** the aircraft has completed OFFBOARD entry, automatic arming, takeoff, a hover test configured for 1 m above the floor with a 6-second hold, and automatic landing. Repeated hover tests are complete; approximately 10 cm lateral motion remains a tuning/estimation diagnostic item. The 50 Hz localization/vision chain and low-speed advertised-motion checks have passed ground samples. A disarmed 1 m vertical reference test progressed through `TRACK` to `END_HOLD`, accepting 684 samples and holding forward/left/FC-floor-height `[-0.0226, -0.0447, 1.0395] m` while suppressing subsequent restart references. These locked-frame endpoint offsets are within 10 cm per axis. A later 120-second stationary observation with online IMU–LiDAR extrinsic estimation disabled measured maximum forward/left/up coordinate excursions below 2 cm in both external and FC poses. A follow-up vertical reference trial in that fixed-extrinsic session latched a continuity fault after 409 accepted samples; detailed transition diagnostics are prepared before flight integration. See the [vertical reference result](data/observed_2026-10-13/vertical_goal_ground.json), [stationary observation](data/observed_2026-10-13/fastlio_stationary_diagnosis.json) and [integration progress](docs/PROGRESS_2026-10-13.md). Native SUPER trajectory flight, airborne tracking accuracy and obstacle avoidance remain the next integration stage. The cause of earlier stationary attitude/position inconsistencies and stability over a complete demonstration remain under investigation.
 
 ## Quick Start: restore the aircraft after reboot
+
+For the complete demonstration test, after installing the matching script release:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics --fixture-geometry
+```
+
+This automatically restarts the grounded stack, captures the quaternion and map, and rehearses the entire route using real SUPER and a virtual FC/vehicle in private ROS domain 197. The actual aircraft stays disarmed. The fixture geometry is explicitly synthetic while aircraft dimensions and takeoff wall distances remain unmeasured. The final `RESULT`, scope and saved report distinguish this rehearsal from flight. See [installation, stages and report interpretation](docs/DEMONSTRATION_MISSION.md).
+
+The following short tests remain available as diagnostics.
 
 For automatic alignment capture and the complete disarmed audit, use the [automatic ground test](docs/AUTOMATED_GROUND_TEST.md) after installing the matching script release:
 

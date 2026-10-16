@@ -32,7 +32,7 @@ def guards():
 
 if __name__=='__main__':
     guards()
-    for case in ('audit_speed5_hold','audit_speed5_overspeed','audit_speed5_corridor','audit_speed5_restart'):
+    for case in ('audit_speed5_hold','audit_speed5_rolling','audit_speed5_overspeed','audit_speed5_corridor','audit_speed5_restart'):
         run(case)
     for case in ('audit_hold','flight_complete','missing_rc'):
         run(case)

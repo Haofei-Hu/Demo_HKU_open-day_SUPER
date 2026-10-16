@@ -52,6 +52,7 @@ def inverse_goal(mapping, raw_pose, target):
 
 
 class SuperFlightControl(FirstHoverControl):
+    ALLOW_EXTENDED_EXECUTION=False
     PLANNER_LIMITS=(.25,.45)
     REFERENCE_LIMITS=(.3,.5)
     MAX_DISTANCE=.3
@@ -70,7 +71,7 @@ class SuperFlightControl(FirstHoverControl):
 
     def __init__(self,execute=False,hover_fc_height=1.,hold_seconds=6.,distance=.3,
                  alignment_path=None,planner_config=None):
-        if execute and (self.PLANNER_LIMITS!=(.25,.45) or self.REFERENCE_LIMITS!=(.3,.5)
+        if execute and not self.ALLOW_EXTENDED_EXECUTION and (self.PLANNER_LIMITS!=(.25,.45) or self.REFERENCE_LIMITS!=(.3,.5)
                         or self.MAX_DISTANCE>.3 or self.FRAME_FORWARD_LIMIT>5.):
             raise ValueError('Extended speed/distance profiles are ground-audit only; flight blocked')
         if not math.isfinite(distance) or not 0<distance<=self.MAX_DISTANCE:
@@ -97,7 +98,7 @@ class SuperFlightControl(FirstHoverControl):
         self.pair_ns=0;self.raw_pose=None;self.aligned_pose=None
         self.planner_sources=None
         self.frame=self.follower=None
-        self.requested_target=self.goal_q=None
+        self.requested_target=self.requested_raw=self.goal_q=None
         self.goal_issued_ns=0
         self.pending=deque(maxlen=64);self.poly_pending=deque(maxlen=24)
         self.endpoint_since=None
@@ -162,7 +163,7 @@ class SuperFlightControl(FirstHoverControl):
         if key in self.confirmed:
             self.parameter_errors.pop(key,None)
             return
-        expected=PARAMETERS if key=='fc' else {'mav_frame':'LOCAL_NED'}
+        expected=self.EXPECTED_PARAMETERS if key=='fc' else {'mav_frame':'LOCAL_NED'}
         try:
             if future.cancelled():raise ValueError('Request cancelled after response timeout')
             response=future.result()
@@ -269,10 +270,41 @@ class SuperFlightControl(FirstHoverControl):
         if np.any(np.abs(error)>.10):
             raise ValueError('Tracking error exceeds 0.10 m per axis: '+str(error.round(4).tolist()))
 
+    def make_follower(self):
+        return Reference(self.frame,*self.REFERENCE_LIMITS)
+
+    def endpoint_evidence(self,plan):
+        endpoint=self.mapping.converter(plan.endpoint,self.goal_q,np.eye(6))[0]-self.mapping.origin
+        error=self.frame.axes@(endpoint-self.requested_target)
+        detail=(f'requested planner xyz={self.requested_raw.round(6).tolist()}; '
+                f'committed planner endpoint={plan.endpoint.round(6).tolist()}; '
+                f'requested aligned xyz={self.requested_target.round(6).tolist()}; '
+                f'committed aligned endpoint={endpoint.round(6).tolist()}; '
+                f'endpoint error forward/left/up={error.round(6).tolist()}; '
+                f'plan start={plan.start:.6f}, duration={plan.duration:.6f}s')
+        return endpoint,error,detail
+
+    def accept_plan(self,plan,msg):
+        endpoint,error,detail=self.endpoint_evidence(plan)
+        if np.any(np.abs(error)>.10):
+            raise ValueError('Committed endpoint differs from requested goal by over 0.10 m per axis; '
+                             'this does not establish map relocation; '+detail)
+        self.target_ok(endpoint)
+        self.follower.add_plan(msg)
+
+    def supported_command(self,flag):
+        return flag==1
+
+    def convert_command(self,msg):
+        return self.mapping.command(msg)
+
+    def reference_accepted(self,msg):
+        pass
+
     def issue_goal(self):
         if self.goal_pub.get_subscription_count()<1 or self.count_publishers('/goal_pose')!=1:
             raise ValueError('Need planner goal subscriber and this controller as sole goal source')
-        self.follower=Reference(self.frame,*self.REFERENCE_LIMITS)
+        self.follower=self.make_follower()
         self.pending.clear();self.poly_pending.clear()
         target=np.array(self.reference.ground,dtype=float)
         target+=self.frame.axes.T@np.array([self.distance,0.,self.reference.lift if self.execute else 0.])
@@ -281,7 +313,7 @@ class SuperFlightControl(FirstHoverControl):
         msg=PoseStamped();msg.header.frame_id='world';msg.header.stamp=self.get_clock().now().to_msg()
         msg.pose.position.x,msg.pose.position.y,msg.pose.position.z=map(float,raw)
         msg.pose.orientation.x,msg.pose.orientation.y,msg.pose.orientation.z,msg.pose.orientation.w=map(float,q)
-        self.requested_target,self.goal_q=target,q
+        self.requested_target,self.requested_raw,self.goal_q=target,raw,q
         self.goal_issued_ns=self.stamp(msg)
         self.goal_pub.publish(msg)
         self.change('WAIT_PLAN' if self.execute else 'AUDIT_WAIT')
@@ -323,11 +355,7 @@ class SuperFlightControl(FirstHoverControl):
             plan=Plan(msg)
             if plan.start<self.goal_issued_ns/1e9-.05:continue
             if plan.duration>20.:raise ValueError('Initial handover trajectory exceeds 20 s')
-            endpoint=self.mapping.converter(plan.endpoint,self.goal_q,np.eye(6))[0]-self.mapping.origin
-            error=self.frame.axes@(endpoint-self.requested_target)
-            if np.any(np.abs(error)>.10):raise ValueError('Map-relocated endpoint exceeds 0.10 m per axis')
-            self.target_ok(endpoint)
-            self.follower.add_plan(msg)
+            self.accept_plan(plan,msg)
         while self.pending:
             msg=self.pending[0];ns=self.stamp(msg)
             if ns<self.goal_issued_ns:self.pending.popleft();continue
@@ -337,14 +365,16 @@ class SuperFlightControl(FirstHoverControl):
             if self.follower.last is None and ns<min(p.start for p in self.follower.plans)*1e9:
                 self.pending.popleft();self.preplan_commands_discarded+=1;continue
             if not self.fresh_ns(ns):raise ValueError('Stale command awaiting committed polynomial')
-            if msg.trajectory_flag!=1:raise ValueError('Only regular initial handover trajectories supported')
+            if not self.supported_command(msg.trajectory_flag):
+                raise ValueError('Unsupported initial handover command flag: '+str(msg.trajectory_flag))
             vectors=[np.array([getattr(getattr(msg,name),a) for a in ('x','y','z')])
                      for name in ('position','velocity','acceleration')]
             if not any(plan.matches(ns,*vectors) for plan in self.follower.plans):break
-            p,q=self.mapping.command(msg)
+            p,q=self.convert_command(msg)
             self.target_ok(p)
             accepted=self.follower.command(ns,*vectors,p,q,measured_position=xyz)
             if accepted is None:break
+            if accepted:self.reference_accepted(msg)
             self.pending.popleft()
         if self.follower.phase=='TRACK' and not self.fresh_ns(self.follower.last[0]):
             raise ValueError('Command stream expired before confirmed endpoint')

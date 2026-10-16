@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "mission_id": "open_day_out_and_back",
+  "units": "metres_seconds",
+  "venue": {
+    "boundary_type": "outer",
+    "length_forward_m": 5.8,
+    "width_left_m": 2.8,
+    "height_m": 2.8
+  },
+  "takeoff": {
+    "forward_from_rear_m": null,
+    "heading_along_length_confirmed": true,
+    "note": "Aircraft centre must be inside the short-edge takeoff area; capture a fresh session origin. Coordinates are in the surveyed venue frame, not LIO world.",
+    "distance_from_left_m": null
+  },
+  "vehicle": {
+    "centre_to_front_m": null,
+    "centre_to_rear_m": null,
+    "centre_to_left_m": null,
+    "centre_to_right_m": null,
+    "centre_to_top_m": null,
+    "centre_to_bottom_m": null,
+    "note": "Envelope includes propellers and is measured relative to the FC centre; do not subtract a guessed radius."
+  },
+  "flight": {
+    "height_fc_above_floor_m": 2.0,
+    "outbound_forward_m": 4.5,
+    "return_to": "locked_takeoff_xy",
+    "yaw_policy": "hold_takeoff_heading",
+    "horizontal_speed_limit_mps": 2.0,
+    "acceleration_limit_mps2": 1.0,
+    "return_hover_s": 6.0,
+    "axis_error_limit_m": 0.1,
+    "landing": "PX4_AUTO.LAND_then_confirm_ground_and_disarmed"
+  },
+  "sequence": [
+    "TAKEOFF_TO_2M",
+    "STABILIZE_AT_HOME",
+    "SUPER_OUTBOUND_4_5M",
+    "STABILIZE_AT_FAR_POINT",
+    "SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "acceptance": {
+    "whole_mission_required": true,
+    "partial_stage_is_success": false,
+    "report_requires_mode": "simulation_or_flight_explicit",
+    "automatic_goal_replay": false,
+    "parameter_changes": "none_implicit",
+    "venue_measurements_required_before_flight": true
+  },
+  "status": "specification_complete_geometry_pending_not_a_flight_release"
+}
