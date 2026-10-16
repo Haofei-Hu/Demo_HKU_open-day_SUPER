@@ -87,6 +87,32 @@ class Plan:
         return all(norm(a-b) <= limit for a,b,limit in
                    zip(predicted,(position,velocity,acceleration),(.02,.03,.05)))
 
+    def displacement_bound(self,begin,end):
+        """Conservative displacement of this previously verified polynomial.
+
+        Taylor coefficients bound each piece's displacement by the triangle
+        inequality. The new command's advertised speed cannot enlarge this
+        bound and conceal a jump when switching committed trajectories.
+        """
+        if not all(math.isfinite(t) for t in (begin,end)) or end<begin:
+            raise ValueError('Invalid polynomial continuity interval')
+        begin=max(0.,float(begin));end=max(begin,float(end));bound=0.;offset=0.
+        for index,duration in enumerate(self.durations):
+            left=max(begin,offset);right=min(end,offset+duration)
+            if right>left:
+                elapsed=left-offset;dt=right-left
+                for order in range(1,8):
+                    derivative=np.array([np.polyval(np.polyder(axis[index],order),elapsed)
+                                         for axis in self.coefficients])
+                    bound+=norm(derivative)*dt**order/math.factorial(order)
+            offset+=duration
+        if end>self.duration:
+            left=max(begin,self.duration)-self.duration;right=end-self.duration
+            bound+=norm(self.end_velocity)*(right-left)
+            bound+=norm(self.end_acceleration)*(right*right-left*left)/2
+        if not math.isfinite(bound):raise ValueError('Nonfinite polynomial displacement bound')
+        return float(bound)
+
 
 class Reference:
     """A terminal state is permanent for this process; no automatic new goal."""
@@ -106,6 +132,7 @@ class Reference:
         self.reason = ''
         self.last = None
         self.last_evidence = None
+        self.last_plan = None
         self.endpoint = None
         self.initial_offset = None
         self.accepted = self.restarts_blocked = 0
@@ -174,6 +201,11 @@ class Reference:
             dt = (stamp-self.last[0])/1e9
             step = norm(position-self.last[1])
             allowed_step = .015+self.max_speed*dt
+            continuity_basis='configured speed limit'
+            if self.motion_policy=='observe' and self.last_plan is not None:
+                allowed_step=.015+self.last_plan.displacement_bound(
+                    self.last[0]/1e9-self.last_plan.start,stamp/1e9-self.last_plan.start)
+                continuity_basis='previous committed polynomial'
             if dt > .25 or step > allowed_step:
                 triggers = []
                 if dt > .25:triggers.append('stamp gap')
@@ -182,7 +214,7 @@ class Reference:
                 after = self.frame.coordinates(position).round(4).tolist()
                 previous = self.last_evidence
                 details = (f'Reference gap or discontinuity ({", ".join(triggers)}): '
-                           f'dt={dt:.6f}s (max 0.250000s); step={step:.6f}m (allowed {allowed_step:.6f}m); '
+                           f'dt={dt:.6f}s (max 0.250000s); step={step:.6f}m (allowed {allowed_step:.6f}m; {continuity_basis}); '
                            f'previous/current forward-left-FC-height={before}/{after}; '
                            f'previous/current stamp_ns={self.last[0]}/{stamp}')
                 if previous is not None:
@@ -195,6 +227,7 @@ class Reference:
         self.last = stamp, position.copy(), np.array(quaternion,dtype=float,copy=True)
         self.last_evidence = dict(raw=raw.copy(),velocity=velocity.copy(),acceleration=acceleration.copy(),
                                   end=plan.end,endpoint=plan.endpoint.copy())
+        self.last_plan = plan
         self.phase = 'TRACK'
         self.accepted += 1
         # Use planned end time AND raw endpoint/terminal derivatives. A zero-speed

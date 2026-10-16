@@ -9,7 +9,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts/planning'))
-from bounded_reference_preview import Plan, Reference, TakeoffFrame
+from bounded_reference_preview import Plan, Reference, TakeoffFrame,RollingGoalReference
 
 
 def trajectory(start=100., distance=.1):
@@ -46,7 +46,8 @@ class Tests(unittest.TestCase):
         reference=Reference(frame,2.,1.,motion_policy='observe')
         # The 2 s quintic reaches 2.8125 m/s and >1 m/s², but stays in the box.
         msg=trajectory(distance=3.);reference.add_plan(msg)
-        for t in np.arange(0,2.001,.01):
+        # Coarser samples must not turn continuous >2 m/s motion into a jump.
+        for t in np.arange(0,2.001,.05):
             p,v,a=reference.plans[0].evaluate(t)
             self.assertTrue(reference.command(round((100+t)*1e9),p,v,a,p,[0,0,0,1]))
         self.assertEqual(reference.phase,'END_HOLD')
@@ -71,6 +72,28 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'speed=2.100000000 m/s, acceleration=1.200000000'):
             reference.command(100000000000,[0,0,0],[2.1,0,0],[1.2,0,0],[0,0,0],[0,0,0,1])
         self.assertEqual(reference.last_motion_violation['speed_mps'],2.1)
+
+    def test_new_plan_velocity_cannot_conceal_a_position_jump(self):
+        frame=TakeoffFrame([0,0,0],[0,0,0,1],max_forward=5.1)
+        r=RollingGoalReference(frame,lambda p:True,lambda p,x:False,motion_policy='observe')
+        first=trajectory(distance=.1);r.add_plan(first)
+        p,v,a=r.plans[0].evaluate(0.)
+        self.assertTrue(r.command(100000000000,p,v,a,p,[0,0,0,1]))
+        jump=trajectory(start=100.02,distance=.1);jump.time_pos=[.001]
+        jump.coef_pos_x=[0.,0.,0.,0.,0.,0.,100.,.2]
+        r.add_plan(jump);p,v,a=r.plans[-1].evaluate(0.)
+        with self.assertRaisesRegex(ValueError,'position step') as failure:
+            r.command(100020000000,p,v,a,p,[0,0,0,1])
+        self.assertIn('previous committed polynomial',str(failure.exception))
+
+    def test_displacement_bound_handles_piece_boundaries_and_terminal_velocity(self):
+        msg=trajectory();msg.piece_num_pos=2;msg.time_pos=[1.,1.]
+        msg.coef_pos_x=[0.,0.,0.,0.,0.,0.,2.,0.,0.,0.,0.,0.,0.,0.,-1.,2.]
+        msg.coef_pos_y=msg.coef_pos_z=[0.]*16
+        plan=Plan(msg)
+        self.assertAlmostEqual(plan.displacement_bound(.9,1.2),.4)
+        self.assertAlmostEqual(plan.displacement_bound(2.1,2.2),.1)
+        with self.assertRaises(ValueError):plan.displacement_bound(1.,.5)
 
     def sample(self,r,t,offset=(0,0,0)):
         p,v,a=r.plans[0].evaluate(t)

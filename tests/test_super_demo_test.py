@@ -11,6 +11,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'scripts/maintenance'),str(ROOT/'scripts/flight')]
 import super_demo_test as m
+import super_demo as physical_entry
 
 
 class Tests(unittest.TestCase):
@@ -36,6 +37,13 @@ class Tests(unittest.TestCase):
         return runner,actions
 
     def gate(self):return patch.object(m.manager,'GroundGate',return_value=NS(check=lambda:None,close=lambda:None))
+
+    def test_physical_preparation_defaults_to_observe_without_execution(self):
+        args=physical_entry.arguments(['--mission-file','measured.json'])
+        self.assertEqual(args.motion_policy,'observe')
+        self.assertFalse(args.execute)
+        self.assertEqual(physical_entry.arguments(['--mission-file','measured.json',
+            '--motion-policy','strict']).motion_policy,'strict')
 
     def test_default_runs_real_preparation_scene_and_whole_mission(self):
         with tempfile.TemporaryDirectory() as folder,self.gate():

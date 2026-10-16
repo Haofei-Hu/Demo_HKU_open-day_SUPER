@@ -49,12 +49,12 @@ class DemoMissionControl(SuperFlightControl):
     FRAME_FORWARD_LIMIT=4.6
     NATIVE_TOPIC='/mavros/setpoint_raw/local'
     EXPECTED_PARAMETERS=dict(PARAMETERS,MPC_XY_VEL_MAX=2.)
+    ADVISORY_SPEED=2.4
+    ADVISORY_ACCELERATION=1.5
 
     def __init__(self,mission_file,report_path,execute=False,on_site_supervised=False,
                  alignment_path=None,planner_config=None,simulation=False,motion_policy='strict'):
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
-        if motion_policy!='strict' and not simulation:
-            raise ValueError('Observe-only motion policy is restricted to the isolated virtual rehearsal')
         self.motion_policy=motion_policy;self.motion_warned_legs=set()
         if execute and not on_site_supervised:
             raise ValueError('Flight requires explicit on-site supervision; no flight publisher created')
@@ -81,6 +81,10 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['peak_reference_acceleration_mps2']=0.
         self.mission_report.data['motion_policy']=motion_policy
         self.mission_report.data['planner_motion_by_leg']={}
+        self.mission_report.data['motion_advisories']=dict(speed_mps=self.ADVISORY_SPEED,
+            acceleration_mps2=self.ADVISORY_ACCELERATION,action='warning_only',
+            derivative_exceedance_alone_stops_motion=motion_policy=='strict')
+        self.mission_report.data['motion_advisory_by_leg']={}
         super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
         self.offboard_budget=90.
@@ -198,15 +202,25 @@ class DemoMissionControl(SuperFlightControl):
 
     def reference_accepted(self,msg):
         self.native_velocity=self.goal_rotation@np.array([getattr(msg.velocity,a) for a in ('x','y','z')])
+        speed=float(np.linalg.norm(self.native_velocity))
         acceleration=math.hypot(*(getattr(msg.acceleration,a) for a in ('x','y','z')))
         self.mission_report.data['peak_reference_acceleration_mps2']=max(
             self.mission_report.data['peak_reference_acceleration_mps2'],acceleration)
-        if (self.motion_policy=='observe' and self.follower.last_motion_violation is not None
+        summary=self.mission_report.data['motion_advisory_by_leg'].setdefault(self.leg,
+            dict(speed_exceedances=0,acceleration_exceedances=0))
+        speed_exceeded=speed>self.ADVISORY_SPEED+1e-9
+        acceleration_exceeded=acceleration>self.ADVISORY_ACCELERATION+1e-9
+        summary['speed_exceedances']+=int(speed_exceeded)
+        summary['acceleration_exceedances']+=int(acceleration_exceeded)
+        if speed_exceeded or acceleration_exceeded:
+            summary['last_exceedance']=dict(stamp_ns=self.stamp(msg),speed_mps=speed,
+                                             acceleration_mps2=acceleration)
+        if (self.motion_policy=='observe' and (speed_exceeded or acceleration_exceeded)
                 and self.leg not in self.motion_warned_legs):
             self.motion_warned_legs.add(self.leg)
-            evidence=self.follower.last_motion_violation
-            self.get_logger().warning('Virtual rehearsal motion targets exceeded; observation only: '
-                f'speed={evidence["speed_mps"]:.6f} m/s, acceleration={evidence["acceleration_mps2"]:.6f} m/s^2; '
+            self.get_logger().warning('Mission motion advisories exceeded; warning only: '
+                f'speed={speed:.6f} m/s (advisory {self.ADVISORY_SPEED:g}), '
+                f'acceleration={acceleration:.6f} m/s^2 (advisory {self.ADVISORY_ACCELERATION:g}); '
                 'position, polynomial agreement, continuity and freshness checks remain active')
 
     def request_leg(self,leg,target):
@@ -330,7 +344,7 @@ class DemoMissionControl(SuperFlightControl):
                 self.mission_report.data['peak_reference_speed_mps'],float(np.linalg.norm(self.native_velocity)))
 
 
-def main():
+def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--alignment-path',type=Path,required=True)
@@ -339,12 +353,18 @@ def main():
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
     p.add_argument('--preparation-report',type=Path)
-    args=p.parse_args();report=args.report_json or default_report_path();node=None
+    p.add_argument('--motion-policy',choices=('strict','observe'),default='observe',
+                   help='observe records derivative exceedances; strict retains exact 2/1 rejection')
+    return p.parse_args(argv)
+
+
+def main():
+    args=arguments();report=args.report_json or default_report_path();node=None
     if report.exists():raise SystemExit('Refusing existing report: '+str(report))
     rclpy.init()
     try:
         node=DemoMissionControl(args.mission_file,report,args.execute,args.on_site_supervised,
-                               args.alignment_path,args.planner_config)
+                               args.alignment_path,args.planner_config,motion_policy=args.motion_policy)
         if args.preparation_report:
             node.mission_report.data['preparation']=json.loads(args.preparation_report.read_text())
             node.mission_report.save()

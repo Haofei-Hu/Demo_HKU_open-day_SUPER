@@ -1,0 +1,12 @@
+{
+  "workflow": "one-metre out-and-back real-SUPER / virtual-vehicle rehearsal",
+  "route_profile": "short-1m",
+  "motion_policy": "observe",
+  "result": "SUCCESS",
+  "evidence_level": "operator completion confirmation; detailed report not yet archived",
+  "run_id": null,
+  "measured_peaks": null,
+  "physical_flight_requested": false,
+  "physical_flight_verified": false,
+  "full_4_5m_demonstration_validated": false
+}

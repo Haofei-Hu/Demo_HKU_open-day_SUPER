@@ -187,5 +187,6 @@
     "rolling_reference_cases": 6,
     "installer_cases": 3,
     "layout_cases": 3
-  }
+  },
+  "release": "c401249291e9ab8e6c160df9a0dad7993c5ec80d"
 }

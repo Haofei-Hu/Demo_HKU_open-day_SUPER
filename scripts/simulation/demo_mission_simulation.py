@@ -105,6 +105,7 @@ def backend(connection,fault,scene_file=None):
         distance=math.dist(pose,end)
         duration=max(1.875*distance/2.,math.sqrt(5.774*distance),1.)
         if fault=='motion-target-exceedance':duration*=.9  # Synthetic evidence test only.
+        if fault=='motion-advisory-exceedance':duration*=.7
         poly=PolynomialTrajectory();poly.header.frame_id='world';poly.header.stamp=node.get_clock().now().to_msg()
         poly.start_wt_pos=node.get_clock().now().nanoseconds/1e9+.1
         poly.type=3;poly.order_pos=7;poly.piece_num_pos=1;poly.time_pos=[duration]
@@ -242,7 +243,7 @@ def main():
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
-    p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance'))
+    p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--isolated',action='store_true',help=argparse.SUPPRESS)

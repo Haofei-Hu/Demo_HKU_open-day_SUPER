@@ -1,0 +1,142 @@
+{
+  "scope": "Cloud ROS 2 Humble software regression; synthetic telemetry and planning; no actual aircraft flight",
+  "defaults": {
+    "demonstration_cli": "observe",
+    "preparation_cli": "observe",
+    "library_constructor": "strict",
+    "planner_speed_target_mps": 2.0,
+    "planner_acceleration_target_mps2": 1.0,
+    "advisory_speed_mps": 2.4,
+    "advisory_acceleration_mps2": 1.5,
+    "advisory_action": "warning_only"
+  },
+  "checks": {
+    "physical_entry_and_tracking_cases": 8,
+    "reference_continuity_cases": 15,
+    "rolling_reference_cases": 6,
+    "preparation_orchestration_cases": 9,
+    "release_manifest_cases": 3,
+    "layout_cases": 3
+  },
+  "original_high_motion_test": {
+    "result": "FAIL",
+    "mode": "simulation",
+    "error": "Reference gap or discontinuity (position step): dt=0.046987s (max 0.250000s); step=0.110468m (allowed 0.108973m); previous/current forward-left-FC-height=[1.9708, 0.0, 2.0]/[2.0813, -0.0, 2.0]; previous/current stamp_ns=1792133965752297726/1792133965799284406; previous/current raw xyz=[1.7466, 1.0328, 1.175]/[1.8377, 1.0952, 1.175]; previous speed/acc=2.343883/0.350351; previous/current plan time remaining=1.902491/1.855504s; previous raw endpoint distance=2.529197m; no automatic reconciliation",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME"
+    ],
+    "motion_policy": "observe",
+    "motion_advisories": {
+      "speed_mps": 2.4,
+      "acceleration_mps2": 1.5,
+      "action": "warning_only",
+      "derivative_exceedance_alone_stops_motion": false
+    },
+    "motion_advisory_by_leg": {
+      "outbound": {
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 87,
+        "last_exceedance": {
+          "stamp_ns": 1792133965304010979,
+          "speed_mps": 1.9115602920376835,
+          "acceleration_mps2": 1.5141552784705785
+        }
+      }
+    },
+    "planner_motion_by_leg": {
+      "outbound": {
+        "checked_samples": 166,
+        "speed_exceedances": 38,
+        "acceleration_exceedances": 121,
+        "peak_speed_mps": 2.3570977973309817,
+        "peak_acceleration_mps2": 2.040621437203038,
+        "last_violation": {
+          "stamp_ns": 1792133965799284406,
+          "speed_mps": 2.3570977973309817,
+          "acceleration_mps2": 0.21193045698580243,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            1.9453967599624147,
+            1.3309175303189544,
+            0.0
+          ],
+          "acceleration_xyz": [
+            0.17491375403446702,
+            0.11966493742020269,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      }
+    },
+    "physical_flight_verified": false
+  },
+  "polynomial_continuity_test": {
+    "result": "FAIL",
+    "mode": "simulation",
+    "error": "Setpoint timer interrupted for more than 0.2 seconds",
+    "completed_stages": [
+      "TAKEOFF_TO_2M",
+      "STABILIZE_AT_HOME"
+    ],
+    "motion_policy": "observe",
+    "motion_advisories": {
+      "speed_mps": 2.4,
+      "acceleration_mps2": 1.5,
+      "action": "warning_only",
+      "derivative_exceedance_alone_stops_motion": false
+    },
+    "motion_advisory_by_leg": {
+      "outbound": {
+        "speed_exceedances": 0,
+        "acceleration_exceedances": 176,
+        "last_exceedance": {
+          "stamp_ns": 1792134238902993172,
+          "speed_mps": 0.2928742067832257,
+          "acceleration_mps2": 1.5020511359909863
+        }
+      }
+    },
+    "planner_motion_by_leg": {
+      "outbound": {
+        "checked_samples": 355,
+        "speed_exceedances": 101,
+        "acceleration_exceedances": 244,
+        "peak_speed_mps": 2.364651576407837,
+        "peak_acceleration_mps2": 2.040617195015139,
+        "last_violation": {
+          "stamp_ns": 1792134239042900779,
+          "speed_mps": 0.11394924435014968,
+          "acceleration_mps2": 1.0281820438484024,
+          "speed_target_mps": 2.0,
+          "acceleration_target_mps2": 1.0,
+          "velocity_xyz": [
+            0.09404636965422496,
+            0.06434058317136232,
+            0.0
+          ],
+          "acceleration_xyz": [
+            -0.8485952593987098,
+            -0.5805552523389264,
+            0.0
+          ]
+        },
+        "policy": "observe"
+      }
+    },
+    "physical_flight_verified": false
+  },
+  "corrected_code_defect": "Old position-step bound implicitly enforced 2 m/s despite observation policy; the new bound uses the previous committed polynomial.",
+  "latest_full_trial_result": "FAIL: approximately 0.500 s setpoint timer gap; no full-mission pass claimed",
+  "timer_stall_root_cause_verified": false,
+  "software_policy_checks_passed": true,
+  "physical_flight_verified": false,
+  "notes": [
+    "A physical-mode controller constructor was tested against synthetic local files/ROS graph and did not initiate flight.",
+    "A 2.6 m/s / 1.7 m/s^2 sample was counted as advisory exceedance without aborting.",
+    "Continuous >2 m/s motion at coarse sampling passed polynomial-based continuity; a replacement with forged high velocity could not hide a 20 cm start jump.",
+    "Independent timestamp, source, position and takeover checks were retained."
+  ]
+}

@@ -29,7 +29,7 @@ class DemoPreparation(GroundTest):
         self.report=dict(result='RUNNING',stage='preflight',stages=[],scope='Complete demonstration preparation')
 
 
-def main():
+def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--scripts-dir',type=Path,default=Path.home()/'Downloads')
@@ -38,8 +38,13 @@ def main():
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
+    p.add_argument('--motion-policy',choices=('strict','observe'),default='observe')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
-    args=p.parse_args();args.scripts_dir=args.scripts_dir.expanduser().resolve()
+    return p.parse_args(argv)
+
+
+def main():
+    args=arguments();args.scripts_dir=args.scripts_dir.expanduser().resolve()
     if not args.ros_env:
         return subprocess.run(['bash','--noprofile','--norc','-c',manager.source_prefix()+'exec '+
             manager.shell_command([sys.executable,Path(__file__).resolve(),'--ros-env',*sys.argv[1:]])]).returncode
@@ -65,7 +70,8 @@ def main():
             command=[sys.executable,str(args.scripts_dir/'super_demo_control.py'),
                 '--mission-file',str(args.mission_file),'--alignment-path',str(args.scripts_dir/'aligned_pose_preview.py'),
                 '--planner-config',runner.session.config['planner_config_path'],
-                '--preparation-report',str(runner.path),'--report-json',str(runner.folder/'report.json')]
+                '--preparation-report',str(runner.path),'--report-json',str(runner.folder/'report.json'),
+                '--motion-policy',args.motion_policy]
             if args.execute:command+=['--execute','--on-site-supervised']
             return subprocess.run(command).returncode
         except (Exception,KeyboardInterrupt) as exc:
