@@ -36,11 +36,13 @@ The runner performs the following sequence:
 
 1. Open or reuse QGroundControl, then start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
 2. Measure and apply a fresh alignment quaternion, start external vision, and capture the session-relative map configuration.
-3. Sample the real vision chain for 30 seconds and capture a fresh occupied scene.
+3. Wait for a continuous fresh 30-second real vision window, then capture a fresh occupied scene.
 4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
 Alignment excludes body samples outside the existing -0.05..0.25 s receive-time header-age band before estimation, and reports excluded counts and raw age extrema. It still requires enough valid matched pairs and the existing pairing/rotation checks. Full-rehearsal preparation streams progress without the historical 120-second action deadline.
+
+Vision preparation uses the existing 30-second observation duration as a continuous qualified window. `VISION WAIT` records temporal interruptions and waits for a new complete window, with no total acquisition deadline and no stack restart. The original -0.05..0.25 s header-age band and 0.25 s receive-gap limit remain unchanged. Final logs retain lifetime statistics, including rejected intervals, followed by qualified-window statistics. Invalid/reordered stamps, wrong frames or changed/duplicate publishers still fail. This policy applies to preparation; it does not change flight-controller freshness handling.
 
 Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which remains **1.5 m** with `TAKEOFF_TO_1_5M`. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 

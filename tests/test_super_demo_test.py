@@ -67,6 +67,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.report['mission_report']['completed_stages'][0],'TAKEOFF_TO_0_5M')
             self.assertEqual([a[0] for a in actions],['prepare','vision_chain','capture_scene','complete_mission'])
             self.assertEqual(actions[0][1],'demo')
+            self.assertIn('--wait-stable',actions[1][1])
             self.assertIn('--scene-file',actions[-1][1]);self.assertEqual(actions[-1][2]['ROS_DOMAIN_ID'],'197')
             self.assertFalse(runner.report['physical_flight_verified'])
             self.assertFalse(runner.report['physical_venue_clearance_verified'])

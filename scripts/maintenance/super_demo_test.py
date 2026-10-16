@@ -112,8 +112,12 @@ class DemoTest(GroundTest):
             if not self.args.logic_only:
                 self.open_qgc()
                 self.prepare(planner_profile='demo')
+                self.report['vision_preparation_policy']=dict(continuous_window_s=30.,
+                    total_wait_deadline_s=None,header_age_band_s=[-.05,.25],receive_gap_limit_s=.25,
+                    temporal_interruptions='Record lifetime evidence and restart observation only',
+                    integrity_faults='Fail on invalid/reordered stamps, wrong frames or changed/duplicate sources')
                 self.step('vision_chain',[sys.executable,self.args.scripts_dir/'control_chain_age_check.py',
-                                          '--vision-chain','--seconds','30'])
+                                          '--vision-chain','--wait-stable','--seconds','30'])
                 self.report['actual_localization_tested']=True
                 self.session.load();scene=self.folder/'scene.json'
                 self.step('capture_scene',[sys.executable,self.args.scripts_dir/'capture_demo_scene.py',

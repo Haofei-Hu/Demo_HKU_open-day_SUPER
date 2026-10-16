@@ -10,6 +10,44 @@ spec.loader.exec_module(m)
 
 
 class Tests(unittest.TestCase):
+    def test_stable_window_retains_startup_history_and_requires_full_fresh_duration(self):
+        history={topic:m.Series() for topic in ('raw','vision')}
+        for s in history.values():s.sources.add(b'fixture')
+        window=m.StableVisionWindow(1.)
+        completed=False
+        for i in range(81):
+            now=100.+i*.02;age=.36 if i<25 else .015
+            stamp=round((now-age)*1e9)
+            for topic,s in history.items():
+                s.add(now,stamp,age);window.record(topic,now,stamp,age)
+            completed=window.update(history,now,round(now*1e9))
+            if i<75:self.assertFalse(completed)
+        self.assertTrue(completed)
+        self.assertEqual(history['raw'].age_max,.36)
+        self.assertEqual(window.samples['raw'].age_max,.015)
+        self.assertIsNone(window.fault)
+
+    def test_stable_window_catches_gap_and_old_sample_before_recovery(self):
+        history={'raw':m.Series()};history['raw'].sources.add(b'fixture')
+        history['raw'].add(100.,100_000_000_000,0.)
+        window=m.StableVisionWindow(30.)
+        window.update(history,100.,100_000_000_000)
+        window.record('raw',100.4,100_400_000_000,0.)
+        self.assertIsNone(window.started);self.assertEqual(window.restarts,1)
+        history['raw'].add(100.4,100_400_000_000,0.)
+        window.update(history,100.4,100_400_000_000)
+        window.record('raw',100.42,100_120_000_000,.3)
+        self.assertIsNone(window.started);self.assertEqual(window.restarts,2)
+
+    def test_stable_window_never_turns_integrity_failures_into_waiting(self):
+        for defect in ('invalid','reordered','bad_frames','sources'):
+            series=m.Series();series.sources.add(b'fixture');series.add(100.,100_000_000_000,0.)
+            if defect=='sources':series.sources.add(b'new')
+            else:setattr(series,defect,1)
+            window=m.StableVisionWindow(30.)
+            self.assertFalse(window.update({'raw':series},100.,100_000_000_000))
+            self.assertIsNotNone(window.fault)
+
     def test_receive_loss_and_header_excursion_are_distinguished(self):
         series=m.Series()
         self.assertEqual(m.freshness_reason(series,1.,1_000_000_000)[0],'no_messages')

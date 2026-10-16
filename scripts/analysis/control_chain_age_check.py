@@ -102,7 +102,53 @@ def freshness_reason(series, received_now, ros_now_ns):
     return None,receipt_age,header_age
 
 
-def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, vision_chain=False):
+class StableVisionWindow:
+    """Wait for a complete fresh observation interval; preserve lifetime evidence."""
+    def __init__(self,seconds):
+        self.seconds=seconds;self.started=None;self.samples={}
+        self.restarts=0;self.fault=None;self.reason='waiting for current fresh sources'
+
+    def reset(self,reason):
+        if self.started is not None:
+            self.restarts+=1
+            print('VISION WAIT: observation window interrupted; '+reason+'; waiting for a new complete window',flush=True)
+        self.started=None;self.samples={};self.reason=reason
+
+    def record(self,topic,received,stamp,age):
+        if self.started is None:return
+        series=self.samples[topic]
+        if not -.05<=age<=.25:
+            self.reset(f'{topic} header_age={age:.6f}s')
+        elif series.last_receive is not None and received-series.last_receive>.25:
+            self.reset(f'{topic} receive_gap={received-series.last_receive:.6f}s')
+        else:series.add(received,stamp,age)
+
+    def update(self,history,now,ros_ns):
+        for topic,series in history.items():
+            if series.invalid or series.reordered or series.bad_frames or len(series.sources)>1:
+                self.fault=f'{topic}: invalid/reordered stamps, unexpected frames or changed/duplicate sources'
+                return False
+        reasons=[]
+        for topic,series in history.items():
+            reason,_,_=freshness_reason(series,now,ros_ns)
+            if reason or len(series.sources)!=1:reasons.append(topic+': '+(reason or 'source discovery'))
+        if reasons:
+            self.reset('; '.join(reasons))
+            return False
+        if self.started is None:
+            self.started=now;self.samples={topic:Series() for topic in history}
+            for topic,series in history.items():
+                qualified=self.samples[topic]
+                qualified.sources.update(series.sources)
+                qualified.last_receive,qualified.last_stamp=series.last_receive,series.last_stamp
+            self.reason='collecting continuous fresh samples'
+            print(f'VISION WINDOW: all current sources fresh; collecting {self.seconds:g}s with unchanged age/gap limits',flush=True)
+        return now-self.started>=self.seconds and all(s.fresh(now) for s in self.samples.values())
+
+
+def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, vision_chain=False,wait_stable=False):
+    if wait_stable and (not vision_chain or check_motion):
+        raise ValueError('Stable observation requires --vision-chain without motion checking')
     import rclpy
     from rclpy.qos import QoSProfile, ReliabilityPolicy
     from nav_msgs.msg import Odometry
@@ -132,6 +178,7 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
     observation = dict(raw=None)
     current_sources = {topic:None for topic, _ in topics}
     qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+    stable=StableVisionWindow(seconds) if wait_stable else None
 
     def stamp(msg):
         return msg.header.stamp.sec*1_000_000_000+msg.header.stamp.nanosec
@@ -139,10 +186,12 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
     def record(msg, topic):
         ns = stamp(msg)
         series = samples[topic]
-        series.add(time.monotonic(), ns, (node.get_clock().now().nanoseconds-ns)/1e9)
+        received=time.monotonic();age=(node.get_clock().now().nanoseconds-ns)/1e9
+        series.add(received,ns,age)
         source = current_sources[topic]
         if msg.header.frame_id != frames[topic] or (topic == '/Odometry' and msg.child_frame_id != 'body'):
             series.bad_frames += 1
+        if stable is not None:stable.record(topic,received,ns,age)
         if topic == '/Odometry':
             p = msg.pose.pose.position
             observation['raw'] = (ns,(p.x,p.y,p.z))
@@ -167,13 +216,15 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
         subscriptions.append(node.create_subscription(State, '/mavros/state', state_received, qos))
     try:
         print(f'Read-only control-chain sampling: {seconds:g}s. No goal or flight requests.', flush=True)
+        if stable is not None:print('VISION PREPARATION: wait for a complete fresh window; no total waiting deadline; lifetime faults remain reported',flush=True)
         end = time.monotonic()+seconds
         started=time.monotonic()
         live_states={topic:None for topic,_ in topics}
         loop_at=started
         loop_gap_max=0.
         graph_at = -math.inf
-        while time.monotonic() < end:
+        progress_at=started
+        while stable is not None or time.monotonic() < end:
             now=time.monotonic()
             loop_gap_max=max(loop_gap_max,now-loop_at)
             loop_at=now
@@ -184,8 +235,8 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
                     samples[topic].sources.update(identities)
                     current_sources[topic] = next(iter(identities)) if len(identities) == 1 else None
                 graph_at = time.monotonic()
-            rclpy.spin_once(node, timeout_sec=min(.02, max(0., end-time.monotonic())))
-            if vision_chain and time.monotonic()-started >= 3:
+            rclpy.spin_once(node, timeout_sec=.02 if stable is not None else min(.02, max(0., end-time.monotonic())))
+            if vision_chain:
                 now=time.monotonic();ros_ns=node.get_clock().now().nanoseconds
                 for topic,_ in topics:
                     reason,receipt_age,header_age=freshness_reason(samples[topic],now,ros_ns)
@@ -194,13 +245,26 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
                               f'state={reason or "recovered"} receive_age={receipt_age:.6f}s '
                               f'header_age={header_age:.6f}s last_stamp_ns={samples[topic].last_stamp}',flush=True)
                         live_states[topic]=reason
+            if stable is not None:
+                if stable.update(samples,time.monotonic(),node.get_clock().now().nanoseconds) or stable.fault:
+                    break
+                if time.monotonic()-progress_at>=5.:
+                    elapsed=0. if stable.started is None else time.monotonic()-stable.started
+                    print(f'VISION WAIT: qualified window={elapsed:.1f}/{seconds:g}s; resets={stable.restarts}; {stable.reason}',flush=True)
+                    progress_at=time.monotonic()
         now = time.monotonic()
+        if stable is not None:
+            print('Lifetime acquisition statistics, including unsettled/rejected intervals:')
+            for topic,_ in topics:
+                print(topic);samples[topic].report(now)
+            print(f'Continuous vision window: required={seconds:g}s; completed={stable.fault is None}; resets={stable.restarts}; fault={stable.fault}',flush=True)
+            if stable.fault is None:samples=stable.samples
         for topic, _ in topics:
             print(topic)
             samples[topic].report(now)
         if not check_motion:
             if vision_chain:
-                fresh=all(s.fresh(now) for s in samples.values())
+                fresh=all(s.fresh(now) for s in samples.values()) and (stable is None or stable.fault is None)
                 print(f'Sampled vision chain fresh: {fresh}; '
                       f'observer loop gap max={loop_gap_max:.6f}s')
                 print('Independent subscriber observation; this cannot prove controller reception or physical accuracy.')
@@ -249,16 +313,19 @@ def main():
     parser.add_argument('--check-motion', action='store_true')
     parser.add_argument('--vision-chain',action='store_true',
                         help='sample raw/aligned/native vision/FC pose; print timed receive/header freshness events')
+    parser.add_argument('--wait-stable',action='store_true',
+                        help='vision preparation: wait for a complete fresh sampling window without a total deadline')
     parser.add_argument('--max-speed', type=float, default=.3)
     parser.add_argument('--max-acceleration', type=float, default=.5)
     args = parser.parse_args()
     if args.vision_chain and args.check_motion:
         parser.error('--vision-chain and --check-motion select different topic sets')
+    if args.wait_stable and not args.vision_chain:parser.error('--wait-stable requires --vision-chain')
     if not math.isfinite(args.seconds) or not 1 <= args.seconds <= 30:
         parser.error('--seconds must be finite and in [1, 30]')
     if not all(math.isfinite(v) and v > 0 for v in (args.max_speed,args.max_acceleration)):
         parser.error('Motion limits must be finite and positive')
-    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration,args.vision_chain)
+    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration,args.vision_chain,args.wait_stable)
 
 
 if __name__ == '__main__':

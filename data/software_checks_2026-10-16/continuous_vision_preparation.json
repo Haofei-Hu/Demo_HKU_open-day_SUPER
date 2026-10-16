@@ -1,0 +1,42 @@
+{
+  "scope": "Cloud ROS 2 Humble read-only vision-preparation tests with synthetic publishers; no aircraft or actual SUPER/PX4 execution",
+  "unit_checks_passed": 39,
+  "targeted_live_cases": {
+    "startup_old": "PASS: old initial stamps retained in lifetime statistics; complete fresh 2 s window required after recovery; total 2.912 s",
+    "mid_gap": "PASS: 0.4 s native-vision interruption resets only observation; complete fresh window required after recovery; total 3.230 s",
+    "mid_header": "PASS: monotonically increasing but delayed stamps interrupt observation; fresh window restarts after recovery; total 3.526 s",
+    "wrong_frame": "PASS: returns failure rather than waiting through an integrity defect; total 1.015 s"
+  },
+  "production_duration_live_case": {
+    "case": "startup_old",
+    "required_fresh_window_s": 30.0,
+    "observed_total_duration_s": 30.908,
+    "result": "PASS"
+  },
+  "legacy_monitor_live_cases": {
+    "count": 11,
+    "standalone_diagnostic_result": "PASS with original exact discovery-count assertion retained",
+    "previous_supplementary_attempt": "Failed exact duplicate-publisher discovery-count assertion, although the checker returned failure for that case. The count/output was not captured in that initial assertion; an instrumented standalone reproduction passed without production changes. Original fixture discovery failure cause remains unconfirmed."
+  },
+  "policy": {
+    "enabled_automatically_for": "complete disarmed ground rehearsal preparation only",
+    "header_age_band_s": [
+      -0.05,
+      0.25
+    ],
+    "receive_gap_limit_s": 0.25,
+    "continuous_window_s": 30.0,
+    "total_wait_deadline_s": null,
+    "temporal_faults": "Record full acquisition history and restart the candidate observation window",
+    "integrity_faults": "Fail on invalid/reordered stamps, wrong frames and changed/duplicate source identities",
+    "default_independent_monitor": "Fixed-duration diagnostic pass/fail unchanged; event logging now starts immediately"
+  },
+  "unmodified": [
+    "relay freshness behavior",
+    "controller runtime freshness handling",
+    "planner/PX4 parameters",
+    "alignment and origin",
+    "ground 0.5 m and physical 1.5 m targets"
+  ],
+  "limits": "Onboard follow-up separately confirmed a fresh 30 s window. The original temporal interruption cause is unresolved. These software checks validate preparation admission and logging, not a complete real-SUPER mission or physical-flight reliability."
+}

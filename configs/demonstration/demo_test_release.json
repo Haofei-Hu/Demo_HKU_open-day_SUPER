@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "badfd7e32148d8a4a2463a5820aa41a297e8e1b91489876e1104559ddbad0f58"
+      "sha256": "1cf2ce88d4f0d89e0b6d0ec1f6cea20cd9abc1c62f1d47c1d1362279e5cfdec7"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -63,7 +63,7 @@
     },
     "control_chain_age_check.py": {
       "path": "scripts/analysis/control_chain_age_check.py",
-      "sha256": "5c1b2ecbb518b92ff20ed4c1458fc4dc264c49541855c73ca8f0fa72a5146f7d"
+      "sha256": "9dfcb370169398f09267dcdb17b5b18798a228a474cc8db127aa907d49bb8451"
     },
     "frame_alignment_check.py": {
       "path": "scripts/localization/frame_alignment_check.py",

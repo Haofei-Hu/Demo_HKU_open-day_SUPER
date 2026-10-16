@@ -19,7 +19,7 @@ The entrypoint sources the installed workspaces itself. It:
 
 1. Opens or reuses QGC, stops the managed grounded session, starts MID360/FAST_LIO/MAVROS/body conversion and measures a fresh alignment.
 2. Applies this run's quaternion, initializes vision using the existing readback-confirmed procedure, and creates the session-relative demonstration map profile.
-3. Checks the real vision chain for 30 seconds and captures a fresh occupied map plus paired raw/aligned geometry.
+3. Waits for a continuous fresh 30-second real vision window and captures a fresh occupied map plus paired raw/aligned geometry.
 4. Starts real SUPER in localhost-only ROS domain 197, with the captured static obstacle model and virtual FC/vehicle feedback. All takeoff, OFFBOARD, arming and landing operations in this rehearsal address that virtual backend.
 5. Runs every mission stage in order, checks the final return hold and landing confirmation, and confirms the actual aircraft remains grounded and disarmed.
 6. Saves the report and prints `RESULT: SUCCESS` or `RESULT: FAIL`, `REPORT: <path>` and the execution scope. Any failure exits nonzero. It never substitutes a synthetic planner when real SUPER fails.
@@ -133,3 +133,9 @@ Both the automatic test runner and the standalone private-domain simulation entr
 ## Alignment sample admission
 
 The read-only survey admits body poses only when their original header age at receipt is within -0.05..0.25 seconds. Old/future poses are excluded before pairing and estimation, rather than included and subsequently invalidating every otherwise usable pair. `body_age_rejected` and `observed_body_age_min_s` / `observed_body_age_max_s` preserve the raw admission evidence; `body_age_min_s` / `body_age_max_s` describe matched admitted samples. Minimum pair count, timestamp pairing and rotation-spread checks remain required. An entirely stale stream cannot produce a usable alignment. Full-rehearsal preparation streams stage logs and has no inherited 120-second subprocess deadline; operator cancellation and actual command failures remain visible.
+
+## Continuous vision preparation window
+
+The automatic ground runner invokes the read-only checker with `--vision-chain --wait-stable --seconds 30`. It waits for all four current sources to be fresh, then requires an uninterrupted thirty-second observation under the existing header-age and receive-gap limits. A temporal interruption clears only the candidate observation window and is logged; it does not restart ROS, change alignment, rebase geometry or send a flight request. There is no overall acquisition deadline. Invalid/reordered stamps, incorrect frames and changed/duplicate source identities remain failures. Per-sample checks detect an old sample even if a newer message recovers before the next loop-level health check.
+
+Lifetime acquisition statistics, including rejected intervals, remain in the stage log separately from qualified-window statistics. The top-level report records `vision_preparation_policy`. Initial three-second suppression of vision freshness event logs is removed, so observation events are visible from the start. Without `--wait-stable`, the independent diagnostic retains its original fixed-window pass/fail behavior. Runtime controller and relay freshness checks are unchanged; a preparation pass does not prove absence of later interruptions or physical flight readiness.

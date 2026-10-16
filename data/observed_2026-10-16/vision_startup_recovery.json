@@ -1,0 +1,74 @@
+{
+  "run_id": "20261016_233119_102579",
+  "scope": "Actual aircraft disarmed; startup and later read-only vision-chain sampling only",
+  "initial_result": "FAIL before virtual takeoff",
+  "initial_age_max_s": {
+    "raw": 0.358,
+    "aligned": 0.363,
+    "native_vision": 0.253,
+    "fc_pose": 0.018
+  },
+  "relay_warning": {
+    "ros_time_s": 1792164744.4040062,
+    "output_gap_s": 0.285871,
+    "raw_receive_age_s": 0.288031,
+    "raw_header_age_s": 0.295742,
+    "aligned_receive_age_s": 0.287121,
+    "aligned_header_age_s": 0.295742,
+    "unmatched_raw_aligned": [
+      0,
+      0
+    ],
+    "configuration_ok": true,
+    "fault": null
+  },
+  "later_same_session_30s": {
+    "result": "PASS",
+    "topics": {
+      "/Odometry": {
+        "n": 1476,
+        "age_min_mean_max_s": [
+          0.006,
+          0.01,
+          0.028
+        ],
+        "receive_gap_max_s": 0.036
+      },
+      "/super_debug/aligned_pose_cov": {
+        "n": 1500,
+        "age_min_mean_max_s": [
+          0.007,
+          0.013,
+          0.032
+        ],
+        "receive_gap_max_s": 0.034
+      },
+      "/mavros/vision_pose/pose_cov": {
+        "n": 1368,
+        "age_min_mean_max_s": [
+          0.009,
+          0.017,
+          0.038
+        ],
+        "receive_gap_max_s": 0.037
+      },
+      "/mavros/local_position/pose": {
+        "n": 874,
+        "age_min_mean_max_s": [
+          0.0,
+          0.007,
+          0.019
+        ],
+        "receive_gap_max_s": 0.045
+      }
+    },
+    "invalid_stamps": 0,
+    "nonincreasing_stamps": 0,
+    "unexpected_frames": 0,
+    "sources_per_topic": 1,
+    "observer_loop_gap_max_s": 0.024331
+  },
+  "interpretation": "A real temporal interruption was observed during earlier initialization; later complete sampling passed. Matching callbacks both had about 0.29 s receipt gaps, empty pairing buffers and confirmed configuration. Logs do not establish whether the upstream LIO, DDS delivery, scheduling or another mechanism caused the interruption. No persistent fault is demonstrated by the later 30 s window.",
+  "full_mission_completed": false,
+  "physical_flight_verified": false
+}
