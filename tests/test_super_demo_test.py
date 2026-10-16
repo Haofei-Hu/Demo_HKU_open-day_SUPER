@@ -140,7 +140,7 @@ class Tests(unittest.TestCase):
             def failed(name,command,env=None):
                 if name=='complete_mission':
                     (runner.folder/'mission_report.json').write_text(json.dumps(dict(result='FAIL',
-                        completed_stages=['TAKEOFF_TO_2M'],simulation_backend=dict(actual_SUPER_used=True))))
+                        completed_stages=['TAKEOFF_TO_1_5M'],simulation_backend=dict(actual_SUPER_used=True))))
                     raise RuntimeError('No verified mission reference within 8 s')
             runner.step=failed
             self.assertEqual(runner.run_complete(),1)
@@ -156,7 +156,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.run_complete(),0)
             self.assertEqual(runner.args.mission_file.read_bytes(),before)
             self.assertEqual(runner.report['mission']['mission_id'],'short_site_1m_rehearsal')
-            self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,2.])
+            self.assertEqual(runner.report['waypoints']['far_hover'],[1.,0.,1.5])
             self.assertEqual(runner.report['mission_report']['completed_stages'][2],'SUPER_OUTBOUND_1M')
             self.assertFalse(runner.report['demonstration_completed'])
 

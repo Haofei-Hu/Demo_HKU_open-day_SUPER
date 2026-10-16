@@ -147,10 +147,16 @@ class Tests(unittest.TestCase):
 
     def test_invalid_committed_trajectory_rejected(self):
         for field,value in (('type',1),('type',19),('order_pos',6),('start_wt_pos',math.nan),
-                            ('time_pos',[0.]),('time_pos',[121.]),('coef_pos_x',[0.]*7),
+                            ('time_pos',[0.]),('time_pos',[math.inf]),('coef_pos_x',[0.]*7),
                             ('coef_pos_y',[math.nan]*8)):
             m=trajectory();setattr(m,field,value)
             with self.assertRaises(ValueError):Plan(m)
+
+    def test_long_finite_trajectory_has_no_format_duration_cap(self):
+        msg=trajectory(distance=0.);msg.time_pos=[180.]
+        plan=Plan(msg)
+        self.assertEqual(plan.duration,180.)
+        np.testing.assert_array_equal(plan.evaluate(150.),np.zeros((3,3)))
 
     def test_zero_speed_at_start_does_not_mean_finished(self):
         r=self.reference()

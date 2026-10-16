@@ -18,7 +18,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-The installer validates the matching release manifest and backs up replaced scripts. It preserves the measured alignment and any existing `~/Downloads/open_day_mission.json`, including its local measurements. It does not launch ROS or initiate flight. An existing mission file is retained rather than automatically migrated; inspect its settings before selecting it for a run. The integration workspaces and earlier localization helpers remain prerequisites.
+The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M` before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
 
 ## Run the complete ground rehearsal after each reboot
 
@@ -37,7 +37,7 @@ The runner performs the following sequence:
 1. Open or reuse QGroundControl, then start MID360, FAST_LIO, MAVROS and body conversion, with online LIO extrinsic estimation disabled for this session.
 2. Measure and apply a fresh alignment quaternion, start external vision, and capture the session-relative map configuration.
 3. Sample the real vision chain for 30 seconds and capture a fresh occupied scene.
-4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 2 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
+4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 1.5 m, stabilize, fly forward 4.5 m, stop, return home, hover six seconds, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
 
 The actual aircraft receives localization initialization. All flight requests in the rehearsal address the virtual backend. `--fixture-geometry` supplies explicitly synthetic aircraft dimensions and placement; it does not measure laboratory walls or establish physical clearance. A larger laboratory still needs a clear route in the captured map and a valid backup trajectory.
@@ -60,7 +60,7 @@ Append `--no-rviz` to disable the viewer. Without a graphical desktop or an inst
 
 The planner targets 2 m/s and 1 m/s². Observation mode records exceedances and uses 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [the complete test specification](DEMONSTRATION_MISSION.md).
 
-At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. Waiting is excluded from the existing 90-second controller execution budget and 105-second rehearsal execution budget, so those outer limits cannot act as replacement planning deadlines. Planner exit, invalid input, stale telemetry, venue violations and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
+At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. The complete controller and rehearsal have no total execution deadline or individual committed-trajectory duration cap. Stage transitions follow arrival, hold completion and landed/disarmed feedback. Reports record these execution limits as null. Planner exit, invalid input, stale telemetry, venue violations and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
 
 For a separate one-metre rehearsal, append `--route-profile short-1m`. This changes the virtual outbound distance and cannot count as a completed 4.5 m demonstration or enable physical flight. Use the default full route in a suitable laboratory.
 
@@ -113,7 +113,7 @@ Run the complete rehearsal command again for another fresh automatic test. Do no
 
 ## Prepare physical execution separately
 
-The physical route is also 2 m up, 4.5 m forward, return to the original hover point, six-second hold, then landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
+The physical route is also 1.5 m up, 4.5 m forward, return to the original hover point, six-second hold, then landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
 Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Survey that box, takeoff distances from its rear and left boundaries, and all six propeller-inclusive FC-centre extents. Replace every null geometry field with an actual measurement; do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change.
 

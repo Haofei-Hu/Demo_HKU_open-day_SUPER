@@ -29,7 +29,7 @@ class Tests(unittest.TestCase):
             cfg=fixture();cfg['takeoff'].update(forward_from_rear_m=rear,distance_from_left_m=left)
             mission=DemoMission(cfg)
             for forward in (0,2.25,4.5,2.25,0):mission.check((forward,0,2.))
-            self.assertEqual(mission.waypoints()['return_hover'],[0,0,2])
+            self.assertEqual(mission.waypoints()['return_hover'],[0,0,1.5])
             self.assertEqual(cfg['flight']['return_hover_s'],6.)
 
     def test_short_edge_does_not_allow_a_centre_on_a_wall(self):
@@ -37,7 +37,7 @@ class Tests(unittest.TestCase):
                           ('forward_from_rear_m',1.1001),('distance_from_left_m',2.8)):
             cfg=fixture();cfg['takeoff'][key]=value
             with self.assertRaisesRegex(ValueError,'outside venue'):DemoMission(cfg)
-        cfg=fixture();cfg['vehicle']['centre_to_top_m']=.8001
+        cfg=fixture();cfg['vehicle']['centre_to_top_m']=1.3001
         with self.assertRaisesRegex(ValueError,'outside venue'):DemoMission(cfg)
 
     def test_body_bounds_and_source_geometry_are_preserved(self):
@@ -76,7 +76,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(original,before)
         self.assertEqual(original['flight']['outbound_forward_m'],4.5)
         self.assertEqual(mission.distance,1.)
-        self.assertEqual(mission.waypoints()['far_hover'],[1.,0.,2.])
+        self.assertEqual(mission.waypoints()['far_hover'],[1.,0.,1.5])
         self.assertEqual(mission.PHASES[2],'SUPER_OUTBOUND_1M')
         self.assertEqual(mission.config['flight']['horizontal_speed_limit_mps'],2.)
         self.assertEqual(mission.config['flight']['axis_error_limit_m'],.1)

@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "c093761ce99f20f85ad410d26e6f91582bb78ab3791fec9e69a76fd5f72918c2"
+      "sha256": "f17fac90a73b4d84de9ddb73c167e485057baa68659c08d6b4bc7cfd2eb0e8bc"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -11,15 +11,15 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "eac4be506bce850f69fa0bb45f26392a6cda496a958a1a2b774e9f15c0ce9dfe"
+      "sha256": "eca6eaacdcf74118a4414abb1bd184dc32a3d38bba1ed1847228f1956c189d3a"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "60d63e941215e299f13c37f7a888e9febbcb088cff3cea56216625033a8e9d82"
+      "sha256": "ac5ef23aad0779fbf3403579b798fb0b9a6cbf8b41cb5f06c6ecddae9f258e10"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "01b25c240b12582826feb0fa5913afd9d9c9f3a131a0825b328a01049f37e74f"
+      "sha256": "b3b29f77f2a413016ad03ca157c590b5d44236e1b0e287e4c9f96b086ca826fd"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
@@ -31,11 +31,11 @@
     },
     "super_flight_control.py": {
       "path": "scripts/flight/super_flight_control.py",
-      "sha256": "838ceca8c6b51d8573d5bd42d03ce97f3ad28ba44ada7d25fd335b0c2185bb56"
+      "sha256": "dbb6d7f0f3bd76f0a5d9bcb46b050d7c90e06c304e7f23fa81f7be55a65da7ee"
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "b5af04a95be49be4f9896e0c45fad7529e5ac022fe32bd7aa498787fa996a33e"
+      "sha256": "ad2c1e741f73d1d09c2536e08f87834bb894a371f8c01af10a5b886cd940dd68"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",
@@ -79,7 +79,7 @@
     },
     "open_day_mission.json": {
       "path": "configs/demonstration/open_day_mission.json",
-      "sha256": "036ca9fbec36b5f235fe7faab904f230c3205ba86d67fe0bc6d25604bf5d5287",
+      "sha256": "61d23c9f7524fde12adc30fbee3cd4fc452825b5abd4462c52157305d1634abf",
       "preserve_existing": true
     },
     "qgc_startup.py": {

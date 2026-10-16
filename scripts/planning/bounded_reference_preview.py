@@ -55,7 +55,8 @@ class Plan:
         if (msg.header.frame_id != 'world' or not msg.type & 2 or msg.type & 16
                 or msg.order_pos != 7 or not 1 <= n <= 256 or len(durations) != n
                 or any(len(v) != n*8 for v in values) or not math.isfinite(self.start) or self.start <= 0
-                or not np.all(np.isfinite(durations)) or np.any(durations <= 0) or durations.sum() > 120):
+                or not np.all(np.isfinite(durations)) or np.any(durations <= 0)
+                or not math.isfinite(float(durations.sum()))):
             raise ValueError('Invalid/unsupported committed position trajectory')
         self.durations = durations.copy()
         self.coefficients = np.asarray(values, dtype=float).reshape(3,n,8).copy()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One complete venue-bounded demonstration; check-only unless explicitly enabled.
 
-    2 m takeoff -> SUPER 4.5 m outbound -> SUPER return -> 6 s hold -> LAND
+    1.5 m takeoff -> SUPER 4.5 m outbound -> SUPER return -> 6 s hold -> LAND
 
 No parameter writes. Execution also requires an explicit start service, current
 RC/POSCTL and the on-site-supervision flag. Reports distinguish simulation.
@@ -53,6 +53,7 @@ class DemoMissionControl(SuperFlightControl):
     PLANNER_LIMITS=REFERENCE_LIMITS=(2.,1.)
     MAX_DISTANCE=4.5
     FRAME_FORWARD_LIMIT=4.6
+    MAX_TRAJECTORY_SECONDS=None
     NATIVE_TOPIC='/mavros/setpoint_raw/local'
     EXPECTED_PARAMETERS=dict(PARAMETERS,MPC_XY_VEL_MAX=2.)
     ADVISORY_SPEED=2.4
@@ -97,14 +98,16 @@ class DemoMissionControl(SuperFlightControl):
             derivative_exceedance_alone_stops_motion=motion_policy=='strict')
         self.mission_report.data['motion_advisory_by_leg']={}
         self.mission_report.data['planning_wait_policy']=dict(timeout_s=None,
-            action='Hold the leg start until a verified trajectory arrives or the operator stops',
-            excluded_from_execution_budgets=True)
-        super().__init__(execute=execute,hover_fc_height=2.,hold_seconds=6.,distance=self.mission.distance,
+            action='Hold the leg start until a verified trajectory arrives or the operator stops')
+        self.mission_report.data['execution_limits']=dict(controller_timeout_s=None,
+            committed_trajectory_duration_s=None)
+        super().__init__(execute=execute,hover_fc_height=self.mission.hover_height,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
-        self.offboard_budget=90.
+        # Also disable the inherited first-hover rise-time fallback.
+        self.offboard_budget=math.inf
         self.create_subscription(TwistStamped,'/mavros/local_position/velocity_local',
                                  lambda msg:self.store('velocity',msg),qos_profile_sensor_data)
-        self.get_logger().info(f'MISSION {config["mission_id"]}: 2 m rise, {self.distance:g} m outbound, '
+        self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, {self.distance:g} m outbound, '
                                'return, 6 s hold, LAND; no parameter writes.')
 
     def make_native_publisher(self):
@@ -138,12 +141,12 @@ class DemoMissionControl(SuperFlightControl):
             from control_bridge_preview import quaternion_rpy
             self.frame=VenueFrame(self.reference.ground,quaternion_rpy(0,0,self.reference.yaw),
                 self.mission,lambda:self.extended is not None and self.extended.landed_state==1)
-            self.home=np.array(self.reference.ground)+np.array([0.,0.,1.915])
+            self.home=np.array(self.reference.ground)+np.array([0.,0.,self.reference.lift])
             self.far=self.home+self.frame.axes.T@np.array([self.distance,0.,0.])
         self.mission_report.event(phase,leg=self.leg)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
-            self.mission_report.completed('TAKEOFF_TO_2M')
+            self.mission_report.completed('TAKEOFF_TO_1_5M')
         elif phase=='LANDING' and self.stages_started:
             self.mission_report.completed('AUTO_LAND')
         elif phase=='DONE' and self.stages_started:
@@ -279,7 +282,7 @@ class DemoMissionControl(SuperFlightControl):
 
     def start(self,request,response):
         response=super().start(request,response)
-        if response.success:response.message=f'Accepted one mission: 2 m rise, {self.distance:g} m outbound, return, 6 s hold, LAND'
+        if response.success:response.message=f'Accepted one mission: {self.mission.hover_height:g} m rise, {self.distance:g} m outbound, return, 6 s hold, LAND'
         return response
 
     def arrived(self,xyz,target):
@@ -305,9 +308,6 @@ class DemoMissionControl(SuperFlightControl):
         super().tick()
 
     def mission_tick(self,now,xyz,yaw):
-        if (self.started and self.armed_at is not None
-                and now-self.armed_at-self.planning_wait_seconds(now)>self.offboard_budget):
-            raise ValueError('Complete mission exceeded 90-second execution budget excluding planner wait')
         if self.phase=='RISE':
             u=min(1.,(now-self.armed_at)/self.reference.ramp_seconds)
             target=np.array(self.reference.ground)+np.array([0,0,self.reference.lift*(u**3*(10-15*u+6*u*u))])

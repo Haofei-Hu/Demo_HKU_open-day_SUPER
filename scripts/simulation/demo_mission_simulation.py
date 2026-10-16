@@ -205,6 +205,7 @@ def backend(connection,fault,scene_file=None):
     def build_plan(end):
         distance=math.dist(pose,end)
         duration=max(1.875*distance/2.,math.sqrt(5.774*distance),1.)
+        if fault=='long-trajectory':duration=40.  # Exercise both former total deadlines.
         if fault=='motion-target-exceedance':duration*=.9  # Synthetic evidence test only.
         if fault=='motion-advisory-exceedance':duration*=.7
         poly=PolynomialTrajectory();poly.header.frame_id='world';poly.header.stamp=node.get_clock().now().to_msg()
@@ -321,13 +322,11 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
             viewer.start(scene)
             rclpy.init();node=DemoMissionControl(mission_file,report,True,True,alignment,planner,
                                               simulation=True,motion_policy=motion_policy)
-            client=node.create_client(Trigger,'/super_demo/start');attempted=False;began=time.monotonic()
+            client=node.create_client(Trigger,'/super_demo/start');attempted=False
             while rclpy.ok() and node.phase not in ('DONE','STOPPED'):
                 rclpy.spin_once(node,timeout_sec=.02)
                 if planner_process is not None and planner_process.poll() is not None:
                     node.abort('Isolated SUPER exited; inspect planner_rehearsal.log')
-                if time.monotonic()-began-node.planning_wait_seconds()>105:
-                    node.abort('Complete simulation execution timed out excluding planner wait')
                 if node.phase=='READY' and not attempted and client.service_is_ready():
                     attempted=True;client.call_async(Trigger.Request())
             parent.send('report')
@@ -336,6 +335,7 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
             node.mission_report.data['simulation_backend']=dict(kind='real SUPER / ideal virtual vehicle' if scene_file else
                 'ideal synthetic ROS planning and vehicle',actual_SUPER_used=scene_file is not None,
                 actual_PX4_used=False,hardware_used=False,ledger=ledger,scene_file=str(scene_file) if scene_file else None,
+                execution_timeout_s=None,
                 static_snapshot_adaptation=['rog_map.ros_callback.cloud_topic','rog_map.raycasting.enable'] if scene_file else [])
             node.mission_report.save()
             return node.phase=='DONE'
@@ -364,7 +364,7 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='use labelled synthetic geometry, not actual aircraft measurements')
     p.add_argument('--report-json',type=Path)
     p.add_argument('--fault',choices=('return-dropout','motion-target-exceedance','motion-advisory-exceedance',
-                                     'initial-plan-delay','lateral-route'))
+                                     'initial-plan-delay','lateral-route','long-trajectory'))
     p.add_argument('--scene-file',type=Path,help='captured actual map; use real SUPER instead of the synthetic planner')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict')
     p.add_argument('--no-rviz',action='store_true',help='disable the automatically managed rehearsal viewer')

@@ -57,6 +57,7 @@ class SuperFlightControl(FirstHoverControl):
     REFERENCE_LIMITS=(.3,.5)
     MAX_DISTANCE=.3
     FRAME_FORWARD_LIMIT=5.
+    MAX_TRAJECTORY_SECONDS=20.
     NODE_NAME='super_flight'
     DEBUG_TOPIC='/super_debug/super_flight_target'
     START_SERVICE='/super_flight/start'
@@ -357,7 +358,8 @@ class SuperFlightControl(FirstHoverControl):
             if not self.fresh_ns(self.stamp(msg)):raise ValueError('Stale committed trajectory')
             plan=Plan(msg)
             if plan.start<self.goal_issued_ns/1e9-.05:continue
-            if plan.duration>20.:raise ValueError('Initial handover trajectory exceeds 20 s')
+            if self.MAX_TRAJECTORY_SECONDS is not None and plan.duration>self.MAX_TRAJECTORY_SECONDS:
+                raise ValueError(f'Initial handover trajectory exceeds {self.MAX_TRAJECTORY_SECONDS:g} s')
             self.accept_plan(plan,msg)
         while self.pending:
             msg=self.pending[0];ns=self.stamp(msg)

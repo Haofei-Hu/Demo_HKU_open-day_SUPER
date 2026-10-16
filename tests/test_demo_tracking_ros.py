@@ -60,12 +60,17 @@ class Tests(unittest.TestCase):
             DemoMissionControl.mission_tick(control,200.,control.home,.4)
         control.publish.assert_not_called()
 
-    def test_completed_wait_stays_excluded_but_execution_budget_is_still_checked(self):
+    def test_mission_keeps_running_beyond_former_execution_budget(self):
         control=self.waiting();control.plan_wait_elapsed_s=1000.;control.plan_wait_started_at=None
         self.assertEqual(control.planning_wait_seconds(1050.),1000.)
-        self.assertTrue(DemoMissionControl.mission_tick(control,1050.,control.home,.4))
-        with self.assertRaisesRegex(ValueError,'execution budget excluding planner wait'):
-            DemoMissionControl.mission_tick(control,1091.,control.home,.4)
+        for now in (1050.,1091.,5000.):
+            self.assertTrue(DemoMissionControl.mission_tick(control,now,control.home,.4))
+        control.phase=control.follower.phase='TRACK'
+        control.follower.last=(1,control.far)
+        self.assertTrue(DemoMissionControl.mission_tick(control,5000.,control.home,.4))
+        np.testing.assert_array_equal(control.publish.call_args.args[0],control.far)
+        self.assertIsNone(DemoMissionControl.MAX_TRAJECTORY_SECONDS)
+        self.assertEqual(SuperFlightControl.MAX_TRAJECTORY_SECONDS,20.)
 
     def test_missing_or_expired_sent_reference_cannot_pass(self):
         control=self.control();control.sent_references.clear()
@@ -128,6 +133,11 @@ class Tests(unittest.TestCase):
                 node=DemoMissionControl(mission,folder/'report.json',execute=True,on_site_supervised=True,
                     alignment_path=alignment,planner_config=planner,motion_policy='observe')
                 self.assertEqual(node.motion_policy,'observe')
+                self.assertEqual(node.mission.hover_height,1.5)
+                self.assertEqual(node.hover_fc_height,1.5)
+                self.assertEqual(node.offboard_budget,float('inf'))
+                self.assertEqual(node.mission_report.data['execution_limits'],
+                                 dict(controller_timeout_s=None,committed_trajectory_duration_s=None))
                 self.assertEqual(node.phase,'CHECKING');self.assertFalse(node.started)
                 self.assertEqual(node.sent,0);self.assertEqual(node.goal_count,0)
                 response=node.start(Trigger.Request(),Trigger.Response())

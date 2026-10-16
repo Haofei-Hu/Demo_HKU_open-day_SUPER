@@ -95,7 +95,7 @@ class DemoTest(GroundTest):
             mission=DemoMission(config)
             frozen=self.folder/'mission.json';frozen.write_text(json.dumps(config,indent=2)+'\n')
             self.report['mission']=config;self.report['waypoints']=mission.waypoints()
-            print(f'ROUTE: {config["mission_id"]}; 2 m height, {mission.distance:g} m outbound, return, 6 s hover, LAND',flush=True)
+            print(f'ROUTE: {config["mission_id"]}; {mission.hover_height:g} m height, {mission.distance:g} m outbound, return, 6 s hover, LAND',flush=True)
             scene=None
             if not self.args.logic_only:
                 self.open_qgc()

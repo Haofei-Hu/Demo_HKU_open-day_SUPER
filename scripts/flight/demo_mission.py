@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 class DemoMission:
-    PHASES=('TAKEOFF_TO_2M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
+    PHASES=('TAKEOFF_TO_1_5M','STABILIZE_AT_HOME','SUPER_OUTBOUND_4_5M',
             'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME','HOLD_HOME_6S',
             'AUTO_LAND','CONFIRM_LANDED_AND_DISARMED')
 
@@ -26,12 +26,13 @@ class DemoMission:
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
         fixed={'length_forward_m':5.8 if self.demonstration else 2.,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
-        expected={'height_fc_above_floor_m':2.,'outbound_forward_m':self.distance,
+        expected={'height_fc_above_floor_m':1.5,'outbound_forward_m':self.distance,
                   'horizontal_speed_limit_mps':2.,'acceleration_limit_mps2':1.,
                   'return_hover_s':6.,'axis_error_limit_m':.1}
         if any(f.get(k)!=n for k,n in expected.items()):raise ValueError('Final demonstration settings differ')
         if f.get('yaw_policy')!='hold_takeoff_heading':raise ValueError('Need fixed takeoff heading')
         if s.get('heading_along_length_confirmed') is not True:raise ValueError('Confirm heading along venue length')
+        self.hover_height=float(f['height_fc_above_floor_m'])
         self.hull={name:self.measure(body.get('centre_to_'+name+'_m'),'FC-centre to '+name)
                    for name in ('front','rear','left','right','top','bottom')}
         self.rear=self.measure(s.get('forward_from_rear_m'),'takeoff distance from rear boundary')
@@ -41,7 +42,7 @@ class DemoMission:
             raise ValueError('Measured FC-to-bottom clearance must fit the existing 0.085 m floor calibration')
         # Validate the requested route's hull against the outer venue directly.
         # The arrival tolerance is not an additional corridor or boundary inset.
-        for forward in (0.,self.distance):self.check((forward,0.,2.))
+        for forward in (0.,self.distance):self.check((forward,0.,self.hover_height))
         self.check((0.,0.,.085),on_floor=True)
 
     @staticmethod
@@ -82,8 +83,8 @@ class DemoMission:
         return clearances
 
     def waypoints(self):
-        return {'ground':[0.,0.,.085],'home_hover':[0.,0.,2.],
-                'far_hover':[self.distance,0.,2.],'return_hover':[0.,0.,2.]}
+        return {'ground':[0.,0.,.085],'home_hover':[0.,0.,self.hover_height],
+                'far_hover':[self.distance,0.,self.hover_height],'return_hover':[0.,0.,self.hover_height]}
 
 
 class MissionReport:

@@ -44,5 +44,25 @@ class Tests(unittest.TestCase):
             self.assertEqual(target.read_text(),'# keep\n')
             self.assertFalse((destination/'demo_mission.py').exists())
 
+    def test_height_migration_preserves_survey_and_is_repeatable(self):
+        _,fetch=self.release()
+        original=json.loads(fetch('configs/demonstration/open_day_mission.json'))
+        original['flight']['height_fc_above_floor_m']=2.
+        original['sequence'][0]='TAKEOFF_TO_2M'
+        original['takeoff'].update(forward_from_rear_m=.6,distance_from_left_m=1.2)
+        original['vehicle']['centre_to_front_m']=.31
+        original['operator_note']='Measured on site'
+        with tempfile.TemporaryDirectory() as folder:
+            destination=Path(folder);mission=destination/'open_day_mission.json'
+            mission.write_text(json.dumps(original))
+            backup=m.install('a'*40,destination,fetch)
+            self.assertEqual(json.loads((backup/'previous_open_day_mission.json').read_text()),original)
+            expected=json.loads(json.dumps(original))
+            expected['flight']['height_fc_above_floor_m']=1.5
+            expected['sequence'][0]='TAKEOFF_TO_1_5M'
+            self.assertEqual(json.loads(mission.read_text()),expected)
+            before=mission.read_bytes();m.install('a'*40,destination,fetch)
+            self.assertEqual(mission.read_bytes(),before)
+
 
 if __name__=='__main__':unittest.main()

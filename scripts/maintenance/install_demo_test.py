@@ -12,6 +12,22 @@ import tempfile
 import urllib.request
 
 
+def mission_height_update(data):
+    """Migrate the requested canonical height without replacing local measurements."""
+    try:config=json.loads(data)
+    except (ValueError,UnicodeDecodeError):return data
+    if (not isinstance(config,dict) or config.get('schema_version')!=1
+            or config.get('mission_id')!='open_day_out_and_back'
+            or not isinstance(config.get('flight'),dict)
+            or config['flight'].get('height_fc_above_floor_m')!=2.
+            or not isinstance(config.get('sequence'),list)
+            or not config['sequence'] or config['sequence'][0]!='TAKEOFF_TO_2M'):
+        return data
+    config['flight']['height_fc_above_floor_m']=1.5
+    config['sequence'][0]='TAKEOFF_TO_1_5M'
+    return (json.dumps(config,indent=2)+'\n').encode()
+
+
 def install(revision,destination,fetch=None):
     if not re.fullmatch('[0-9a-f]{40}',revision):raise ValueError('Use a full pinned commit SHA')
     destination=Path(destination).expanduser();destination.mkdir(parents=True,exist_ok=True)
@@ -42,8 +58,15 @@ def install(revision,destination,fetch=None):
     changed=[];retained=[]
     for name,entry in entries.items():
         target=destination/name;data=(staged/name).read_bytes()
-        if target.exists() and (target.read_bytes()==data or entry.get('preserve_existing')):
-            retained.append(name);continue
+        if target.exists():
+            previous=target.read_bytes()
+            if entry.get('preserve_existing'):
+                migrate=(name=='open_day_mission.json'
+                         and json.loads(data).get('flight',{}).get('height_fc_above_floor_m')==1.5)
+                data=mission_height_update(previous) if migrate else previous
+                if previous!=data:print('Mission height updated: 2 -> 1.5 m; local measurements retained')
+            if previous==data:
+                retained.append(name);continue
         if target.exists():shutil.copy2(target,staged/('previous_'+name))
         tmp=destination/('.demo_update_'+name);tmp.write_bytes(data);os.replace(tmp,target);changed.append(name)
     (staged/'release.json').write_text(json.dumps(dict(revision=revision,updated=changed,retained=retained),indent=2)+'\n')
