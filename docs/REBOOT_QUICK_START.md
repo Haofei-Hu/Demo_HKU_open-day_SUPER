@@ -9,11 +9,14 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='c8ab5d757a65c437d04deab141de8fdb40b81323'
+demo_revision='5e0a0aefdf1caf9226650806792c000e67d8f64e'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
   -o "$demo_update_dir/install_demo_test.py"
+if tmux -L super-aircraft has-session -t super-flight 2>/dev/null; then
+  python3 ~/Downloads/super_session.py stop
+fi
 python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
