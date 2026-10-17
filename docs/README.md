@@ -5,6 +5,7 @@
 | Current integration progress and validation scope | [October 16 progress](PROGRESS_2026-10-16.md) |
 | Power-on/reboot, automatic complete test, and separate flight startup | [Reboot quick start](REBOOT_QUICK_START.md) |
 | Complete demonstration stages, motion policy, and reports | [Demonstration mission](DEMONSTRATION_MISSION.md) |
+| Separate 2/1 optimization targets and 4/2 acceptance bounds | [Motion acceptance and one-time rebuild](MOTION_ACCEPTANCE.md) |
 | Next development and validation stage | [Next steps](NEXT_STEPS.md) |
 | One/two-terminal tmux startup and persistent logs | [Compact startup](SESSION_STARTUP.md) |
 | One-goal SUPER handover and default ground auditing | [Handover workflow](SUPER_HANDOVER.md) |

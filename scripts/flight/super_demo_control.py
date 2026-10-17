@@ -66,6 +66,11 @@ class VenueFrame(TakeoffFrame):
 
 class VenueReference(RollingGoalReference):
     """Observe initial position offsets; frame checks enforce the entire vehicle's bounds."""
+    def __init__(self,frame,endpoint_check,final_goal_check,motion_policy='strict',
+                 max_speed=2.,max_acceleration=1.,acceptance_speed=4.,acceptance_acceleration=2.):
+        super().__init__(frame,endpoint_check,final_goal_check,motion_policy,max_speed,max_acceleration,
+                         acceptance_speed,acceptance_acceleration)
+
     def check_initial_offset(self,offset):
         pass
 
@@ -97,6 +102,7 @@ class DemoMissionControl(SuperFlightControl):
     MAX_HOVER_HEIGHT=2.
     ALLOW_EXTENDED_EXECUTION=True
     PLANNER_LIMITS=REFERENCE_LIMITS=(2.,1.)
+    MOTION_ACCEPTANCE=(4.,2.)
     MAX_DISTANCE=4.5
     FRAME_FORWARD_LIMIT=4.6
     MAX_TRAJECTORY_SECONDS=None
@@ -145,10 +151,15 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['peak_reference_speed_mps']=0.
         self.mission_report.data['peak_reference_acceleration_mps2']=0.
         self.mission_report.data['motion_policy']=motion_policy
+        self.mission_report.data['motion_acceptance']=dict(
+            planner_target_speed_mps=self.PLANNER_LIMITS[0],planner_target_acceleration_mps2=self.PLANNER_LIMITS[1],
+            acceptance_speed_mps=self.MOTION_ACCEPTANCE[0],acceptance_acceleration_mps2=self.MOTION_ACCEPTANCE[1],
+            reference_exceedance_action='reject' if motion_policy=='strict' else 'record_only',
+            planner_exceedance_action='reject_candidate_and_replan')
         self.mission_report.data['planner_motion_by_leg']={}
         self.mission_report.data['motion_advisories']=dict(speed_mps=self.ADVISORY_SPEED,
             acceleration_mps2=self.ADVISORY_ACCELERATION,action='warning_only',
-            derivative_exceedance_alone_stops_motion=motion_policy=='strict')
+            derivative_exceedance_alone_stops_motion=False)
         self.mission_report.data['motion_advisory_by_leg']={}
         self.mission_report.data['planning_wait_policy']=dict(timeout_s=None,
             action='Hold the leg start until a verified trajectory arrives or the operator stops')
@@ -299,7 +310,9 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['max_tracking_error_forward_left_up_m']=self.max_tracking_error.tolist()
 
     def make_follower(self):
-        return VenueReference(self.frame,self.check_stage_endpoint,self.final_goal_reached,self.motion_policy)
+        return VenueReference(self.frame,self.check_stage_endpoint,self.final_goal_reached,self.motion_policy,
+            max_speed=self.REFERENCE_LIMITS[0],max_acceleration=self.REFERENCE_LIMITS[1],
+            acceptance_speed=self.MOTION_ACCEPTANCE[0],acceptance_acceleration=self.MOTION_ACCEPTANCE[1])
 
     def process_reference(self,xyz):
         try:
@@ -572,7 +585,7 @@ def arguments(argv=None):
     p.add_argument('--on-site-supervised',action='store_true')
     p.add_argument('--preparation-report',type=Path)
     p.add_argument('--motion-policy',choices=('strict','observe'),default='observe',
-                   help='observe records derivative exceedances; strict retains exact 2/1 rejection')
+                   help='observe records derivative exceedances; strict rejects above 4 m/s or 2 m/s^2; planning targets remain 2/1')
     return p.parse_args(argv)
 
 

@@ -1,0 +1,11 @@
+{
+  "upstream": "https://github.com/hku-mars/SUPER",
+  "revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+  "license": "LGPL-3.0-or-later; upstream copyright Yunfan REN, MaRS Lab, University of Hong Kong",
+  "scope": "Complete original configuration header and verbatim acceptance-check excerpts for patch and compiled boundary regression tests",
+  "original_sha256": {
+    "include/traj_opt/config.hpp": "f1b0bdc55a8ee00d1c1b511a7f6734db9def6afad5fc99c7996f00e009fab4e1",
+    "src/traj_opt/backup_traj_optimizer_s4.cpp": "61cc9eaf29c104fe83a9a57a72950c84c6bdfc7c07e06266fd1ec28550228b1d",
+    "src/traj_opt/exp_traj_optimizer_s4.cpp": "1baf48508ef4a3720ec3dd231fcf5ed46d2bf8e8935cf4058aa397536e4bd600"
+  }
+}

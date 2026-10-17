@@ -432,6 +432,9 @@ class Session:
         if self.args.planner_profile in ('low-speed-3d','forward-5m-2mps','demo') and fsm.get('click_height') != -6.0:
             raise RuntimeError('3D goal preview requires click_height=-6 to preserve message Z')
         (folder.parent/'log').mkdir(parents=True, exist_ok=True)
+        if self.args.planner_profile=='demo':
+            from create_super_motion_acceptance_profile import create
+            target=create(target,folder.parent.parent)
         return target
 
     def stop_planning(self, gate):

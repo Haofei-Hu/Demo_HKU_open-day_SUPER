@@ -157,6 +157,10 @@ class Tests(unittest.TestCase):
                 self.assertFalse(response.success);self.assertFalse(node.started)
                 self.assertFalse(node.mission_report.data['physical_flight_verified'])
                 self.assertEqual(node.mission_report.data['motion_advisories']['speed_mps'],2.4)
+                acceptance=node.mission_report.data['motion_acceptance']
+                self.assertEqual((acceptance['planner_target_speed_mps'],acceptance['planner_target_acceleration_mps2']),(2.,1.))
+                self.assertEqual((acceptance['acceptance_speed_mps'],acceptance['acceptance_acceleration_mps2']),(4.,2.))
+                self.assertEqual(acceptance['reference_exceedance_action'],'record_only')
                 self.assertIsNone(node.mission_report.data['planning_wait_policy']['timeout_s'])
                 self.assertIsNone(node.mission_report.data['post_takeoff_position_policy']['straight_line_corridor_m'])
             finally:

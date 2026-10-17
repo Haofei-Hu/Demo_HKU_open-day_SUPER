@@ -20,6 +20,26 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 
 The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M`, and `flight.round_trips` to `5` with the current canonical sequence before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
 
+This release separates the unchanged **2 m/s, 1 m/s² optimization targets** from **4 m/s, 2 m/s² trajectory acceptance bounds**. It requires a one-time SUPER source patch and rebuild after installation:
+
+```bash
+(
+set -e
+python3 ~/Downloads/apply_super_motion_acceptance.py
+bash --noprofile --norc -c '
+set -e
+source /opt/ros/humble/setup.bash
+source "$HOME/ws_livox/install/setup.bash"
+source "$HOME/super_ws/install/setup.bash"
+cd "$HOME/super_ws"
+CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
+  colcon build --packages-select super_planner --executor sequential
+'
+)
+```
+
+The patcher saves a reversible backup and preserves optimization penalties and other planner checks. The manager verifies the installed binary before selecting the new acceptance profile. See [motion acceptance and validation](MOTION_ACCEPTANCE.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
+
 ## Run the complete ground rehearsal after each reboot
 
 An optional [independent left-facing 4.8 m rehearsal](LEFT_48M_REHEARSAL.md) reuses a saved successful map in a separate installation and ROS domain. It leaves this forward-demonstration startup workflow unchanged.
@@ -70,7 +90,7 @@ The runner owns this viewer process and closes it on completion, failure or inte
 
 Append `--no-rviz` to disable the viewer. Without a graphical desktop or an installed `rviz2` executable, the runner skips the viewer and records why; the mission still has to pass its normal checks. Each run saves `rehearsal_view.rviz`, `rviz.log` when launched, and `rviz_status.json`; the nested mission report includes `rehearsal_viewer`. A successful process launch is not proof that the remote desktop rendered the window. Inspect `rviz.log` if no window appears.
 
-The planner targets 2 m/s and 1 m/s². Observation mode records exceedances and uses 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [the complete test specification](DEMONSTRATION_MISSION.md).
+The planner targets 2 m/s and 1 m/s² while accepting candidate trajectories up to 4 m/s and 2 m/s². Strict reference checks use those separate acceptance bounds. Observation mode records exceedances and retains 2.4 m/s and 1.5 m/s² as warning advisories; exceeding either alone does not stop the mission. Position, polynomial, continuity, freshness and landing checks remain active. See [motion acceptance](MOTION_ACCEPTANCE.md) and [the complete test specification](DEMONSTRATION_MISSION.md).
 
 At each navigation goal, `WAIT_PLAN` holds the leg's starting hover point until the first verified trajectory arrives. This wait has no planning deadline in the complete rehearsal or physical demonstration controller. Console progress shows elapsed waiting time, and reports retain `planning_wait_policy` and `planner_wait_elapsed_s`. The complete controller and rehearsal have no total execution deadline or individual committed-trajectory duration cap. Stage transitions follow arrival, hold completion and landed/disarmed feedback. Reports record these execution limits as null. Planner exit, invalid input, stale telemetry, venue violations and operator stop remain active checks. Planning attempts that fail to produce a valid committed trajectory are not treated as mission success.
 

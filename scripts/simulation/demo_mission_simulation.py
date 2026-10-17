@@ -381,6 +381,36 @@ def backend(connection,fault,scene_file=None):
         executor.shutdown();node.destroy_node();frame.destroy_node();rclpy.shutdown()
 
 
+def planner_group_active(group):
+    """A ros2 wrapper may exit before its native child; ignore dead zombies."""
+    for path in Path('/proc').glob('[0-9]*/stat'):
+        try:
+            fields=path.read_text().rsplit(')',1)[1].split()
+            if int(fields[2])==group and fields[0]!='Z':return True
+        except (OSError,ValueError,IndexError):continue
+    return False
+
+
+def stop_owned_planner(process):
+    """Reap only the private planner group created by this run's new session."""
+    if process is None:return
+    group=process.pid
+    if group==os.getpgrp():raise ValueError('Refusing to signal the caller process group')
+    previous=signal.signal(signal.SIGINT,signal.SIG_IGN)
+    try:
+        for sig,grace in ((signal.SIGINT,8.),(signal.SIGTERM,5.),(signal.SIGKILL,2.)):
+            process.poll()
+            if not planner_group_active(group):break
+            try:os.killpg(group,sig)
+            except ProcessLookupError:break
+            deadline=time.monotonic()+grace
+            while planner_group_active(group) and time.monotonic()<deadline:
+                process.poll();time.sleep(.05)
+        process.wait(timeout=2.)
+        if planner_group_active(group):raise RuntimeError('Owned virtual planner group did not exit')
+    finally:signal.signal(signal.SIGINT,previous)
+
+
 def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rviz=True,
         controller_class=None,domain_id=197):
     import rclpy
@@ -431,6 +461,9 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
             node.mission_report.save()
             return node.phase=='DONE'
     finally:
+        # Reap the native planner before ROS/viewer teardown can raise. The ros2
+        # wrapper exiting is not evidence that its whole private group exited.
+        stop_owned_planner(planner_process)
         viewer.close()
         if node is not None:
             node.mission_report.data['rehearsal_viewer']=viewer.state
@@ -441,11 +474,6 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
         process.join(timeout=5)
         if process.is_alive():process.terminate();process.join()
         parent.close();child.close()
-        if planner_process is not None and planner_process.poll() is None:
-            os.killpg(planner_process.pid,signal.SIGINT)
-            try:planner_process.wait(timeout=8)
-            except subprocess.TimeoutExpired:
-                os.killpg(planner_process.pid,signal.SIGTERM);planner_process.wait(timeout=5)
         if planner_log is not None:planner_log.close()
 
 

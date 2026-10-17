@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-17",
+  "scope": "Software acceptance-bound and compatibility checks; no aircraft operation",
+  "requested_change": {
+    "planner_target_speed_mps": 2.0,
+    "planner_target_acceleration_mps2": 1.0,
+    "acceptance_speed_mps": 4.0,
+    "acceptance_acceleration_mps2": 2.0
+  },
+  "policy": {
+    "super_candidate_above_acceptance": "reject_candidate_and_replan",
+    "strict_reference_above_acceptance": "reject",
+    "observe_reference_derivative_exceedance": "record_only",
+    "existing_warning_advisories": {
+      "speed_mps": 2.4,
+      "acceleration_mps2": 1.5
+    },
+    "new_mission_time_limits": false,
+    "px4_parameter_writes": false
+  },
+  "result": "PASS",
+  "software_tests": {
+    "count": 125,
+    "failures": 0,
+    "errors": 0,
+    "modules": [
+      "test_super_motion_acceptance",
+      "test_rehearsal_planner_cleanup",
+      "test_demo_viewer",
+      "test_demo_mission",
+      "test_super_demo_test",
+      "test_demo_test_release",
+      "test_repository_layout",
+      "test_demo_tracking_ros",
+      "test_demo_accepted_goal_ros",
+      "test_demo_rest_handoff_ros",
+      "test_demo_viewer_ros",
+      "test_bounded_reference",
+      "test_ground_rolling_reference_ros",
+      "test_left_rehearsal",
+      "test_left_rehearsal_ros"
+    ]
+  },
+  "cpp_validation": {
+    "compiler": "g++ -std=c++14",
+    "actual_upstream_config_header_compiled": true,
+    "actual_upstream_backup_guard_compiled": true,
+    "inserted_exploration_extrema_guard_compiled": true,
+    "test_dependency_stubs": "YAML parameter loader and flatness types only; not a full SUPER build",
+    "covered": [
+      "Original 2/1 optimization bounds remain unchanged",
+      "Absent acceptance fields preserve original thresholds",
+      "Explicit 4/2 bounds accept exact limits and reject larger values",
+      "Recorded backup Acc=0.149380025752899 (about 1.072 m/s^2) passes the separate acceleration bound",
+      "Backup polynomial peaks 3.5 m/s and 1.75 m/s^2 pass",
+      "Nonfinite explicit exploration extrema are rejected",
+      "Acceptance values below nominal targets are rejected"
+    ]
+  },
+  "complete_upstream_source_patch": {
+    "revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "source_files": {
+      "super_planner/include/traj_opt/config.hpp": {
+        "before_sha256": "f1b0bdc55a8ee00d1c1b511a7f6734db9def6afad5fc99c7996f00e009fab4e1",
+        "after_sha256": "a85807e18362c7e027217145349f4c3344333b528ead2bb2c78136f7985b3c78"
+      },
+      "super_planner/src/traj_opt/backup_traj_optimizer_s4.cpp": {
+        "before_sha256": "61cc9eaf29c104fe83a9a57a72950c84c6bdfc7c07e06266fd1ec28550228b1d",
+        "after_sha256": "332f38eb1ed5a9b2e33a0746c0d8a6742dc1fb1d7e336b8564227c1180e56bb0"
+      },
+      "super_planner/src/traj_opt/exp_traj_optimizer_s4.cpp": {
+        "before_sha256": "1baf48508ef4a3720ec3dd231fcf5ed46d2bf8e8935cf4058aa397536e4bd600",
+        "after_sha256": "8dc0939f9a912a2b303f4c21cae2d1a66fdb9b70fb3546c4c71b13545e97a19e"
+      }
+    },
+    "apply_idempotent": true,
+    "restore_original_bytes": true,
+    "optimization_magnitude_bounds_unchanged": true,
+    "position_body_rate_thrust_checks_unchanged": true
+  },
+  "configuration_checks": [
+    "Only acceptance_max_vel=4 and acceptance_max_acc=2 added to separate demo YAML",
+    "Original YAML bytes preserved",
+    "Manager routes demo through the acceptance-profile generator",
+    "Installed ELF marker required to avoid silently ignored YAML fields",
+    "Controller report separates target, acceptance and advisory values",
+    "Unconfigured low-speed reference behavior preserved"
+  ],
+  "owned_planner_cleanup": {
+    "wrapper_exited_child_cleaned": true,
+    "live_owned_process_cleaned": true,
+    "unrelated_process_preserved": true,
+    "sigint_handler_restored": true,
+    "caller_process_group_rejected": true,
+    "retroactive_unknown_process_cleanup": false
+  },
+  "test_environment": {
+    "ros": "Humble container, offline during tests",
+    "mavros_message_sources": "c655e6343ec81687d51e7185bcba7a651e361fcd",
+    "super_message_sources": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "domain": 197,
+    "localhost_only": true,
+    "interface_build": "Pinned message/service fixtures, not live MAVROS or PX4"
+  },
+  "not_validated": [
+    "Complete onboard SUPER compilation",
+    "New complete real-SUPER forward rehearsal after deployment",
+    "Physical aircraft tracking, speed or acceleration",
+    "Remote desktop GUI rendering"
+  ],
+  "next_step": "Apply backed-up source patch, rebuild super_planner once, and save a complete onboard ground rehearsal report"
+}

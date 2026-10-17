@@ -15,11 +15,11 @@
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "166677705f1a5b373dd1907b5d5e586634a00d0b0a98a0d201ec4cf1200057a4"
+      "sha256": "55a8a68e64c0d1fbcff730895ded83410ffb8ce1f851271f1eb860d5a9eb7e56"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "47b2dd27c4c78beda08353983dd407dcbe6128594619e17365e3b476d109ec5a"
+      "sha256": "9e0be15bf7aa6a7d3afea0e5b8da9a61577feff78e986c0f112fb81fc9f6e7b9"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
@@ -35,7 +35,7 @@
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
-      "sha256": "bf83af1d1c8e267de5aaac14846d3970c72ff6467a40bcc5cb84f72f4055d5cc"
+      "sha256": "fdc7afb41ac7bf75b4018909164a5205fadab0399e2d8ac77b7daf02c9af71dd"
     },
     "ground_speed_audit.py": {
       "path": "scripts/planning/ground_speed_audit.py",
@@ -47,7 +47,7 @@
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
-      "sha256": "ca3439ddee54fd86469893639893e5728db03262d847f55e35608cd65b539072"
+      "sha256": "4aa69d6643ff7cf6f938ce9eb7aac3df070f9dc7a57cd33fde656d459a512089"
     },
     "create_super_speed_ground_profile.py": {
       "path": "scripts/maintenance/create_super_speed_ground_profile.py",
@@ -85,6 +85,14 @@
     "qgc_startup.py": {
       "path": "scripts/maintenance/qgc_startup.py",
       "sha256": "237af5c4dbcf04b424a5c14c61ad382a106d3982cc2d2ba674fb09b53b3ee260"
+    },
+    "apply_super_motion_acceptance.py": {
+      "path": "scripts/maintenance/apply_super_motion_acceptance.py",
+      "sha256": "08f3cf135b42b05b709bddb61f16e3230981305d2a725df39cd21f4e63d00733"
+    },
+    "create_super_motion_acceptance_profile.py": {
+      "path": "scripts/maintenance/create_super_motion_acceptance_profile.py",
+      "sha256": "a0b2036a505fcd55260825bd77cbba4fd0b61a2100360ca5a15917f9d91b0d13"
     }
   }
 }

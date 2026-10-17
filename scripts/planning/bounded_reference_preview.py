@@ -120,15 +120,22 @@ class Plan:
 class Reference:
     """A terminal state is permanent for this process; no automatic new goal."""
     MAX_ACCELERATION=1.
-    def __init__(self, frame, max_speed=.3, max_acceleration=.5, motion_policy='strict'):
+    def __init__(self, frame, max_speed=.3, max_acceleration=.5, motion_policy='strict',
+                 acceptance_speed=None,acceptance_acceleration=None):
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         if (not all(math.isfinite(v) for v in (max_speed,max_acceleration))
                 or not 0 < max_speed <= 2. or not 0 < max_acceleration <= self.MAX_ACCELERATION):
             raise ValueError('Invalid reference motion limits')
         self.max_speed,self.max_acceleration = float(max_speed),float(max_acceleration)
+        self.acceptance_speed=float(max_speed if acceptance_speed is None else acceptance_speed)
+        self.acceptance_acceleration=float(max_acceleration if acceptance_acceleration is None else acceptance_acceleration)
+        if (not all(math.isfinite(v) for v in (self.acceptance_speed,self.acceptance_acceleration))
+                or self.acceptance_speed<self.max_speed or self.acceptance_acceleration<self.max_acceleration):
+            raise ValueError('Acceptance bounds must be finite and at least the motion targets')
         self.motion_policy=motion_policy
         self.last_motion_violation=None
         self.motion_summary=dict(checked_samples=0,speed_exceedances=0,acceleration_exceedances=0,
+                                 acceptance_speed_exceedances=0,acceptance_acceleration_exceedances=0,
                                  peak_speed_mps=0.,peak_acceleration_mps2=0.)
         self.frame = frame
         self.plans = deque(maxlen=24)
@@ -184,12 +191,15 @@ class Reference:
         speed,accel=norm(velocity),norm(acceleration)
         speed_exceeded=speed>self.max_speed+1e-9
         acceleration_exceeded=accel>self.max_acceleration+1e-9
+        acceptance_speed_exceeded=speed>self.acceptance_speed+1e-9
+        acceptance_acceleration_exceeded=accel>self.acceptance_acceleration+1e-9
         if speed_exceeded or acceleration_exceeded:
             self.last_motion_violation=dict(stamp_ns=int(stamp),speed_mps=speed,acceleration_mps2=accel,
                 speed_target_mps=self.max_speed,acceleration_target_mps2=self.max_acceleration,
+                speed_acceptance_mps=self.acceptance_speed,acceleration_acceptance_mps2=self.acceptance_acceleration,
                 velocity_xyz=velocity.tolist(),acceleration_xyz=acceleration.tolist())
-            if self.motion_policy=='strict':
-                raise ValueError(f'Advertised planner derivative exceeds {self.max_speed:g}/{self.max_acceleration:g}; '
+            if self.motion_policy=='strict' and (acceptance_speed_exceeded or acceptance_acceleration_exceeded):
+                raise ValueError(f'Advertised planner derivative exceeds {self.acceptance_speed:g}/{self.acceptance_acceleration:g}; '
                     f'speed={speed:.9f} m/s, acceleration={accel:.9f} m/s^2; stamp_ns={stamp}')
         plan = next((p for p in reversed(self.plans) if p.matches(stamp,raw,velocity,acceleration)),None)
         if plan is None:
@@ -197,6 +207,8 @@ class Reference:
         self.motion_summary['checked_samples']+=1
         self.motion_summary['speed_exceedances']+=int(speed_exceeded)
         self.motion_summary['acceleration_exceedances']+=int(acceleration_exceeded)
+        self.motion_summary['acceptance_speed_exceedances']+=int(acceptance_speed_exceeded)
+        self.motion_summary['acceptance_acceleration_exceedances']+=int(acceptance_acceleration_exceeded)
         self.motion_summary['peak_speed_mps']=max(self.motion_summary['peak_speed_mps'],speed)
         self.motion_summary['peak_acceleration_mps2']=max(self.motion_summary['peak_acceleration_mps2'],accel)
         self.check_plan_endpoint(plan)
@@ -211,8 +223,8 @@ class Reference:
         else:
             dt = (stamp-self.last[0])/1e9
             step = norm(position-self.last[1])
-            allowed_step = .015+self.max_speed*dt
-            continuity_basis='configured speed limit'
+            allowed_step = .015+self.acceptance_speed*dt
+            continuity_basis='configured speed acceptance bound'
             if self.motion_policy=='observe' and self.last_plan is not None:
                 allowed_step=.015+self.last_plan.displacement_bound(
                     self.last[0]/1e9-self.last_plan.start,stamp/1e9-self.last_plan.start)
@@ -272,8 +284,8 @@ class RollingGoalReference(Reference):
     base Reference policy. The default short-goal Reference is unchanged.
     """
     def __init__(self,frame,endpoint_check,final_goal_check,motion_policy='strict',
-                 max_speed=2.,max_acceleration=1.):
-        super().__init__(frame,max_speed,max_acceleration,motion_policy)
+                 max_speed=2.,max_acceleration=1.,acceptance_speed=None,acceptance_acceleration=None):
+        super().__init__(frame,max_speed,max_acceleration,motion_policy,acceptance_speed,acceptance_acceleration)
         self.endpoint_check=endpoint_check;self.final_goal_check=final_goal_check
 
     def check_plan_endpoint(self,plan,adding=False):
