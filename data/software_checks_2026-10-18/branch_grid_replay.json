@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-18",
+  "source_run": "20261018_170834_397877",
+  "scope": "Actual SUPER and ROG-Map; uploaded frozen scene and ideal virtual FC/vehicle; localhost-only ROS domain 197",
+  "upstream_revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+  "inputs": {
+    "cloud_points": 8792,
+    "cloud_serialized_sha256": "a94dca3b9690b5f5fa080637542f405736d8d8d17bc5f29d786bc14b3a8ee5f5",
+    "alignment_sha256": "c7df1b948cf2852c7b9b37af996015161721c0616a335afcc1ef755936a5e646",
+    "planner_config_sha256": "fa2ccb5e5deb3b7e6448104a6f4fc4b37e32bcf571b64fc5fe5baf3436a319ec",
+    "planner_config_reconstructed_byte_exactly_and_hash_verified": true,
+    "cloud_modified": false,
+    "motion_parameters_modified": false,
+    "venue_or_robot_dimensions_modified": false
+  },
+  "diagnosis": {
+    "continuous_rest_point_raw_xyz": [
+      5.297986668861563,
+      0.1612586833881705,
+      2.448742985653654
+    ],
+    "continuous_rest_point_venue_xyz": [
+      2.9673536792017297,
+      0.23739758441322856,
+      2.6953391903261776
+    ],
+    "inflated_grid_centre_raw_xyz": [
+      5.3,
+      0.1,
+      2.5
+    ],
+    "inflated_grid_centre_venue_xyz": [
+      3.0153014524857467,
+      0.19491123454896364,
+      2.7430873046841544
+    ],
+    "ceiling_m": 2.7,
+    "goal_discarded_after_search_initialization_error": true,
+    "supervisor_wait_timeout_s": null
+  },
+  "checks": {
+    "compiled_rotated_boundary_and_collision_connector_regression": "PASS",
+    "source_upgrade_idempotence_and_exact_rollback": "PASS",
+    "goal_retention_and_legacy_invalidation_regression": "PASS",
+    "focused_regression_tests": 64,
+    "actual_two_package_final_build": "PASS",
+    "source_patch_sha256": "bdecc0cc338b87673688557918f3d75070792b9f3044ff8e30fa709755cbc960",
+    "captured_scene_complete_replay": "PASS",
+    "all_committed_endpoints_inside_unchanged_venue": "PASS",
+    "no_added_execution_deadline": "PASS",
+    "previous_successful_map_complete_replay": "PASS"
+  },
+  "trials": [
+    {
+      "name": "baseline",
+      "result": "OPERATOR_INTERRUPTED_AFTER_REPRODUCING_FAILURE",
+      "round_trips_completed": 0,
+      "notes": "Stopped at an intermediate outbound endpoint; repeated grid initialization errors then Goal is invalid / WAIT_GOAL, matching uploaded logs."
+    },
+    {
+      "name": "initial_grid_anchor_fix",
+      "result": "SUCCESS",
+      "round_trips_completed": 5,
+      "notes": "All ten ordered goals, final hold, landing and disarmed confirmation. Final connector implementation additionally handles disabled unknown inflation; final binary replay recorded separately."
+    },
+    {
+      "name": "final_grid_anchor_fix",
+      "result": "SUCCESS",
+      "stage": "DONE",
+      "round_trips_completed": 5,
+      "accepted_goals": 10,
+      "completed_stages": [
+        "TAKEOFF_TO_0_5M",
+        "STABILIZE_AT_HOME",
+        "ROUND_01_SUPER_OUTBOUND_4_5M",
+        "ROUND_01_STABILIZE_AT_FAR_POINT",
+        "ROUND_01_SUPER_RETURN_HOME",
+        "ROUND_02_SUPER_OUTBOUND_4_5M",
+        "ROUND_02_STABILIZE_AT_FAR_POINT",
+        "ROUND_02_SUPER_RETURN_HOME",
+        "ROUND_03_SUPER_OUTBOUND_4_5M",
+        "ROUND_03_STABILIZE_AT_FAR_POINT",
+        "ROUND_03_SUPER_RETURN_HOME",
+        "ROUND_04_SUPER_OUTBOUND_4_5M",
+        "ROUND_04_STABILIZE_AT_FAR_POINT",
+        "ROUND_04_SUPER_RETURN_HOME",
+        "ROUND_05_SUPER_OUTBOUND_4_5M",
+        "ROUND_05_STABILIZE_AT_FAR_POINT",
+        "ROUND_05_SUPER_RETURN_HOME",
+        "HOLD_HOME_6S",
+        "AUTO_LAND",
+        "CONFIRM_LANDED_AND_DISARMED"
+      ],
+      "peak_speed_mps": 1.5815483036843931,
+      "peak_acceleration_mps2": 1.017192054883276,
+      "grid_anchor_connections": 30,
+      "candidate_venue_rejections_before_publication": 105,
+      "goal_invalidations": 0,
+      "committed_endpoint_max_plane_value_m": -0.013722803738222211,
+      "return_hover_duration_s": 6.000080399993749,
+      "virtual_landed": true,
+      "virtual_armed": false
+    },
+    {
+      "name": "previous_fence_scene_regression",
+      "source_run": "20261018_162423_709951",
+      "result": "SUCCESS",
+      "stage": "DONE",
+      "round_trips_completed": 5,
+      "accepted_goals": 10,
+      "completed_stage_count": 20,
+      "peak_speed_mps": 1.5304583870494193,
+      "peak_acceleration_mps2": 1.0119412722415486,
+      "grid_anchor_connections": 18,
+      "goal_invalidations": 0,
+      "virtual_landed": true,
+      "virtual_armed": false
+    }
+  ],
+  "limitations": [
+    "No real PX4 or physical aircraft flight",
+    "Ideal vehicle feedback does not establish physical tracking or obstacle clearance",
+    "Onboard update/build and a grounded rerun remain required"
+  ]
+}

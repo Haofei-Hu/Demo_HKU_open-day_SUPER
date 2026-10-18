@@ -19,6 +19,7 @@ REST_VERSION='VENUE_REST_COMMIT_V1'
 MAP_VERSION='VIRTUAL_HEIGHT_QUERY_V1'
 COMMIT_VERSION='VENUE_CANDIDATE_CHECK_V1'
 HEIGHT_VERSION='VIRTUAL_HEIGHT_CORRIDOR_V1'
+GRID_VERSION='VENUE_GRID_ANCHOR_V1'
 INF_MAP='rog_map/src/rog_map/inf_map.cpp'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
@@ -301,7 +302,93 @@ HEIGHT_EDITS={
     ],
 }
 
+# A valid continuous point can quantize to a centre outside a rotated venue.
+# Join it to an admissible neighbouring centre instead of changing the venue.
+GRID_ANCHOR_TEXT='''    bool Astar::anchorVenueEndpoint(const rog_map::Vec3f &point,
+                                      rog_map::Vec3f &anchor) {
+        anchor=point;
+        if (!demo_venue_.enabled()) return true;
+        if (!demo_venue_.contains(point)) return false;
+        rog_map::Vec3i id;posToGlobalIndex(point,id);
+        rog_map::Vec3f snapped;globalIndexToPos(id,snapped);
+        if (demo_venue_.contains(snapped)) return true;
+        if (!map_ptr_->insideLocalMap(point)) return false;
+        // Without unknown inflation, InfMap classifies every nonoccupied cell
+        // as known free; its separate isUnknownInflate API would throw.
+        const bool check_unknown=md_.unknown_as_occ &&
+            (!md_.use_inf_map || map_ptr_->getMapConfig().unk_inflation_en);
+        double nearest=INFINITY;
+        for (int x=-1;x<=1;++x) for (int y=-1;y<=1;++y) for (int z=-1;z<=1;++z) {
+            const rog_map::Vec3i candidate_id=id+rog_map::Vec3i(x,y,z);
+            if (!insideLocalMap(candidate_id)) continue;
+            rog_map::Vec3f candidate;globalIndexToPos(candidate_id,candidate);
+            if (!map_ptr_->insideLocalMap(candidate)) continue;
+            auto type=md_.use_inf_map ? map_ptr_->getInfGridType(candidate) : map_ptr_->getGridType(candidate);
+            if (type==OCCUPIED || type==OUT_OF_MAP || (md_.unknown_as_occ && type==UNKNOWN)) continue;
+            if (md_.use_prob_map && md_.use_inf_neighbor && neighborHaveOne(OCCUPIED,candidate_id)) continue;
+            const double distance=(candidate-point).squaredNorm();
+            if (distance>=nearest || !map_ptr_->isLineFree(point,candidate,md_.use_inf_map,check_unknown)) continue;
+            nearest=distance;anchor=candidate;
+        }
+        if (!std::isfinite(nearest)) return false;
+        ros_ptr_->info("VENUE_GRID_ANCHOR_V1: continuous endpoint={} outside grid centre={} connected inside centre={}",
+            point.transpose(),snapped.transpose(),anchor.transpose());
+        return true;
+    }
+
+'''
+GRID_EDITS={
+    ASTAR_H:[
+        ('        bool neighborHaveOne(const rog_map::GridType &type, const rog_map::Vec3i &src_id);',
+         '        bool anchorVenueEndpoint(const rog_map::Vec3f &point, rog_map::Vec3f &anchor); // VENUE_GRID_ANCHOR_V1\n\n'
+         '        bool neighborHaveOne(const rog_map::GridType &type, const rog_map::Vec3i &src_id);',1),
+        ('        void setVisualProcessEn(const bool &en);',
+         '        bool pointInsideDemoVenue(const rog_map::Vec3f &point) const { return demo_venue_.contains(point); }\n\n'
+         '        void setVisualProcessEn(const bool &en);',1),
+    ],
+    ASTAR:[
+        ('    RET_CODE Astar::pointToPointPathSearch(',GRID_ANCHOR_TEXT+'    RET_CODE Astar::pointToPointPathSearch(',1),
+        ('        local_end_pt = end_pt;\n',
+         '        local_end_pt = end_pt;\n'
+         '        if (!anchorVenueEndpoint(start_pt,local_start_pt) ||\n'
+         '            !anchorVenueEndpoint(end_pt,local_end_pt)) return NO_PATH;\n',1),
+        ('        if (!insideLocalMap(start_pt)) {',
+         '        if (!insideLocalMap(local_start_pt)) {',1),
+        ('        if (!insideLocalMap(end_pt)) {',
+         '        if (!insideLocalMap(local_end_pt)) {',1),
+        ('        if (!insideLocalMap(start_pt) ||\n            !map_ptr_->insideLocalMap(start_pt)) {',
+         '        rog_map::Vec3f venue_start_pt;\n'
+         '        if (!anchorVenueEndpoint(start_pt,venue_start_pt)) return NO_PATH;\n'
+         '        if (!insideLocalMap(venue_start_pt) ||\n            !map_ptr_->insideLocalMap(venue_start_pt)) {',1),
+        ('        rog_map::Vec3f local_start_pt = start_pt;',
+         '        rog_map::Vec3f local_start_pt = venue_start_pt;',1),
+        ('if (!map_ptr_->getNearestCellNot(OCCUPIED, start_pt, local_start_pt,3.0))',
+         'if (!map_ptr_->getNearestCellNot(OCCUPIED, venue_start_pt, local_start_pt,3.0))',1),
+        ('        rog_map::Vec3i start_idx;\n        posToGlobalIndex(local_start_pt, start_idx);',
+         '        rog_map::Vec3f admissible_start;\n'
+         '        if (!anchorVenueEndpoint(local_start_pt,admissible_start)) return NO_PATH;\n'
+         '        local_start_pt=admissible_start;\n'
+         '        rog_map::Vec3i start_idx;\n        posToGlobalIndex(local_start_pt, start_idx);',1),
+    ],
+    PLANNER:[
+        ('        if(ret_code == INIT_ERROR){\n            gi_.goal_valid = false;\n            return false;\n        }',
+         '        if(ret_code == INIT_ERROR){\n'
+         '            // VENUE_GRID_ANCHOR_V1: a start/search failure does not invalidate an in-venue goal.\n'
+         '            if (!astar_ptr_->hasDemoVenue() || !astar_ptr_->pointInsideDemoVenue(goal))\n'
+         '                gi_.goal_valid = false;\n'
+         '            else ros_ptr_->warn("VENUE_GRID_ANCHOR_V1: search initialization failed; retaining unfinished goal");\n'
+         '            return false;\n        }',1),
+    ],
+}
+
 def patched(relative,text):
+    # Validate an upgraded file against the original guarded contexts too.
+    grid_upgrades=GRID_EDITS.get(relative,[])
+    grid_applied=bool(grid_upgrades) and all(text.count(new)==count for _,new,count in grid_upgrades)
+    if grid_applied:
+        for old,new,_ in reversed(grid_upgrades):text=text.replace(new,old)
+    elif GRID_VERSION in text:
+        raise ValueError('Partial venue grid-anchor upgrade; no files written: '+relative)
     if VERSION in text:
         if not all(text.count(new)==count for _,new,count in EDITS[relative]):
             raise ValueError('Incomplete or modified venue patch: '+relative)
@@ -318,6 +405,9 @@ def patched(relative,text):
         if not all(text.count(old)==count for old,_,count in upgrades):
             raise ValueError('Unsupported/partial bounded-search upgrade; no files written: '+relative)
         for old,new,_ in upgrades:text=text.replace(old,new)
+    for old,new,count in grid_upgrades:
+        if text.count(old)!=count:raise ValueError('Unsupported grid-anchor source context; no files written: '+relative)
+        text=text.replace(old,new)
     return text
 
 
@@ -385,10 +475,10 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==6:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION)):]
+                    if len(found)==7:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION)):]
     raise ValueError('Installed fsm_node needs complete bounded-search and height-query support; rebuild rog_map and super_planner before the rehearsal')
 
 

@@ -131,7 +131,7 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
 
 
@@ -149,10 +149,52 @@ class Tests(unittest.TestCase):
             before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
             backup=source_patch.apply(root)
             changed=json.loads((backup/'record.json').read_text())['files']
-            self.assertEqual(set(changed),{source_patch.INF_MAP,source_patch.ASTAR_H,source_patch.PLANNER,source_patch.HEADER,source_patch.CORRIDOR})
+            self.assertEqual(set(changed),{source_patch.INF_MAP,source_patch.ASTAR,source_patch.ASTAR_H,source_patch.PLANNER,source_patch.HEADER,source_patch.CORRIDOR})
             self.assertIsNone(source_patch.apply(root))
             source_patch.restore(backup)
             for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
+
+    def test_current_venue_release_upgrades_only_search_header_and_goal_handling(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source_tree(root)
+            for name in source_patch.EDITS:
+                text=source_patch.patched(name,(root/name).read_text())
+                for old,new,_ in reversed(source_patch.GRID_EDITS.get(name,[])):
+                    text=text.replace(new,old)
+                (root/name).write_text(text)
+            (root/source_patch.HEADER).write_text(source_patch.HEADER_TEXT)
+            before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
+            backup=source_patch.apply(root)
+            self.assertEqual(set(json.loads((backup/'record.json').read_text())['files']),
+                             {source_patch.ASTAR,source_patch.ASTAR_H,source_patch.PLANNER})
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
+
+    def test_search_initialization_retains_only_an_in_venue_bounded_goal(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            code='''#include <cassert>
+enum Code {INIT_ERROR,SUCCESS};
+bool handle(bool bounded,bool inside,Code ret_code,bool &valid) {
+struct Astar {bool bounded,inside;bool hasDemoVenue()const{return bounded;}
+ bool pointInsideDemoVenue(int)const{return inside;}} astar{bounded,inside};
+auto astar_ptr_=&astar;int goal=0;struct {bool &goal_valid;}gi_{valid};
+struct Logger {void warn(const char*){}}logger;auto ros_ptr_=&logger;
+'''+source_patch.GRID_EDITS[source_patch.PLANNER][0][1]+'''
+return true;
+}
+int main(){
+bool valid=true;assert(!handle(true,true,INIT_ERROR,valid));assert(valid);
+valid=true;assert(!handle(true,false,INIT_ERROR,valid));assert(!valid);
+valid=true;assert(!handle(false,true,INIT_ERROR,valid));assert(!valid);
+valid=true;assert(handle(true,true,SUCCESS,valid));assert(valid);
+}
+'''
+            (root/'test.cpp').write_text(code)
+            result=subprocess.run(['g++','-std=c++17',str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(subprocess.run([str(root/'test')]).returncode,0)
 
     def test_real_height_query_keeps_obstacle_types_and_does_not_inflate_bounds_twice(self):
         text=(FIXTURE/'rog_map__src__rog_map__inf_map.cpp.txt').read_text()
@@ -224,6 +266,82 @@ int main(){
             result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertEqual(subprocess.run([str(root/'test')]).returncode,0)
+
+    def test_rotated_boundary_grid_anchor_preserves_bounds_and_checks_connector(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'utils/header').mkdir(parents=True)
+            (root/'utils/header/yaml_loader.hpp').write_text('''#pragma once
+#include <string>
+#include <vector>
+namespace yaml_loader {extern std::vector<double> values;struct YamlLoader {
+YamlLoader(const std::string&){};void LoadParam(const std::string&,std::vector<double>&v,const std::vector<double>&){v=values;}};}
+''')
+            (root/'demo_venue.hpp').write_text(source_patch.HEADER_TEXT)
+            code=r'''#include "demo_venue.hpp"
+#include <cassert>
+namespace yaml_loader {std::vector<double> values;}
+namespace rog_map {using Vec3f=Eigen::Vector3d;using Vec3i=Eigen::Vector3i;}
+enum Type {OCCUPIED,OUT_OF_MAP,UNKNOWN,KNOWN_FREE};
+struct Map {Type type=KNOWN_FREE;bool line=true,inside=true,unknown_inflation=true;mutable bool last_unknown=false;
+struct Config {bool unk_inflation_en;};Config getMapConfig()const{return {unknown_inflation};}
+bool insideLocalMap(const rog_map::Vec3f&)const{return inside;}
+Type getInfGridType(const rog_map::Vec3f&)const{return type;}
+Type getGridType(const rog_map::Vec3f&)const{return type;}
+bool isLineFree(const rog_map::Vec3f&,const rog_map::Vec3f&,bool,bool unknown)const{last_unknown=unknown;return line;}};
+struct Logger {template<class...Args>void info(const char*,Args&&...) {}};
+struct Astar {
+super_utils::DemoVenue demo_venue_;
+struct {bool use_inf_map=true,use_prob_map=false,use_inf_neighbor=false,unknown_as_occ=false;}md_;
+double resolution=.2;Map map;Map*map_ptr_=&map;Logger logger;Logger*ros_ptr_=&logger;bool neighbor_blocked=false;
+void posToGlobalIndex(const rog_map::Vec3f&p,rog_map::Vec3i&id)const{id=(p.array()/resolution).floor().cast<int>();}
+void globalIndexToPos(const rog_map::Vec3i&id,rog_map::Vec3f&p)const{p=(id.cast<double>().array()+.5)*resolution;}
+bool insideLocalMap(const rog_map::Vec3i&id)const{rog_map::Vec3f p;globalIndexToPos(id,p);return demo_venue_.contains(p);}
+bool neighborHaveOne(Type,const rog_map::Vec3i&){return neighbor_blocked;}
+bool anchorVenueEndpoint(const rog_map::Vec3f&,rog_map::Vec3f&);
+};
+'''+source_patch.GRID_ANCHOR_TEXT+r'''
+int main(){
+Eigen::Matrix3d m;m<<.7062656002273738,-.7049376218970616,.06520622032891805,
+.7069247418983289,.7071958205848822,-.011466500741575328,
+-.03803039872850083,.05419428550494229,.9978059271176735;
+Eigen::Vector3d offset(-.8204280173519238,-3.593843227716729,.444714171600531);
+Eigen::Vector3d lower(-.3,-1.2,.085),upper(5.1,1.2,2.7);
+for(int i=0;i<3;++i)for(int sign:{1,-1}){
+ for(int j=0;j<3;++j)yaml_loader::values.push_back(sign*m(i,j));
+ yaml_loader::values.push_back(sign==1?offset[i]-upper[i]:lower[i]-offset[i]);}
+Astar a;a.demo_venue_=super_utils::DemoVenue("unused");
+const Eigen::Vector3d real(5.297986668861563,.1612586833881705,2.448742985653654);
+Eigen::Vector3d anchor,snapped;Eigen::Vector3i id;a.posToGlobalIndex(real,id);a.globalIndexToPos(id,snapped);
+assert(a.demo_venue_.contains(real));assert(!a.demo_venue_.contains(snapped)); // observed regression
+assert(a.anchorVenueEndpoint(real,anchor));assert(a.demo_venue_.contains(anchor));assert((anchor-real).norm()<.4);
+a.map.line=false;assert(!a.anchorVenueEndpoint(real,anchor));a.map.line=true;
+a.map.type=OCCUPIED;assert(!a.anchorVenueEndpoint(real,anchor));
+a.map.type=OUT_OF_MAP;assert(!a.anchorVenueEndpoint(real,anchor));
+a.map.type=UNKNOWN;a.md_.unknown_as_occ=true;assert(!a.anchorVenueEndpoint(real,anchor));
+a.md_.unknown_as_occ=false;assert(a.anchorVenueEndpoint(real,anchor));a.map.type=KNOWN_FREE;
+a.md_.unknown_as_occ=true;assert(a.anchorVenueEndpoint(real,anchor));assert(a.map.last_unknown);
+a.map.unknown_inflation=false;assert(a.anchorVenueEndpoint(real,anchor));assert(!a.map.last_unknown);
+a.md_.unknown_as_occ=false;
+a.map.inside=false;assert(!a.anchorVenueEndpoint(real,anchor));a.map.inside=true;
+a.md_.use_prob_map=true;a.md_.use_inf_neighbor=true;a.neighbor_blocked=true;
+assert(!a.anchorVenueEndpoint(real,anchor));a.neighbor_blocked=false;
+int recovered=0;
+for(int face=0;face<3;++face)for(double bound:{lower[face]+.001,upper[face]-.001}){
+ Eigen::Vector3d v=(lower+upper)/2;v[face]=bound;Eigen::Vector3d p=m.transpose()*(v-offset);
+ a.posToGlobalIndex(p,id);a.globalIndexToPos(id,snapped);
+ assert(a.anchorVenueEndpoint(p,anchor));assert(a.demo_venue_.contains(anchor));
+ if(!a.demo_venue_.contains(snapped))++recovered;
+}
+assert(recovered>=3);
+Eigen::Vector3d invalid=m.transpose()*(upper+Eigen::Vector3d::Ones()*.001-offset);
+assert(!a.anchorVenueEndpoint(invalid,anchor));
+a.demo_venue_=super_utils::DemoVenue();assert(a.anchorVenueEndpoint(invalid,anchor));assert(anchor==invalid);
+}'''
+            (root/'test.cpp').write_text(code)
+            result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([str(root/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
 
     def test_deployed_venue_v1_upgrade_changes_only_search_and_planner_startup(self):
         with tempfile.TemporaryDirectory() as folder:

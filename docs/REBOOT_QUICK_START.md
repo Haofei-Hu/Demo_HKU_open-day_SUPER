@@ -42,7 +42,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
-The current patch corrects duplicate virtual floor/ceiling inflation (`VIRTUAL_HEIGHT_QUERY_V1` / `VIRTUAL_HEIGHT_CORRIDOR_V1`) and rejects out-of-venue candidate polynomials before publication (`VENUE_CANDIDATE_CHECK_V1`). It retains the from-rest commit fix. Rebuild both packages even if an earlier venue patch was already compiled; map code is statically linked into the planner.
+The current patch also joins valid continuous endpoints to admissible neighbouring search cells (`VENUE_GRID_ANCHOR_V1`). This prevents a near-boundary rest point from being rejected solely because its nearest grid centre lies outside the rotated venue. The short connector must pass the existing map/unknown checks. A failed search initialization retains an unfinished in-venue goal instead of silently returning to `WAIT_GOAL`. No boundary tolerance, inset or mission deadline is added. The patch retains the duplicate virtual floor/ceiling inflation fixes (`VIRTUAL_HEIGHT_QUERY_V1` / `VIRTUAL_HEIGHT_CORRIDOR_V1`), candidate polynomial checks (`VENUE_CANDIDATE_CHECK_V1`) and from-rest commit fix. Rebuild both packages when upgrading an older release; map code is statically linked into the planner.
 
 Each patcher saves a reversible backup. Motion targets and optimization penalties are preserved; the venue patch applies the existing box during planning. The manager/runner verify the installed binary. If motion acceptance has already been compiled, apply the additional venue patch and rebuild once; its rollback preserves motion acceptance. See [motion acceptance](MOTION_ACCEPTANCE.md) and [planner venue bounds](PLANNER_VENUE_BOUNDS.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
 

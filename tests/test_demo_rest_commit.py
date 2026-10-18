@@ -10,7 +10,7 @@ sys.path.insert(0,str(ROOT/'scripts/maintenance'))
 import apply_super_venue_bounds as patch
 
 class Tests(unittest.TestCase):
-    def test_complete_search_release_upgrades_only_rest_contexts_and_restores(self):
+    def test_complete_search_release_upgrades_remaining_contexts_and_restores(self):
         from test_demo_venue import source_tree
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);source_tree(root)
@@ -24,7 +24,7 @@ class Tests(unittest.TestCase):
             before={n:(root/n).read_bytes() for n in [*patch.EDITS,patch.HEADER]}
             backup=patch.apply(root)
             record=json.loads((backup/'record.json').read_text())
-            self.assertEqual(set(record['files']),{patch.ASTAR_H,patch.PLANNER})
+            self.assertEqual(set(record['files']),{patch.ASTAR_H,patch.ASTAR,patch.PLANNER,patch.CORRIDOR})
             self.assertIsNone(patch.apply(root));patch.restore(backup)
             for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
 
