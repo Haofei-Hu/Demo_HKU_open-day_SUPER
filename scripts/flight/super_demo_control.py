@@ -70,6 +70,7 @@ class VenueReference(RollingGoalReference):
                  max_speed=2.,max_acceleration=1.,acceptance_speed=4.,acceptance_acceleration=2.):
         super().__init__(frame,endpoint_check,final_goal_check,motion_policy,max_speed,max_acceleration,
                          acceptance_speed,acceptance_acceleration)
+        self.rest_handoffs=[]
 
     def check_initial_offset(self,offset):
         pass
@@ -92,6 +93,30 @@ class VenueReference(RollingGoalReference):
         # Actual position continuity is checked against the committed polynomial.
         # An elapsed stamp interval alone is not a mission failure.
         return math.inf
+
+    def continuity_bound(self,plan,stamp):
+        bound,basis=super().continuity_bound(plan,stamp)
+        if (self.motion_policy!='observe' or plan is self.last_plan
+                or not self.resting_at_endpoint()
+                or plan.start<max(self.last_plan.end,self.last[0]/1e9)):
+            return bound,basis
+        start,velocity,acceleration=plan.evaluate(0.)
+        if np.linalg.norm(velocity)>.03 or np.linalg.norm(acceleration)>.10:
+            return bound,basis
+        seam=float(np.linalg.norm(start-self.last_plan.endpoint))
+        # Each matched command already permits this position uncertainty.
+        # A new rest plan may anchor elsewhere within the two endpoint match
+        # tolerances. Check that seam explicitly, then follow the NEW plan's
+        # actual displacement instead of extrapolating the expired old plan.
+        match_budget=2*Plan.POSITION_MATCH_TOLERANCE
+        if seam>match_budget:
+            return bound,basis
+        residual=float(np.linalg.norm(self.last_evidence['raw']-self.last_plan.endpoint))
+        movement=plan.displacement_bound(0.,stamp/1e9-plan.start)
+        self.rest_handoffs.append(dict(previous_plan_start=self.last_plan.start,
+            current_plan_start=plan.start,stamp_ns=int(stamp),seam_m=seam,
+            endpoint_match_budget_m=match_budget,new_plan_displacement_bound_m=movement))
+        return .015+residual+seam+movement,'verified stationary handoff and current committed polynomial'
 
 
 class DemoMissionControl(SuperFlightControl):
@@ -375,6 +400,9 @@ class DemoMissionControl(SuperFlightControl):
                 evidence=dict(self.follower.motion_summary,
                     last_violation=self.follower.last_motion_violation,policy=self.motion_policy)
                 self.mission_report.data['planner_motion_by_leg'][self.leg_key()]=evidence
+                if self.follower.rest_handoffs:
+                    self.mission_report.data.setdefault('stationary_replan_handoffs_by_leg',{})[
+                        self.leg_key()]=list(self.follower.rest_handoffs)
                 if self.follower.last_continuity_failure is not None:
                     self.mission_report.data['reference_continuity_failure']=self.follower.last_continuity_failure
 

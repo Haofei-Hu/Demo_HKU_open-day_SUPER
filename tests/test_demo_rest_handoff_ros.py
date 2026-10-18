@@ -86,5 +86,40 @@ class Tests(unittest.TestCase):
         follower.add_plan(outside)
         with self.assertRaisesRegex(ValueError,'outside venue'):self.sample(follower,outside,3.1)
 
+    def test_logged_two_centimetre_rest_reanchor_uses_new_polynomial(self):
+        follower=self.follower()
+        previous=self.stop+np.array([.0072,-.0036,.0201])
+        msg=stage_plan(self.begin,previous,100.,.3)
+        follower.add_plan(msg)
+        self.assertTrue(self.sample(follower,msg,.305304))
+        self.assertTrue(follower.resting_at_endpoint())
+        next_msg=stage_plan(self.stop,self.goal,100.334788,4.121009)
+        follower.add_plan(next_msg)
+        self.assertTrue(self.sample(follower,next_msg,.030373))
+        self.assertEqual(len(follower.rest_handoffs),1)
+        self.assertAlmostEqual(follower.rest_handoffs[0]['seam_m'],.02165,places=5)
+        self.assertTrue(self.sample(follower,next_msg,.1))
+        self.assertEqual(len(follower.rest_handoffs),1)
+
+    def test_stationary_handoff_cannot_hide_a_larger_reanchor_or_moving_restart(self):
+        for offset,moving in ((.041,False),(.02,True)):
+            follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+            follower.add_plan(msg);self.sample(follower,msg,3.02)
+            next_msg=stage_plan(self.stop+[offset,0,0],self.goal,104.,6.)
+            if moving:
+                next_msg.coef_pos_x[-2]=.2
+            follower.add_plan(next_msg)
+            with self.assertRaisesRegex(ValueError,'position step'):
+                self.sample(follower,next_msg,0.)
+            self.assertFalse(follower.rest_handoffs)
+
+    def test_first_sample_after_a_rest_uses_motion_already_in_the_new_plan(self):
+        follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+        follower.add_plan(msg);self.sample(follower,msg,3.02)
+        next_msg=stage_plan(self.stop,self.goal,104.,6.)
+        follower.add_plan(next_msg)
+        self.assertTrue(self.sample(follower,next_msg,.8))
+        self.assertGreater(follower.rest_handoffs[0]['new_plan_displacement_bound_m'],.015)
+
 
 if __name__=='__main__':unittest.main()

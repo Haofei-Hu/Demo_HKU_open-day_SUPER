@@ -47,6 +47,7 @@ class TakeoffFrame:
 
 class Plan:
     """Pinned ROS2 PolynomialTrajectory: descending powers, local piece seconds."""
+    POSITION_MATCH_TOLERANCE = .02
     def __init__(self, msg):
         self.start = float(msg.start_wt_pos)
         durations = np.asarray(msg.time_pos, dtype=float)
@@ -88,7 +89,7 @@ class Plan:
             return False
         predicted = self.evaluate(elapsed)
         return all(norm(a-b) <= limit for a,b,limit in
-                   zip(predicted,(position,velocity,acceleration),(.02,.03,.05)))
+                   zip(predicted,(position,velocity,acceleration),(self.POSITION_MATCH_TOLERANCE,.03,.05)))
 
     def displacement_bound(self,begin,end):
         """Conservative displacement of this previously verified polynomial.
@@ -167,6 +168,14 @@ class Reference:
     def max_command_gap(self):
         return .25
 
+    def continuity_bound(self, plan, stamp):
+        dt = (stamp-self.last[0])/1e9
+        if self.motion_policy=='observe' and self.last_plan is not None:
+            return (.015+self.last_plan.displacement_bound(
+                self.last[0]/1e9-self.last_plan.start,stamp/1e9-self.last_plan.start),
+                'previous committed polynomial')
+        return .015+self.acceptance_speed*dt, 'configured speed acceptance bound'
+
     def add_plan(self, msg):
         plan = Plan(msg)
         self.check_plan_endpoint(plan, adding=True)
@@ -223,12 +232,7 @@ class Reference:
         else:
             dt = (stamp-self.last[0])/1e9
             step = norm(position-self.last[1])
-            allowed_step = .015+self.acceptance_speed*dt
-            continuity_basis='configured speed acceptance bound'
-            if self.motion_policy=='observe' and self.last_plan is not None:
-                allowed_step=.015+self.last_plan.displacement_bound(
-                    self.last[0]/1e9-self.last_plan.start,stamp/1e9-self.last_plan.start)
-                continuity_basis='previous committed polynomial'
+            allowed_step,continuity_basis = self.continuity_bound(plan,stamp)
             max_gap=self.max_command_gap()
             if dt > max_gap or step > allowed_step:
                 triggers = []
