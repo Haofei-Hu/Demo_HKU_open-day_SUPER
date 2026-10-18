@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `93555c73ee227eda441a2ccc8f4b59cbed6d47c3`.
+Matching release: `4624a0f50469fcd1351de9aaff4e9c41a7ff1638`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='93555c73ee227eda441a2ccc8f4b59cbed6d47c3'
+demo_revision='4624a0f50469fcd1351de9aaff4e9c41a7ff1638'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -71,7 +71,7 @@ A normal reboot requires no download, rebuild, manual `source`, or quaternion co
 | Setting | Value |
 |---|---|
 | Virtual takeoff target | FC centre 0.5 m above the floor |
-| Physical target | FC centre 1.8 m above the floor, explicitly selected with `--flight-height 1.8` |
+| Physical target | FC centre 1.5 m above the floor, explicitly selected with `--flight-height 1.5` |
 | Route | 4.5 m outbound and return to the original hover point, five round trips |
 | Return behavior | SUPER plans a new return path while retaining the initial heading |
 | Final stages | Hover for 6 seconds, land, confirm landed and disarmed |
@@ -144,4 +144,4 @@ python3 ~/Downloads/super_session.py stop
 | `position step` after a stationary replan | Confirm the rebuilt planner logs `VENUE_REST_START_V1`. It retains the measured start instead of relocating it to a grid centre; controller continuity checks remain active |
 | Persistent `WAIT_PLAN` | No executable trajectory yet; inspect this run's `planner_rehearsal.log` for path-search, corridor, or optimization failures |
 
-See [validation scope and known limitations](VALIDATION.md). The complete physical five-round mission remains unverified. Use the separate [1.8 m physical flight guide](PHYSICAL_FLIGHT.md) with [measured aircraft geometry and takeoff placement](FLIGHT_SITE_MEASUREMENTS.md).
+See [validation scope and known limitations](VALIDATION.md). The complete physical five-round mission remains unverified. Use the separate [1.5 m physical flight guide](PHYSICAL_FLIGHT.md) with [measured aircraft geometry and takeoff placement](FLIGHT_SITE_MEASUREMENTS.md).

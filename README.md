@@ -2,7 +2,7 @@
 
 An indoor localization, planning, and obstacle-avoidance demonstration built on **Livox MID360 → FAST_LIO → SUPER → MAVROS → PX4**.
 
-**[Installation and quick start](docs/QUICK_START.md)** · **[1.8 m physical flight](docs/PHYSICAL_FLIGHT.md)** · [Detailed startup and recovery](docs/REBOOT_QUICK_START.md) · [Documentation index](docs/README.md)
+**[Installation and quick start](docs/QUICK_START.md)** · **[1.5 m physical flight](docs/PHYSICAL_FLIGHT.md)** · [Detailed startup and recovery](docs/REBOOT_QUICK_START.md) · [Documentation index](docs/README.md)
 
 ## Start here
 
@@ -34,7 +34,7 @@ The final output is `RESULT: SUCCESS` or `RESULT: FAIL`, with reports under `~/D
 
 | Setting | Value |
 |---|---|
-| Physical target height | FC centre **1.8 m above the floor**, explicitly selected in the flight command |
+| Physical target height | FC centre **1.5 m above the floor**, explicitly selected in the flight command |
 | Virtual ground-rehearsal target height | 0.5 m |
 | Route | 4.5 m outbound → return to the original hover point, **five round trips** |
 | Final stages | Hover for 6 seconds → land → confirm landed and disarmed |
@@ -42,7 +42,7 @@ The final output is `RESULT: SUCCESS` or `RESULT: FAIL`, with reports under `~/D
 | Trajectory acceptance bounds | 4 m/s / 2 m/s² |
 | Outer venue dimensions | 5.8 m forward × 2.8 m wide × 2.8 m high |
 
-SUPER replans continuously and may follow curved obstacle-avoiding routes. Each return is planned back to the original hover point while retaining the takeoff heading. The 1.8 m setting is the takeoff, hover, and mission target height; three-dimensional avoidance may change altitude along the route. There is no additional whole-mission or first-trajectory waiting deadline.
+SUPER replans continuously and may follow curved obstacle-avoiding routes. Each return is planned back to the original hover point while retaining the takeoff heading. The 1.5 m setting is the takeoff, hover, and mission target height; three-dimensional avoidance may change altitude along the route. There is no additional whole-mission or first-trajectory waiting deadline.
 
 The `observe` policy records motion exceedances while retaining venue, freshness, and continuity checks. Physical execution uses measured aircraft extents and takeoff placement; rehearsal `--fixture-geometry` is not a physical survey.
 
@@ -66,7 +66,7 @@ The onboard computer connects to the flight controller over USB and provides rem
 
 ## Validation scope
 
-A complete five-round mission has passed with actual captured point clouds, real SUPER, and virtual vehicle feedback. Earlier physical takeoff, hover, and landing tests have separate field records. **The complete 1.8 m physical demonstration remains to be validated on site.** See [verification and known issues](docs/VALIDATION.md); historical debugging notes are not current startup instructions.
+A complete five-round mission has passed with actual captured point clouds, real SUPER, and virtual vehicle feedback. Earlier physical takeoff, hover, and landing tests have separate field records. **The complete 1.5 m physical demonstration remains to be validated on site.** See [verification and known issues](docs/VALIDATION.md); historical debugging notes are not current startup instructions.
 
 ## Repository structure
 

@@ -1,14 +1,14 @@
-# Complete physical demonstration: 1.8 m
+# Complete physical demonstration: 1.5 m
 
-Sequence: **rise to an FC-centre height of 1.8 m above the floor → fly 4.5 m outbound and return to the original hover point, five round trips → hover for 6 seconds → land and confirm disarmed**. Planning targets remain 2 m/s and 1 m/s²; acceptance bounds remain 4 m/s and 2 m/s².
+Sequence: **rise to an FC-centre height of 1.5 m above the floor → fly 4.5 m outbound and return to the original hover point, five round trips → hover for 6 seconds → land and confirm disarmed**. Planning targets remain 2 m/s and 1 m/s²; acceptance bounds remain 4 m/s and 2 m/s².
 
-`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `93555c73ee227eda441a2ccc8f4b59cbed6d47c3`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
+`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `4624a0f50469fcd1351de9aaff4e9c41a7ff1638`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
 
 ## 1. Use the measured configuration for this placement
 
 The mission file is `~/Downloads/open_day_mission_measured.json`. When reusing measurements, confirm that they describe the current aircraft and takeoff placement. The outer venue is 5.8 × 2.8 × 2.8 m, with the nose along the 5.8 m dimension. Rear and left offsets are measured from the FC centre.
 
-Check the file and aircraft-envelope clearance at 1.8 m. This command starts neither ROS nor flight:
+Check the file and aircraft-envelope clearance at 1.5 m. This command starts neither ROS nor flight:
 
 ```bash
 python3 - <<'PY'
@@ -20,7 +20,7 @@ from demo_mission import DemoMission
 p=base/'open_day_mission_measured.json'
 if not p.is_file():
     raise SystemExit('Missing measured configuration: '+str(p)+'; follow the measurement guide, not a virtual fixture')
-c=DemoMission.physical_height(json.loads(p.read_text()),1.8)
+c=DemoMission.physical_height(json.loads(p.read_text()),1.5)
 m=DemoMission(c)
 print('Takeoff placement:',c['takeoff'])
 print('Aircraft envelope:',c['vehicle'])
@@ -44,13 +44,13 @@ Terminal A:
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
-  --flight-height 1.8 \
+  --flight-height 1.5 \
   --motion-policy observe --execute --on-site-supervised
 ```
 
 The script opens or reuses QGC, starts localization, measures the alignment quaternion, prepares external vision and SUPER, and captures the measured venue frame shared by the planner and controller. It then waits for `Phase: READY`. Keep terminal A running.
 
-`--flight-height 1.8` saves the effective mission as `flight_mission.json` in the run's report directory without overwriting the measured source file. The height is **1.8 m from the takeoff floor to the FC centre**. With the existing grounded FC-height calibration of 0.085 m, the requested rise is approximately 1.715 m. Ground rehearsal remains at 0.5 m.
+The physical entrypoint defaults to 1.5 m, including when the stored survey contains a different height. `--flight-height 1.5` explicitly selects that default and saves the effective mission as `flight_mission.json` in the run's report directory without overwriting the measured source file. The height is **1.5 m from the takeoff floor to the FC centre**. With the existing grounded FC-height calibration of 0.085 m, the requested rise is approximately 1.415 m. Ground rehearsal remains at 0.5 m.
 
 For preparation checks only, omit `--execute --on-site-supervised`; that mode does not execute flight.
 
@@ -65,7 +65,7 @@ ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 
 **This call initiates physical flight.** Once accepted, the controller requests OFFBOARD, arms, and executes the mission. If rejected, resolve the reported reason; do not bypass preparation with a separate arming request.
 
-SUPER may alter the path and altitude to avoid obstacles. The 1.8 m setting is the takeoff, hover, and mission target height, not a fixed-altitude two-dimensional route. The return target is the original hover point with the initial heading retained. Venue and propeller-inclusive aircraft-envelope checks remain active.
+SUPER may alter the path and altitude to avoid obstacles. The 1.5 m setting is the takeoff, hover, and mission target height, not a fixed-altitude two-dimensional route. The return target is the original hover point with the initial heading retained. Venue and propeller-inclusive aircraft-envelope checks remain active.
 
 ## 4. Status, early landing, and results
 
@@ -88,8 +88,8 @@ RC takeover is an independent on-site control path. `Ctrl+C` terminates the proc
 
 Reports are saved under `~/Downloads/super_demo_reports/<timestamp>/`:
 
-- `flight_mission.json`: effective 1.8 m mission copy.
+- `flight_mission.json`: effective 1.5 m mission copy.
 - `preparation.json`: preparation results and stage-log paths.
 - `report.json`: flight stages, completed round trips, and final result.
 
-The release has been checked for 1.8 m configuration handling, ROS controller initialization, and start conditions. **A complete 1.8 m physical demonstration on this aircraft has not yet been verified.** Retain the entire report directory after the field trial.
+The release has been checked for 1.5 m configuration handling, ROS controller initialization, and start conditions. **A complete 1.5 m physical demonstration on this aircraft has not yet been verified.** Retain the entire report directory after the field trial.

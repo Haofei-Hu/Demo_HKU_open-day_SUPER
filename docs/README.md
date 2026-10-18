@@ -5,7 +5,7 @@
 | Task | Guide |
 |---|---|
 | Installation, one-command rehearsal after reboot, reports, and recovery | [Quick start](QUICK_START.md) |
-| Complete 1.8 m physical demonstration in a laboratory | [Physical flight](PHYSICAL_FLIGHT.md) |
+| Complete 1.5 m physical demonstration in a laboratory | [Physical flight](PHYSICAL_FLIGHT.md) |
 | Detailed installation, reboot, and troubleshooting procedures | [Startup and recovery](REBOOT_QUICK_START.md) |
 | Aircraft envelope, takeoff placement, and venue measurements | [Site measurements](FLIGHT_SITE_MEASUREMENTS.md) |
 | Current verification scope and known issues | [Validation](VALIDATION.md) |
