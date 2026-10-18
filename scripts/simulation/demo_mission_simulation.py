@@ -116,17 +116,27 @@ def rehearsal_view_config(scene):
         'Window Geometry':{'Width':1100,'Height':750,'Hide Left Dock':False,'Hide Right Dock':False}}
 
 
-def rehearsal_profile(source,report):
-    """Adapt only private snapshot IO; never edit the real planner profile."""
+def rehearsal_profile(source,report,scene=None,mission_file=None):
+    """Adapt private IO and optionally bind planning to the controller's venue."""
     import yaml
     source=Path(source);cfg=yaml.safe_load(source.read_text())
     cfg['rog_map']['ros_callback']['cloud_topic']='/demo_scene/occupied_points'
     cfg['rog_map']['raycasting']['enable']=False
+    venue=None
+    if scene is not None or mission_file is not None:
+        if scene is None or mission_file is None:raise ValueError('Venue needs both a scene and a mission')
+        from demo_venue import configure
+        venue=configure(cfg,scene,mission_file)
     token=hashlib.sha256(str(Path(report).resolve()).encode()).hexdigest()[:12]
     target=source.with_name('mid360_demo_rehearsal_'+token+'.yaml')
     if target.exists():raise ValueError('Rehearsal configuration already exists')
     with target.open('x') as handle:
         handle.write('# Private-domain static occupied-map rehearsal; source YAML unchanged\n'+yaml.safe_dump(cfg,sort_keys=False))
+    if venue is not None:
+        venue['planner_profile']=str(target)
+        venue['planner_profile_sha256']=hashlib.sha256(target.read_bytes()).hexdigest()
+        record=Path(report).parent/'venue_reference.json';record.parent.mkdir(parents=True,exist_ok=True)
+        with record.open('x') as handle:json.dump(venue,handle,indent=2);handle.write('\n')
     return target
 
 
@@ -417,6 +427,11 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
     from std_srvs.srv import Trigger
     from super_demo_control import DemoMissionControl
     controller_class=controller_class or DemoMissionControl
+    bounded_venue=scene_file is not None and domain_id==197 and controller_class is DemoMissionControl
+    if bounded_venue:
+        from apply_super_venue_bounds import require_support
+        scene=json.loads(Path(scene_file).read_text())
+        require_support(Path(scene['planner_config']).parent.parent.parent)
     parent,child=multiprocessing.get_context('spawn').Pipe()
     process=multiprocessing.get_context('spawn').Process(target=backend,args=(child,fault,scene_file))
     node=None;planner_process=None;planner_log=None;viewer=RehearsalViewer(report,rviz,domain_id);process.start()
@@ -434,7 +449,8 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
                     raise ValueError('Frozen scene alignment changed')
                 if hashlib.sha256(Path(scene['planner_config']).read_bytes()).hexdigest()!=scene['planner_sha256']:
                     raise ValueError('Source planner configuration changed after scene capture')
-                planner=rehearsal_profile(scene['planner_config'],report)
+                planner=rehearsal_profile(scene['planner_config'],report,
+                    scene if bounded_venue else None,mission_file if bounded_venue else None)
                 Path(report).parent.mkdir(parents=True,exist_ok=True)
                 planner_log=(Path(report).parent/'planner_rehearsal.log').open('w')
                 planner_process=subprocess.Popen(['ros2','run','super_planner','fsm_node','--ros-args',
@@ -443,6 +459,9 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
             viewer.start(scene)
             rclpy.init();node=controller_class(mission_file,report,True,True,alignment,planner,
                                               simulation=True,motion_policy=motion_policy)
+            if bounded_venue:
+                node.mission_report.data['planner_venue_bounds']=json.loads((Path(report).parent/'venue_reference.json').read_text())
+                node.mission_report.save()
             client=node.create_client(Trigger,'/super_demo/start');attempted=False
             while rclpy.ok() and node.phase not in ('DONE','STOPPED'):
                 rclpy.spin_once(node,timeout_sec=.02)

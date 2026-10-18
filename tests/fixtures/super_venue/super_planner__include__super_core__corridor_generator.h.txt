@@ -1,0 +1,6 @@
+#include <super_core/ciri.h>
+/* next upstream context */
+    class CorridorGenerator {
+    private:
+/* next upstream context */
+        vec_Vec3f getLatestCloud() {

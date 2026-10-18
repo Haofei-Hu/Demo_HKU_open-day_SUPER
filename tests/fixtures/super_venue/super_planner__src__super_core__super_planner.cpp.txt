@@ -1,0 +1,1 @@
+        cg_ptr_->SetLineNeighborList(cfg_.seed_line_neighbour);

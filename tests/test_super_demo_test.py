@@ -48,7 +48,21 @@ class Tests(unittest.TestCase):
         runner.step=step
         return runner,actions
 
-    def gate(self):return patch.object(m.manager,'GroundGate',return_value=NS(check=lambda:None,close=lambda:None))
+    def gate(self):
+        from contextlib import ExitStack
+        stack=ExitStack()
+        stack.enter_context(patch.object(m.manager,'GroundGate',return_value=NS(check=lambda:None,close=lambda:None)))
+        stack.enter_context(patch.object(m,'require_venue_support'))
+        return stack
+
+    def test_uncompiled_venue_support_stops_before_stack_or_qgc_startup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            runner,actions=self.runner(folder)
+            with patch.object(m,'require_venue_support',side_effect=ValueError('Rebuild venue support')),\
+                    patch.object(runner,'open_qgc') as qgc:
+                self.assertEqual(runner.run_complete(),1)
+            self.assertEqual(actions,[]);qgc.assert_not_called()
+            self.assertIn('Rebuild venue support',runner.report['error'])
 
     def test_physical_preparation_defaults_to_observe_without_execution(self):
         args=physical_entry.arguments(['--mission-file','measured.json'])

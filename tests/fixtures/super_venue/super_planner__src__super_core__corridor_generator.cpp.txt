@@ -1,0 +1,25 @@
+            GenerateEmptyPolytope(path[0], dis, temp_poly);
+/* next upstream context */
+    bool CorridorGenerator::GeneratePolytopeFromPoint(const Vec3f &pt, Polytope &polytope) {
+
+/* next upstream context */
+                                                  Polytope & polytope){
+
+/* next upstream context */
+    bool CorridorGenerator::GeneratePolytopeFromLine(Line &line, Polytope &polytope) {
+
+/* next upstream context */
+            polytope.SetSeedLine(Line{pt, pt});
+            return true;
+/* next upstream context */
+            polytope.SetSeedLine(Line{pt, pt});
+            return true;
+/* next upstream context */
+        polytope.SetSeedLine(Line{pt, pt});
+        return true;
+/* next upstream context */
+            polytope.SetSeedLine(line);
+            return true;
+/* next upstream context */
+            polytope.SetSeedLine(line);
+            return true;

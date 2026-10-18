@@ -1,0 +1,5 @@
+#include <ros_interface/ros_interface.hpp>
+/* next upstream context */
+        PathSearchConfig cfg_;
+/* next upstream context */
+        void setVisualProcessEn(const bool &en);

@@ -1,0 +1,28 @@
+{
+  "upstream": "https://github.com/hku-mars/SUPER",
+  "revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+  "license": "LGPL-3.0-or-later; copyright Yunfan REN, MaRS Lab, University of Hong Kong",
+  "scope": "Verbatim upstream edit contexts; full-source apply/restore verified separately",
+  "files": {
+    "super_planner/include/path_search/astar.h": {
+      "source_sha256": "3e22b1d04f6149f18cac809c119bfb2d67e849a0d52f2902c6b94b0b50085679",
+      "fixture": "super_planner__include__path_search__astar.h.txt"
+    },
+    "super_planner/src/super_core/astar.cpp": {
+      "source_sha256": "7e69c7ff12cc342276b0a06b253a3a7500e28be057931af9477d121d17121b55",
+      "fixture": "super_planner__src__super_core__astar.cpp.txt"
+    },
+    "super_planner/include/super_core/corridor_generator.h": {
+      "source_sha256": "30e2fe95053aecbd0cd4853e8656ebef65b3ca6d3b1b8c0bb4317d220cad5954",
+      "fixture": "super_planner__include__super_core__corridor_generator.h.txt"
+    },
+    "super_planner/src/super_core/corridor_generator.cpp": {
+      "source_sha256": "054c486ff22ec6a57fdb5d7e544428f2dba16be8dd18b25cc860749209a0e04c",
+      "fixture": "super_planner__src__super_core__corridor_generator.cpp.txt"
+    },
+    "super_planner/src/super_core/super_planner.cpp": {
+      "source_sha256": "22e0c6d6f4fa220abeaf811a42b3e4a117d0fd81037bd0ca3f8feff75c144cb1",
+      "fixture": "super_planner__src__super_core__super_planner.cpp.txt"
+    }
+  }
+}

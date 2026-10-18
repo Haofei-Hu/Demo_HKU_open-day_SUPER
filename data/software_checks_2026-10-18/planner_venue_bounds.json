@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-18",
+  "result": "PASS",
+  "scope": "Ground-rehearsal venue geometry, compiled search/corridor guards and compatibility checks; no aircraft operation",
+  "operator_reported_motion_acceptance_build": {
+    "super_planner_finished": true,
+    "reported_build_seconds": 103,
+    "target_speed_mps": 2.0,
+    "target_acceleration_mps2": 1.0,
+    "acceptance_speed_mps": 4.0,
+    "acceptance_acceleration_mps2": 2.0,
+    "profile": "/home/mars/super_ws/src/SUPER/super_planner/config/mid360_demo_acceptance_596d37a2279e.yaml",
+    "new_full_rehearsal_verified": false
+  },
+  "trigger": {
+    "run": "20261017_152536_523398",
+    "point_forward_left_floor_m": [
+      1.956954661962512,
+      -2.2295969360395405,
+      1.66203238879145
+    ],
+    "right_hull_clearance_m": -1.0295969360395405,
+    "phase": "WAIT_PLAN",
+    "measurement_type": "Committed trajectory endpoint; not measured aircraft displacement"
+  },
+  "change": {
+    "venue_dimensions_changed": false,
+    "vehicle_extents_changed": false,
+    "additional_boundary_inset_m": 0.0,
+    "vehicle_extents_applied_once": true,
+    "source_cloud_changed": false,
+    "source_yaml_changed": false,
+    "optimization_targets_changed": false,
+    "motion_acceptance_changed": false,
+    "new_mission_time_limits": false,
+    "px4_parameter_writes": false,
+    "scope": "Original forward/short-site frozen-scene rehearsal, private domain 197; physical preparation and independent left workflow are unchanged"
+  },
+  "software_tests": {
+    "count": 135,
+    "failures": 0,
+    "errors": 0,
+    "modules": [
+      "test_demo_venue",
+      "test_demo_rehearsal_profile",
+      "test_super_motion_acceptance",
+      "test_rehearsal_planner_cleanup",
+      "test_demo_viewer",
+      "test_demo_mission",
+      "test_super_demo_test",
+      "test_demo_test_release",
+      "test_repository_layout",
+      "test_demo_tracking_ros",
+      "test_demo_accepted_goal_ros",
+      "test_demo_rest_handoff_ros",
+      "test_demo_viewer_ros",
+      "test_bounded_reference",
+      "test_ground_rolling_reference_ros",
+      "test_left_rehearsal",
+      "test_left_rehearsal_ros"
+    ]
+  },
+  "compiled_cpp": {
+    "compiler": "g++ -std=c++17, real Eigen",
+    "actual_sources_exercised": [
+      "New optional DemoVenue helper",
+      "Patched original Astar::insideLocalMap grid predicate",
+      "Complete original GeneratePolytopeFromPoint, GeneratePolytopeFromLine and GenerateEmptyPolytope functions after patching"
+    ],
+    "test_doubles": [
+      "YAML parameter input",
+      "ROG-Map obstacle queries",
+      "CIRI decomposition success; not the optimizer or physical map"
+    ],
+    "covered": [
+      "Recorded right-side out-of-box point rejected",
+      "Search admission supports a curved in-box route around an obstacle",
+      "All five corridor success branches append the same venue halfspaces",
+      "Out-of-box point, line and fallback seeds rejected",
+      "Absent halfspaces retain original behavior",
+      "Invalid or empty plane-pair geometry rejected"
+    ]
+  },
+  "geometry_comparison": {
+    "reference": "Controller VenueFrame and DemoMission.check, with the same fixed raw goal quaternion and lever arm",
+    "cases": [
+      "Rotated and tilted world",
+      "Nonzero quaternion-dependent mounting lever",
+      "Nonzero localization origin",
+      "All six faces, exact boundary and adjacent inside/outside points",
+      "200 deterministic random points",
+      "Frozen source scene preservation",
+      "No physical boundary inference from a rehearsal scene"
+    ]
+  },
+  "complete_upstream_source_validation": {
+    "upstream_revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "files": {
+      "super_planner/include/path_search/astar.h": {
+        "before_sha256": "3e22b1d04f6149f18cac809c119bfb2d67e849a0d52f2902c6b94b0b50085679",
+        "after_sha256": "4356cb5d96d957d7f8b53ee9cdeeb473e22e2bc9e545beb4951d0f8af8a1b30d"
+      },
+      "super_planner/src/super_core/astar.cpp": {
+        "before_sha256": "7e69c7ff12cc342276b0a06b253a3a7500e28be057931af9477d121d17121b55",
+        "after_sha256": "d65ff0f96e3e68ed8ca9d7a8ccb8ce037670092391fe1d6331c8d95b46736f68"
+      },
+      "super_planner/include/super_core/corridor_generator.h": {
+        "before_sha256": "30e2fe95053aecbd0cd4853e8656ebef65b3ca6d3b1b8c0bb4317d220cad5954",
+        "after_sha256": "dc471455b0019459d3b1e7ced6e1a5fdface4603e966baa5fc4ce5ae3d974e11"
+      },
+      "super_planner/src/super_core/corridor_generator.cpp": {
+        "before_sha256": "054c486ff22ec6a57fdb5d7e544428f2dba16be8dd18b25cc860749209a0e04c",
+        "after_sha256": "64907478681e13e9a380816e90ff662a9f755a4a97230d63c73b866a1bc39ba5"
+      },
+      "super_planner/src/super_core/super_planner.cpp": {
+        "before_sha256": "22e0c6d6f4fa220abeaf811a42b3e4a117d0fd81037bd0ca3f8feff75c144cb1",
+        "after_sha256": "cc81462b0660116e3eb9b28705578b7f9c39b1564e5c1ba2b2c3f229bc1c9167"
+      }
+    },
+    "new_header_sha256": "8259cd16afe0193702915a93369d38e49a9725e48b365ff2613529471323f4c0",
+    "repeated_apply_idempotent": true,
+    "restored_original_bytes": true,
+    "coexists_with_motion_acceptance_patch": true,
+    "venue_restore_preserves_motion_patch": true,
+    "both_restored_to_original_bytes": true
+  },
+  "not_validated": [
+    "Complete onboard compilation of the venue patch",
+    "Complete onboard real-SUPER forward rehearsal after the venue patch",
+    "Actual obstacle optimization in the compiled test doubles",
+    "Automatic planner-side venue injection for physical flight",
+    "Physical aircraft tracking and clearance",
+    "Remote desktop rendering"
+  ],
+  "next_step": "Install the matching release, apply the independent backed-up venue patch, rebuild super_planner, and save the full onboard ground-rehearsal result"
+}

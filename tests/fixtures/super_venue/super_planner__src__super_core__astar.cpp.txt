@@ -1,0 +1,9 @@
+    bool Astar::insideLocalMap(const rog_map::Vec3i &id_g) const {
+
+/* next upstream context */
+                                           rog_map::vec_Vec3f &out_path, const double &time_out) {
+
+/* next upstream context */
+        posToGlobalIndex(local_start_pt, start_idx);
+
+        GridNodePtr startPtr

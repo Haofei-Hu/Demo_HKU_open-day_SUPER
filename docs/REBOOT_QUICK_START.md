@@ -23,12 +23,13 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 
 The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M`, and `flight.round_trips` to `5` with the current canonical sequence before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
 
-This release separates the unchanged **2 m/s, 1 m/s² optimization targets** from **4 m/s, 2 m/s² trajectory acceptance bounds**. It requires a one-time SUPER source patch and rebuild after installation:
+This release separates the unchanged **2 m/s, 1 m/s² optimization targets** from **4 m/s, 2 m/s² trajectory acceptance bounds**, and passes the existing rehearsal venue to SUPER's search and corridor generation. It requires two independent, one-time SUPER source patches and one rebuild after installation:
 
 ```bash
 (
 set -e
 python3 ~/Downloads/apply_super_motion_acceptance.py
+python3 ~/Downloads/apply_super_venue_bounds.py
 bash --noprofile --norc -c '
 set -e
 source /opt/ros/humble/setup.bash
@@ -41,7 +42,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
-The patcher saves a reversible backup and preserves optimization penalties and other planner checks. The manager verifies the installed binary before selecting the new acceptance profile. See [motion acceptance and validation](MOTION_ACCEPTANCE.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
+Each patcher saves a reversible backup. Motion targets and optimization penalties are preserved; the venue patch applies the existing box during planning. The manager/runner verify the installed binary. If motion acceptance has already been compiled, apply the additional venue patch and rebuild once; its rollback preserves motion acceptance. See [motion acceptance](MOTION_ACCEPTANCE.md) and [planner venue bounds](PLANNER_VENUE_BOUNDS.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
 
 ## Run the complete ground rehearsal after each reboot
 
@@ -108,6 +109,8 @@ For a separate one-metre rehearsal, append `--route-profile short-1m`. This chan
 After takeoff, the entire configured vehicle envelope must remain inside the outer operating box. SUPER can replan curved routes around obstacles within that box; it is not constrained to a 10 cm tube around the starting heading. Initial-reference, tracking and landing-position offsets are recorded without a separate 10 cm abort rule. The 10 cm arrival tolerance still determines when the requested hover point has been reached; it does not define the permissible path. The former extra 10 cm route inset is removed from geometry validation.
 
 Both planned positions/stage endpoints and measured vehicle positions are checked against the same venue. Freshness, source consistency, finite values, polynomial matching, reference continuity, planner backup constraints, heading policy and operator takeover remain separate requirements. These are data/control checks rather than a fixed straight-line route. QGC and RViz startup do not initiate a physical flight.
+
+The forward ground rehearsal now also passes the same vehicle-centre box to A* search and every corridor-generation branch. This prevents the previous mismatch in which SUPER could plan outside the box and only then encounter the controller boundary check. It writes `venue_reference.json` and a separate per-run profile, preserving the captured cloud and existing geometry. It adds no boundary inset or mission deadline. [Planner-side venue injection](PLANNER_VENUE_BOUNDS.md) is currently scoped to the frozen-scene ground rehearsal; it is not a new physical-flight clearance measurement.
 
 ## Read the result and retain the report
 

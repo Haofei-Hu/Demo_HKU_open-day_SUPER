@@ -19,6 +19,7 @@ import sys
 import super_session as manager
 from super_ground_test import GroundTest,write_report
 from demo_mission import DemoMission
+from apply_super_venue_bounds import require_support as require_venue_support
 
 
 def planner_log_evidence(path):
@@ -112,6 +113,7 @@ class DemoTest(GroundTest):
                   f'{mission.round_trips} round trips of {mission.distance:g} m each way, final 6 s hover, LAND',flush=True)
             scene=None
             if not self.args.logic_only:
+                require_venue_support(Path.home()/'super_ws/src/SUPER')
                 self.open_qgc()
                 self.prepare(planner_profile='demo')
                 self.report['vision_preparation_policy']=dict(continuous_window_s=30.,

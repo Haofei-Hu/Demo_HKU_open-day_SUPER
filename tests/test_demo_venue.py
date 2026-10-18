@@ -1,0 +1,296 @@
+"""Venue/controller agreement, source rollback, and compiled search/corridor bounds."""
+from copy import deepcopy
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import numpy as np
+import yaml
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(ROOT/'scripts/maintenance'),str(ROOT/'scripts/simulation'),str(ROOT/'scripts/flight'),
+              str(ROOT/'scripts/planning'),str(ROOT/'scripts/localization'),str(ROOT/'tests')]
+import apply_super_venue_bounds as source_patch
+from demo_venue import halfspaces
+from demo_mission import DemoMission
+from super_demo_control import VenueFrame
+from control_bridge_preview import quaternion_rpy
+from aligned_pose_preview import rotation,multiply
+from test_demo_mission import fixture
+from demo_mission_simulation import rehearsal_profile
+
+FIXTURE=ROOT/'tests/fixtures/super_venue'
+
+
+def source_tree(root):
+    provenance=json.loads((FIXTURE/'provenance.json').read_text())
+    for name,entry in provenance['files'].items():
+        path=Path(root)/name;path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_bytes((FIXTURE/entry['fixture']).read_bytes())
+
+
+class Tests(unittest.TestCase):
+    def geometry(self):
+        world=quaternion_rpy(.25,-.17,.6);world_rotation=rotation(world)
+        raw_q=quaternion_rpy(.2,-.12,.7);raw_p=np.array([.4,-.8,-3.])
+        origin=np.array([1.2,-.1,.7]);translation=np.array([-.3,.5,.2]);lever=np.array([.04,-.03,.11])
+        def converter(p,q,c):
+            return world_rotation@(p+rotation(q)@lever)+translation,multiply(world,q),c
+        ground,aligned_q,_=converter(raw_p,raw_q,np.eye(6));ground-=origin
+        scene=dict(raw_position=raw_p.tolist(),raw_quaternion=raw_q.tolist(),aligned_position=ground.tolist(),
+                   aligned_quaternion=aligned_q.tolist(),origin=origin.tolist())
+        mission=DemoMission(DemoMission.ground_rehearsal(fixture()))
+        return scene,mission,converter
+
+    def test_rotated_tilted_frame_and_lever_match_controller_for_all_six_faces(self):
+        scene,mission,convert=self.geometry();planes,record=halfspaces(scene,mission,convert)
+        frame=VenueFrame(scene['aligned_position'],scene['aligned_quaternion'],mission,lambda:False)
+        matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
+        lower=np.array(record['fc_centre_lower_forward_left_floor_m'])
+        upper=np.array(record['fc_centre_upper_forward_left_floor_m']);centre=(lower+upper)/2
+        goal_q=np.array(record['fixed_raw_goal_quaternion_xyzw'])
+        points=[centre,[0.,0.,.5],[4.5,0.,.5],[1.96,-2.23,1.66],[2.,1.,.8]]
+        for i in range(3):
+            for bound in (lower[i],upper[i]):
+                for delta in (-.00001,0.,.00001):
+                    point=centre.copy();point[i]=bound+delta;points.append(point)
+        rng=np.random.default_rng(18);points.extend(rng.uniform(lower-.5,upper+.5,size=(200,3)))
+        for point in points:
+            raw=np.linalg.solve(matrix,np.asarray(point)-offset)
+            aligned=convert(raw,goal_q,np.eye(6))[0]-scene['origin']
+            np.testing.assert_allclose(frame.coordinates(aligned),point,atol=1e-12)
+            admitted=bool(np.all(planes[:,:3]@raw+planes[:,3]<=1e-9))
+            try:frame.check(aligned);controller=True
+            except ValueError:controller=False
+            self.assertEqual(admitted,controller,point)
+        self.assertEqual(record['additional_boundary_inset_m'],0.)
+        self.assertTrue(record['vehicle_extents_applied_once'])
+
+    def test_frozen_scene_is_unchanged_and_physical_frame_is_not_inferred(self):
+        scene,mission,convert=self.geometry();original=deepcopy(scene)
+        halfspaces(scene,mission,convert);self.assertEqual(scene,original)
+        with self.assertRaisesRegex(ValueError,'ground rehearsal only'):
+            halfspaces(scene,DemoMission(fixture()),convert)
+
+    def test_profile_adds_only_venue_planes_and_snapshot_io(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder=Path(folder);source=folder/'original.yaml'
+            config=yaml.safe_load((ROOT/'configs/observed_2026-10-08/mid360_real_ros2.yaml').read_text())
+            config['traj_opt']['boundary'].update(max_vel=2.,max_acc=1.,acceptance_max_vel=4.,acceptance_max_acc=2.)
+            source.write_text(yaml.safe_dump(config));before=source.read_bytes()
+            scene,mission,converter=self.geometry()
+            frozen=folder/'mission.json';frozen.write_text(json.dumps(mission.config))
+            with patch('demo_venue.load_converter',return_value=converter):
+                scene['alignment_path']=str(folder/'alignment.py')
+                result=rehearsal_profile(source,folder/'mission_report.json',scene,frozen)
+            expected=deepcopy(config)
+            expected['rog_map']['ros_callback']['cloud_topic']='/demo_scene/occupied_points'
+            expected['rog_map']['raycasting']['enable']=False
+            record=json.loads((folder/'venue_reference.json').read_text())
+            expected['super_planner']['venue_halfspaces']=np.array(record['halfspaces']).reshape(-1).tolist()
+            self.assertEqual(yaml.safe_load(result.read_text()),expected)
+            self.assertEqual(source.read_bytes(),before)
+            self.assertEqual(record['planner_profile_sha256'],hashlib.sha256(result.read_bytes()).hexdigest())
+            self.assertFalse(record['captured_cloud_changed'])
+
+    def test_guarded_patch_is_idempotent_and_restores_original_and_added_header(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source_tree(root)
+            originals={name:(root/name).read_bytes() for name in source_patch.EDITS}
+            backup=source_patch.apply(root)
+            self.assertEqual((root/source_patch.HEADER).read_text(),source_patch.HEADER_TEXT)
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            self.assertFalse((root/source_patch.HEADER).exists())
+            for name,data in originals.items():self.assertEqual((root/name).read_bytes(),data)
+
+    def test_unknown_or_later_modified_source_is_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source_tree(root);bad=root/source_patch.CORRIDOR;bad.write_text('unknown')
+            before={name:(root/name).read_bytes() for name in source_patch.EDITS}
+            with self.assertRaisesRegex(ValueError,'Unsupported source context'):source_patch.apply(root)
+            self.assertFalse((root/source_patch.HEADER).exists())
+            for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
+            source_tree(root);backup=source_patch.apply(root)
+            path=root/source_patch.PLANNER;path.write_text(path.read_text()+'\n// later edit\n')
+            with self.assertRaisesRegex(ValueError,'Source changed'):source_patch.restore(backup)
+
+    def test_patched_source_and_installed_binary_are_required(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'src/SUPER';source_tree(root)
+            with self.assertRaisesRegex(ValueError,'Apply apply_super_venue'):source_patch.require_support(root)
+            source_patch.apply(root)
+            with self.assertRaisesRegex(ValueError,'rebuild'):source_patch.require_support(root)
+            binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
+            binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
+            self.assertEqual(source_patch.require_support(root),binary)
+
+    def test_compiled_search_predicate_and_corridor_intersection(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'utils/header').mkdir(parents=True)
+            (root/'utils/header/yaml_loader.hpp').write_text('''#pragma once
+#include <string>
+#include <vector>
+namespace yaml_loader {extern std::vector<double> values; struct YamlLoader {
+explicit YamlLoader(const std::string&) {}
+void LoadParam(const std::string&,std::vector<double>& out,const std::vector<double>&) {out=values;}
+};}
+''')
+            (root/'demo_venue.hpp').write_text(source_patch.HEADER_TEXT)
+            original=(FIXTURE/'astar_predicate.cpp').read_text()
+            before,after,count=source_patch.EDITS[source_patch.ASTAR][0]
+            self.assertEqual(original.count(before),count);predicate=original.replace(before,after)
+            code='''#include <cassert>
+#include <queue>
+#include <set>
+#include "demo_venue.hpp"
+std::vector<double> yaml_loader::values;
+namespace rog_map {using Vec3i=Eigen::Vector3i;using Vec3f=Eigen::Vector3d;}
+struct Astar {
+ super_utils::DemoVenue demo_venue_;
+ struct {rog_map::Vec3i local_map_center_id_g{0,0,0};} md_;
+ struct {rog_map::Vec3i map_size_i{100,100,100};} cfg_;
+ void globalIndexToPos(const rog_map::Vec3i& id,rog_map::Vec3f& p) const {p=id.cast<double>()*.1;}
+ bool insideLocalMap(const rog_map::Vec3i&) const;
+};
+'''+predicate+'''
+int main() {
+ super_utils::DemoVenue absent("unused");assert(absent.contains({1000,1000,1000}));
+ yaml_loader::values={1,0,0,-5.1, -1,0,0,-.3, 0,1,0,-1.2, 0,-1,0,-1.2, 0,0,1,-2.7, 0,0,-1,.085};
+ super_utils::DemoVenue venue("unused");
+ assert(venue.contains({0,0,.5}));assert(venue.contains({4.5,0,.5}));
+ assert(!venue.contains({1.9569546619,-2.2295969360,1.6620323888}));
+ assert(venue.contains({2,1,.8}));assert(venue.contains({2,1.2,.8}));
+ assert(!venue.contains({2,1.20001,.8}));
+ Astar search;search.demo_venue_=venue;
+ assert(search.insideLocalMap({0,0,5}));assert(!search.insideLocalMap({20,-23,16}));
+ // An obstacle blocks the straight route. Search must curve inside the same box.
+ std::queue<std::pair<int,int>> pending;std::set<std::pair<int,int>> seen;
+ pending.push({0,0});seen.insert({0,0});bool reached=false,curved=false;
+ while(!pending.empty()) {auto p=pending.front();pending.pop();
+   if(p==std::make_pair(45,0)) {reached=true;break;}
+   for(auto d:std::vector<std::pair<int,int>>{{1,0},{-1,0},{0,1},{0,-1}}) {
+     auto q=std::make_pair(p.first+d.first,p.second+d.second);
+     if(!search.insideLocalMap({q.first,q.second,5}) || seen.count(q)) continue;
+     if(q.first>=19 && q.first<=21 && std::abs(q.second)<=5) continue;
+     if(std::abs(q.second)>5) curved=true;
+     seen.insert(q);pending.push(q);
+   }
+ }
+ assert(reached && curved);
+ Eigen::Matrix<double,Eigen::Dynamic,4> corridor(6,4);
+ corridor<<1,0,0,-6, -1,0,0,-1, 0,1,0,-3, 0,-1,0,-3, 0,0,1,-3, 0,0,-1,0;
+ venue.appendTo(corridor);assert(corridor.rows()==12);
+ Eigen::Vector3d rejected(1.9569546619,-2.2295969360,1.6620323888),allowed(2,1,.8);
+ assert((corridor.leftCols<3>()*rejected+corridor.col(3)).maxCoeff()>1.);
+ assert((corridor.leftCols<3>()*allowed+corridor.col(3)).maxCoeff()<=1e-9);
+ yaml_loader::values[7]=5.2;bool invalid=false;
+ try {super_utils::DemoVenue bad("unused");}catch(const std::invalid_argument&) {invalid=true;}
+ assert(invalid);
+}
+'''
+            source=root/'check.cpp';source.write_text(code)
+            result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(source),'-o',str(root/'check')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([str(root/'check')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_compiled_actual_corridor_generators_clip_all_five_success_paths(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'utils/header').mkdir(parents=True)
+            (root/'utils/header/yaml_loader.hpp').write_text('''#pragma once
+#include <string>
+#include <vector>
+namespace yaml_loader {extern std::vector<double> values; struct YamlLoader {
+explicit YamlLoader(const std::string&) {}
+void LoadParam(const std::string&,std::vector<double>& out,const std::vector<double>&) {out=values;}
+};}
+''')
+            (root/'demo_venue.hpp').write_text(source_patch.HEADER_TEXT)
+            original=(FIXTURE/'corridor_generators.cpp').read_text()
+            functions=original
+            for before,after,count in source_patch.EDITS[source_patch.CORRIDOR]:
+                if before in functions:
+                    self.assertEqual(functions.count(before),count)
+                    functions=functions.replace(before,after)
+            code='''#include <cassert>
+#include <memory>
+#include <utility>
+#include "demo_venue.hpp"
+std::vector<double> yaml_loader::values;
+using Vec3f=Eigen::Vector3d;using Vec3i=Eigen::Vector3i;
+namespace super_utils {using Vec3f=Eigen::Vector3d;}
+using MatD4f=Eigen::Matrix<double,Eigen::Dynamic,4>;
+template<class T> using vec_E=std::vector<T,Eigen::aligned_allocator<T>>;
+using Line=std::pair<Vec3f,Vec3f>;using namespace std;
+const char* YELLOW="";const char* RESET="";const int OCCUPIED=1;
+enum RET_CODE {SUCCESS,FAILED};
+struct Polytope {
+ MatD4f planes;
+ MatD4f GetPlanes() const {return planes;}
+ void SetPlanes(const MatD4f& p) {planes=p;}
+ void SetSeedLine(const Line&) {}
+ void Reset() {planes.resize(0,4);}
+};
+namespace rog_map {struct TimeConsuming {TimeConsuming(const char*,bool){} double stop(){return 0;}};}
+struct FakeMap {
+ bool with_obstacle=false;
+ void boundBoxByLocalMap(Vec3f&,Vec3f&) {}
+ void boxSearch(const Vec3f&,const Vec3f&,int,vec_E<Vec3f>& pc) {if(with_obstacle)pc.push_back({5,5,5});}
+};
+struct FakeCiri {
+ MatD4f bd;
+ template<class M> RET_CODE comvexDecomposition(const MatD4f& b,const M&,const Vec3f&,const Vec3f&) {bd=b;return SUCCESS;}
+ void getPolytope(Polytope& p) {p.SetPlanes(bd);}
+};
+namespace super_planner {
+class CorridorGenerator {
+public:
+ double bound_dis_=1.,robot_r_=.2;
+ shared_ptr<FakeMap> map_ptr_=make_shared<FakeMap>();
+ shared_ptr<FakeCiri> ciri_=make_shared<FakeCiri>();
+ vec_E<Vec3f> latest_pc;int ciri_cnt=0;double ciri_t=0;
+'''+source_patch.CLIP+'''
+ void getSeedBBox(const Vec3f&,const Vec3f&,Vec3f&,Vec3f&);
+ bool GeneratePolytopeFromPoint(const Vec3f&,Polytope&);
+ bool GenerateEmptyPolytope(const Vec3f&,const double&,Polytope&);
+ bool GeneratePolytopeFromLine(Line&,Polytope&);
+};
+'''+functions+'''
+int main() {
+ super_planner::CorridorGenerator generator;Polytope p;Line line{{2,1.1,.5},{3,1.1,.5}};
+ assert(generator.GeneratePolytopeFromLine(line,p));assert(p.GetPlanes().rows()==6);
+ yaml_loader::values={1,0,0,-5.1, -1,0,0,-.3, 0,1,0,-1.2, 0,-1,0,-1.2, 0,0,1,-2.7, 0,0,-1,.085};
+ generator.demo_venue_=super_utils::DemoVenue("unused");
+ auto checked=[&]() {
+   auto planes=p.GetPlanes();assert(planes.rows()==12);
+   Vec3f inside(2.5,1.1,.5),outside(2.5,1.21,.5);
+   assert((planes.leftCols<3>()*inside+planes.col(3)).maxCoeff()<=1e-9);
+   assert((planes.leftCols<3>()*outside+planes.col(3)).maxCoeff()>0);
+ };
+ // Empty-cloud point and line, both CIRI success branches, and fallback box.
+ for(bool obstacle:{false,true}) {
+   generator.map_ptr_->with_obstacle=obstacle;
+   assert(generator.GeneratePolytopeFromPoint({2.5,1.1,.5},p));checked();
+   assert(generator.GeneratePolytopeFromLine(line,p));checked();
+ }
+ assert(generator.GenerateEmptyPolytope({2.5,1.1,.5},1.,p));checked();
+ Vec3f bad(1.9569546619,-2.2295969360,1.6620323888);
+ assert(!generator.GeneratePolytopeFromPoint(bad,p));
+ assert(!generator.GenerateEmptyPolytope(bad,1.,p));
+ line.second=bad;assert(!generator.GeneratePolytopeFromLine(line,p));
+}
+'''
+            source=root/'check.cpp';source.write_text(code)
+            result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(source),'-o',str(root/'check')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([str(root/'check')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+
+if __name__=='__main__':unittest.main()
