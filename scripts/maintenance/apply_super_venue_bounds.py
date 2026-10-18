@@ -14,6 +14,7 @@ import tempfile
 
 VERSION='VENUE_BOUNDS_V1'
 SEARCH_VERSION='VENUE_SEARCH_COMPLETE_V1'
+REST_VERSION='VENUE_REST_COMMIT_V1'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
 ASTAR='super_planner/src/super_core/astar.cpp'
@@ -152,6 +153,43 @@ SEARCH_EDITS={
 }
 
 
+# From-rest planning has no moving splice to meet. Start its clock only when
+# the full primary/backup pair is ready; moving replans keep their splice checks.
+REST_COMMIT = """        // VENUE_REST_COMMIT_V1: a held vehicle has not executed optimization time.
+        if (astar_ptr_->hasDemoVenue() &&
+            (back_ret_code == SUCCESS || back_ret_code == FINISH || back_ret_code == NO_NEED)) {
+            const double commit_WT = ros_ptr_->getSimTime();
+            exp_traj_info.setTrajectory(commit_WT, exp_traj_info.posTraj(), exp_traj_info.yawTraj());
+            if (!back_traj_info.empty()) {
+                back_traj_info.setTrajectory(commit_WT + back_traj_info.getStartTT(),
+                    back_traj_info.getStartTT(), back_traj_info.posTraj(), back_traj_info.yawTraj());
+                latest_replan.setBackupTraj(back_traj_info.posTraj());
+                latest_replan.setBackupYawTraj(back_traj_info.yawTraj());
+            }
+            latest_replan.setExpTraj(exp_traj_info.posTraj());
+            latest_replan.setExpYawTraj(exp_traj_info.yawTraj());
+            ros_ptr_->info("VENUE_REST_COMMIT_V1: from-rest plan starts at commit; backup offset preserved");
+        }
+"""
+REST_EDITS={
+    ASTAR_H:[
+        ('        void setDemoVenue(const super_utils::DemoVenue &venue) { demo_venue_=venue; }',
+         '        bool hasDemoVenue() const { return demo_venue_.enabled(); } // VENUE_REST_COMMIT_V1\n'
+         '        void setDemoVenue(const super_utils::DemoVenue &venue) { demo_venue_=venue; }',1),
+    ],
+    PLANNER:[
+        ('        if (replan_total_t > cfg_.replan_forward_dt) {',
+         '        if (!(astar_ptr_->hasDemoVenue() && last_exp_traj_info.empty()) &&\n'
+         '            replan_total_t > cfg_.replan_forward_dt) {',1),
+        ('        double new_traj_WT = replan_process_start_WT;',
+         '        double new_traj_WT = (astar_ptr_->hasDemoVenue() && last_exp_traj_info.empty())\n'
+         '            ? ros_ptr_->getSimTime() : replan_process_start_WT;',1),
+        ('        RET_CODE back_ret_code = generateBackupTrajectory(exp_traj_info, back_traj_info);;\n',
+         '        RET_CODE back_ret_code = generateBackupTrajectory(exp_traj_info, back_traj_info);;\n'+REST_COMMIT,1),
+    ],
+}
+
+
 def patched(relative,text):
     if VERSION in text:
         if not all(text.count(new)==count for _,new,count in EDITS[relative]):
@@ -160,10 +198,11 @@ def patched(relative,text):
         for old,new,count in EDITS[relative]:
             if text.count(old)!=count:raise ValueError('Unsupported source context; no files written: '+relative)
             text=text.replace(old,new)
-    upgrades=SEARCH_EDITS.get(relative,[])
-    if upgrades:
-        if all(text.count(new)==count for _,new,count in upgrades):return text
-        if SEARCH_VERSION in text:
+    for marker,edits in ((SEARCH_VERSION,SEARCH_EDITS),(REST_VERSION,REST_EDITS)):
+        upgrades=edits.get(relative,[])
+        if not upgrades:continue
+        if all(text.count(new)==count for _,new,count in upgrades):continue
+        if marker in text:
             raise ValueError('Partial bounded-search upgrade; no files written: '+relative)
         if not all(text.count(old)==count for old,_,count in upgrades):
             raise ValueError('Unsupported/partial bounded-search upgrade; no files written: '+relative)
@@ -235,10 +274,10 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==2:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION)):]
+                    if len(found)==3:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION)):]
     raise ValueError('Installed fsm_node needs complete bounded-search support; rebuild super_planner before the rehearsal')
 
 

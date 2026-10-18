@@ -59,6 +59,8 @@ def planner_log_evidence(path):
         'goal_received':'Receive click goal',
         'missing_odometry':'[Fsm] No odom.',
         'astar_time_limit':'seconds time limit exceeded',
+        'primary_elapsed_rejection':'Replan over time(',
+        'rest_plan_committed':'VENUE_REST_COMMIT_V1: from-rest plan starts at commit',
         'bounded_search_exhausted':'VENUE_SEARCH_COMPLETE_V1 exhausted:',
     }
     counts={name:0 for name in markers};tail=deque(maxlen=100)

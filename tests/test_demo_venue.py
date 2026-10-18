@@ -131,7 +131,7 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
 
     def test_deployed_venue_v1_upgrade_changes_only_search_and_planner_startup(self):
@@ -146,7 +146,7 @@ class Tests(unittest.TestCase):
             before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
             backup=source_patch.apply(root)
             changed=json.loads((backup/'record.json').read_text())['files']
-            self.assertEqual(set(changed),{source_patch.ASTAR,source_patch.PLANNER})
+            self.assertEqual(set(changed),{source_patch.ASTAR,source_patch.ASTAR_H,source_patch.PLANNER})
             self.assertEqual((root/source_patch.HEADER).read_bytes(),before[source_patch.HEADER])
             self.assertIsNone(source_patch.apply(root))
             source_patch.restore(backup)

@@ -42,6 +42,8 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
+The current venue patch also accepts slow from-rest planning and starts the complete primary/backup pair at commit time (`VENUE_REST_COMMIT_V1`). Install it and rebuild even if the preceding A* complete-search patch was already compiled.
+
 Each patcher saves a reversible backup. Motion targets and optimization penalties are preserved; the venue patch applies the existing box during planning. The manager/runner verify the installed binary. If motion acceptance has already been compiled, apply the additional venue patch and rebuild once; its rollback preserves motion acceptance. See [motion acceptance](MOTION_ACCEPTANCE.md) and [planner venue bounds](PLANNER_VENUE_BOUNDS.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
 
 ## Run the complete ground rehearsal after each reboot

@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-18",
+  "run": "20261018_160943_724717",
+  "evidence": {
+    "probability_map_search": "success",
+    "primary_optimizer": "completed",
+    "rejection": "Replan over time",
+    "observed_elapsed_s": [
+      0.4832475185394287,
+      0.5345954895019531
+    ]
+  },
+  "change": {
+    "scope": "Explicit finite venue, from-rest trajectory",
+    "deadline_rejection_removed": true,
+    "epoch": "Commit after primary and backup acceptance",
+    "backup_relative_offset_preserved": true,
+    "moving_splice_checks_retained": true,
+    "motion_and_geometry_parameters_changed": false
+  },
+  "checks": {
+    "tests": 77,
+    "failures": 0,
+    "errors": 0,
+    "upstream_trajectory_container_timestamp_tests": "PASS"
+  },
+  "source_validation": {
+    "upstream": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "upgrade_from": "25b0073984c7707b2fa38988d678b1af0ed941d8",
+    "fresh_apply_restore": true,
+    "upgrade_apply_restore": true,
+    "idempotent": true,
+    "upgrade_files": [
+      "super_planner/include/path_search/astar.h",
+      "super_planner/src/super_core/super_planner.cpp"
+    ],
+    "full_onboard_build": false
+  },
+  "not_validated": [
+    "Full onboard build after update",
+    "Complete recorded real-SUPER frozen-map rehearsal",
+    "Physical flight"
+  ]
+}

@@ -24,5 +24,15 @@
       "source_sha256": "22e0c6d6f4fa220abeaf811a42b3e4a117d0fd81037bd0ca3f8feff75c144cb1",
       "fixture": "super_planner__src__super_core__super_planner.cpp.txt"
     }
+  },
+  "timing_test_headers": {
+    "super_planner/include/data_structure/exp_traj.h": {
+      "source_sha256": "200999700bc821793c1a664c14275485eaa2a99464b86b3c365535b6fa09eec2",
+      "fixture": "super_planner__include__data_structure__exp_traj.h.txt"
+    },
+    "super_planner/include/data_structure/backup_traj.h": {
+      "source_sha256": "f0e1f8f891524381512b01c59b32811d8e742b47ed85841e8c3ac9db19acdf27",
+      "fixture": "super_planner__include__data_structure__backup_traj.h.txt"
+    }
   }
 }

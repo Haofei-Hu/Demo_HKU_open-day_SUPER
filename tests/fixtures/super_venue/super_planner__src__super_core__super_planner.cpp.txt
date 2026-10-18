@@ -1,1 +1,6 @@
         cg_ptr_->SetLineNeighborList(cfg_.seed_line_neighbour);
+        if (replan_total_t > cfg_.replan_forward_dt) {
+
+        double new_traj_WT = replan_process_start_WT;
+
+        RET_CODE back_ret_code = generateBackupTrajectory(exp_traj_info, back_traj_info);;

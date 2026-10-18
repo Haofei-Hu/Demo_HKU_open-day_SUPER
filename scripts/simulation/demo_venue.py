@@ -63,7 +63,9 @@ def configure(config,scene,mission_file):
     record['mission_sha256']=hashlib.sha256(Path(mission_file).read_bytes()).hexdigest()
     record['search_policy']=dict(elapsed_time_limit_s=None,
         termination='Goal/horizon reached or finite admissible grid exhausted; operator can interrupt',
-        obstacle_checks_retained=True,venue_checks_retained=True)
+        obstacle_checks_retained=True,venue_checks_retained=True,
+        from_rest_elapsed_rejection=False,from_rest_epoch='Complete primary/backup pair commit time',
+        moving_replan_splice_checks_retained=True)
     print('DEMO VENUE: same vehicle-inclusive box for A* search and all corridors; no extra inset',flush=True)
     print('DEMO SEARCH: finite venue search to completion; no elapsed-time cutoff',flush=True)
     return record

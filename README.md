@@ -198,3 +198,5 @@ An optional [left-facing 4.8 m rehearsal](docs/LEFT_48M_REHEARSAL.md) rotates on
 | PX4 | HKUST_NXT_DUAL, 1.17.0, `d6f12ad1c4f70ad3230afd7d86e971421e02fef4` |
 
 [SUPER](https://github.com/hku-mars/SUPER) · [FAST_LIO ROS2](https://github.com/hku-mars/FAST_LIO/tree/ROS2) · [Livox ROS Driver 2](https://github.com/Livox-SDK/livox_ros_driver2) · [MAVROS](https://github.com/mavlink/mavros/tree/2.14.0) · [PX4 external position estimation](https://docs.px4.io/main/en/ros/external_position_estimation) · [PX4 Offboard](https://docs.px4.io/main/en/flight_modes/offboard)
+
+The follow-up fence rehearsal found a probability-map path but repeatedly rejected the optimized first trajectory on elapsed planning time. The current [venue patch](docs/PLANNER_VENUE_BOUNDS.md#from-rest-trajectory-acceptance-and-epoch) fixes from-rest acceptance and starts the full primary/backup pair at commit time; deployment requires one `super_planner` rebuild. The recorded route still needs an onboard rerun.

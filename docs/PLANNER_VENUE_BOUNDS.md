@@ -63,3 +63,19 @@ The initial venue release passed 135 focused checks; its [validation record](../
 The follow-up release passed 140 focused checks plus a real ROS virtual-backend cancellation trial. The trial confirms exit 130, a finalized operator-cancel report and no remaining private-domain nodes; it does not run real SUPER or PX4. Source upgrade, idempotence and exact rollback were also checked against the pinned full upstream files.
 
 A new complete onboard real-SUPER rehearsal remains required after deployment. These checks do not establish physical tracking, obstacle clearance in an unsurveyed room, or aircraft flight completion.
+
+## From-rest trajectory acceptance and epoch
+
+Run `20261018_160943_724717` advanced beyond A*: its probability-map searches succeeded and primary optimization completed. `generateExpTraj` then rejected each candidate with `Replan over time(...)` at about 0.48–0.53 seconds. The prior search-completion release did not remove this separate `replan_forward_dt` rejection.
+
+`VENUE_REST_COMMIT_V1` exempts only a from-rest candidate with an explicit venue from that elapsed-time rejection. After primary optimization, its preliminary epoch is refreshed before backup construction. Once the primary/backup pair is accepted, both position/yaw epochs are shifted to the commit time, preserving the backup's relative start offset. This avoids treating time spent waiting for optimization as already executed motion. Corridor, goal-connected and known-free flags, polynomial shape/duration, geometry and motion constraints remain intact. Failed backup generation still does not commit a trajectory.
+
+Moving replans continue to use their original splice-time checks: they predict a future state on an already executing trajectory, and shifting that result as if the vehicle were stationary would be incorrect. This update does not impose a mission waiting deadline and does not change `replan_forward_dt` or any motion/geometric parameter. The automatic venue scope remains the frozen-map ground rehearsal described above.
+
+Upgrade using the same `apply_super_venue_bounds.py`, then rebuild `super_planner`. From the preceding complete-search release, only `astar.h` and `super_planner.cpp` change. The runner requires the additional marker in the installed binary. A successful from-rest commit logs:
+
+```text
+VENUE_REST_COMMIT_V1: from-rest plan starts at commit; backup offset preserved
+```
+
+[Validation](../data/software_checks_2026-10-18/rest_plan_commit.json) includes 77 checks, compiled timestamp tests using the upstream `ExpTraj`/`BackupTraj` containers, and full-source fresh/upgrade/restore checks. This does not establish full compilation on the aircraft or completion of the recorded fence-crossing route; those remain deployment checks.

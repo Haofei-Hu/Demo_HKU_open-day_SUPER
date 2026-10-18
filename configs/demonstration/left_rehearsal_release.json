@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "826ae5909130ec4ed221f37020acd64e8949bb7c941e9f97a4e3aefaac7d5e1d"
+      "sha256": "758bb027670dacd70798ef16606c2ad4f38d0ffa1e4fb06b7c18342d074ab2b1"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -112,11 +112,11 @@
     },
     "apply_super_venue_bounds.py": {
       "path": "scripts/maintenance/apply_super_venue_bounds.py",
-      "sha256": "872c720dd732c7c7b002274652b1bff63d8e4dc9d734ecb90cf9e41ec94b8af0"
+      "sha256": "d1f327481c0645f3c72903009a7d25a73654863302c329164aefc9ff05387d85"
     },
     "demo_venue.py": {
       "path": "scripts/simulation/demo_venue.py",
-      "sha256": "9a108e64dbe3a8aa882a96c79c8a887caa978a1a2a2adc6b80c9e9896d809a5f"
+      "sha256": "8b5fc95c38421df978a692ba790971e3f08ac685ee26fce955c4ecd070ffc673"
     }
   },
   "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"
