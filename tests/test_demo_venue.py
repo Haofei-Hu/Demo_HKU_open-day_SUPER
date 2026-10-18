@@ -131,8 +131,99 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
+
+
+    def test_previous_release_upgrades_header_map_and_commit_checks_reversibly(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source_tree(root)
+            for name,edits in source_patch.EDITS.items():
+                if name==source_patch.INF_MAP:continue
+                path=root/name;text=path.read_text()
+                for group in (edits,source_patch.SEARCH_EDITS.get(name,[]),source_patch.REST_EDITS.get(name,[])):
+                    for old,new,count in group:
+                        self.assertEqual(text.count(old),count);text=text.replace(old,new)
+                path.write_text(text)
+            (root/source_patch.HEADER).write_text(source_patch.HEADER_V1_TEXT)
+            before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
+            backup=source_patch.apply(root)
+            changed=json.loads((backup/'record.json').read_text())['files']
+            self.assertEqual(set(changed),{source_patch.INF_MAP,source_patch.ASTAR_H,source_patch.PLANNER,source_patch.HEADER,source_patch.CORRIDOR})
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
+
+    def test_real_height_query_keeps_obstacle_types_and_does_not_inflate_bounds_twice(self):
+        text=(FIXTURE/'rog_map__src__rog_map__inf_map.cpp.txt').read_text()
+        patched=source_patch.patched(source_patch.INF_MAP,text)
+        def function(source):
+            start=source.index('    GridType InfMap::getGridType(const Vec3f& pos) const {')
+            return source[start:source.index('\n    }',start)+6]
+        with tempfile.TemporaryDirectory() as folder:
+            folder=Path(folder);code='#include <Eigen/Dense>\n#include <cassert>\n'
+            for name,src in [('before',text),('after',patched)]:
+                code+='namespace '+name+r''' {
+using Vec3f=Eigen::Vector3d;using Vec3i=Eigen::Vector3i;
+enum GridType{OCCUPIED,UNKNOWN,KNOWN_FREE,OUT_OF_MAP};
+struct InfMap {
+ struct {double virtual_ceil_height=2.7,virtual_ground_height=-1.3,inflation_resolution=.2;int inflation_step=2;}cfg_;
+ GridType stored=KNOWN_FREE;
+ void posToGlobalIndex(const Vec3f&,Vec3i&)const{}
+ GridType getGridType(const Vec3i&)const{return stored;}
+ GridType getGridType(const Vec3f&)const;
+};
+'''+function(src)+'\n}\n'
+            code+=r'''int main(){
+before::InfMap old;after::InfMap fixed;
+Eigen::Vector3d p(.05,.05,2.35);
+assert(old.getGridType(p)==before::OCCUPIED);
+assert(fixed.getGridType(p)==after::KNOWN_FREE);
+p.z()=-1.1;assert(old.getGridType(p)==before::OCCUPIED);assert(fixed.getGridType(p)==after::KNOWN_FREE);
+for(double z:{-1.31,-1.3,2.7,2.71}){p.z()=z;assert(fixed.getGridType(p)==after::OCCUPIED);}
+p.z()=2.35;
+for(auto type:{after::OCCUPIED,after::UNKNOWN,after::KNOWN_FREE,after::OUT_OF_MAP}){
+ fixed.stored=type;assert(fixed.getGridType(p)==type);
+}
+}'''
+            (folder/'test.cpp').write_text(code)
+            result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3',str(folder/'test.cpp'),'-o',str(folder/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(subprocess.run([str(folder/'test')]).returncode,0)
+
+    def test_continuous_candidate_check_catches_between_sample_peaks_and_outside_endpoints(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'utils/header').mkdir(parents=True)
+            (root/'utils/header/yaml_loader.hpp').write_text(r'''#pragma once
+#include <string>
+#include <vector>
+namespace yaml_loader {extern std::vector<double> values;struct YamlLoader {
+ YamlLoader(const std::string&){};
+ void LoadParam(const std::string&,std::vector<double>&out,const std::vector<double>&){out=values;}
+};}
+''')
+            (root/'demo_venue.hpp').write_text(source_patch.HEADER_TEXT)
+            code=r'''#include "demo_venue.hpp"
+#include <cassert>
+namespace yaml_loader {std::vector<double> values={1,0,0,-1,-1,0,0,0,0,1,0,-1,0,-1,0,0,0,0,1,-1,0,0,-1,0};}
+struct Piece {Eigen::MatrixXd c=Eigen::MatrixXd::Zero(3,3);double duration=1;
+ const Eigen::MatrixXd&getCoeffMat()const{return c;}double getDuration()const{return duration;}};
+struct Trajectory{std::vector<Piece>p;int getPieceNum()const{return p.size();}const Piece&operator[](int i)const{return p[i];}};
+int main(){
+ super_utils::DemoVenue venue("unused"),disabled;Trajectory t;
+ assert(disabled.containsTrajectory(t));assert(!venue.containsTrajectory(t));
+ t.p.emplace_back();auto &p=t.p[0];p.c.col(2)<<0,.5,.5;
+ p.c.row(0)<<-4,4,0;assert(venue.containsTrajectory(t)); // touches x=1 between endpoints
+ p.c.row(0)<<-4.004,4.004,0;assert(!venue.containsTrajectory(t)); // 1 mm interior violation
+ p.c.row(0)<<0,0,1.00098877236;assert(!venue.containsTrajectory(t)); // observed endpoint violation
+ p.c.row(0)<<0,0,.5;assert(venue.containsTrajectory(t));
+ p.duration=5;p.c.row(0)<<-.16,.8,0;assert(venue.containsTrajectory(t)); // normalize real-time coefficients
+ p.c(0,0)=NAN;assert(!venue.containsTrajectory(t));p.c(0,0)=0;p.duration=-1;assert(!venue.containsTrajectory(t));
+}'''
+            (root/'test.cpp').write_text(code)
+            result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(subprocess.run([str(root/'test')]).returncode,0)
 
     def test_deployed_venue_v1_upgrade_changes_only_search_and_planner_startup(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -146,7 +237,7 @@ class Tests(unittest.TestCase):
             before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
             backup=source_patch.apply(root)
             changed=json.loads((backup/'record.json').read_text())['files']
-            self.assertEqual(set(changed),{source_patch.ASTAR,source_patch.ASTAR_H,source_patch.PLANNER})
+            self.assertEqual(set(changed),{source_patch.ASTAR,source_patch.ASTAR_H,source_patch.PLANNER,source_patch.CORRIDOR})
             self.assertEqual((root/source_patch.HEADER).read_bytes(),before[source_patch.HEADER])
             self.assertIsNone(source_patch.apply(root))
             source_patch.restore(backup)
@@ -265,7 +356,7 @@ void LoadParam(const std::string&,std::vector<double>& out,const std::vector<dou
             (root/'demo_venue.hpp').write_text(source_patch.HEADER_TEXT)
             original=(FIXTURE/'corridor_generators.cpp').read_text()
             functions=original
-            for before,after,count in source_patch.EDITS[source_patch.CORRIDOR]:
+            for before,after,count in source_patch.EDITS[source_patch.CORRIDOR]+source_patch.HEIGHT_EDITS[source_patch.CORRIDOR]:
                 if before in functions:
                     self.assertEqual(functions.count(before),count)
                     functions=functions.replace(before,after)
@@ -291,7 +382,7 @@ struct Polytope {
 namespace rog_map {struct TimeConsuming {TimeConsuming(const char*,bool){} double stop(){return 0;}};}
 struct FakeMap {
  bool with_obstacle=false;
- void boundBoxByLocalMap(Vec3f&,Vec3f&) {}
+ void boundBoxByLocalMap(Vec3f&low,Vec3f&high) {low.z()=std::max(low.z(),-1.3);high.z()=std::min(high.z(),2.7);}
  void boxSearch(const Vec3f&,const Vec3f&,int,vec_E<Vec3f>& pc) {if(with_obstacle)pc.push_back({5,5,5});}
 };
 struct FakeCiri {
@@ -302,7 +393,7 @@ struct FakeCiri {
 namespace super_planner {
 class CorridorGenerator {
 public:
- double bound_dis_=1.,robot_r_=.2;
+ double bound_dis_=1.,robot_r_=.2,virtual_groud_height_=-1.3,virtual_ceil_height_=2.7;
  shared_ptr<FakeMap> map_ptr_=make_shared<FakeMap>();
  shared_ptr<FakeCiri> ciri_=make_shared<FakeCiri>();
  vec_E<Vec3f> latest_pc;int ciri_cnt=0;double ciri_t=0;
@@ -331,6 +422,12 @@ int main() {
    assert(generator.GeneratePolytopeFromLine(line,p));checked();
  }
  assert(generator.GenerateEmptyPolytope({2.5,1.1,.5},1.,p));checked();
+ // Already-inflated virtual ceiling admits the observed 2.55 m seed.
+ assert(generator.GeneratePolytopeFromPoint({2.5,1.1,2.55},p));
+ assert((p.GetPlanes().leftCols<3>()*Vec3f(2.5,1.1,2.55)+p.GetPlanes().col(3)).maxCoeff()<=1e-9);
+ assert(std::abs(p.GetPlanes()(4,3)+2.7)<1e-9);
+ assert(generator.GeneratePolytopeFromPoint({2.5,1.1,.5},p));
+ assert(std::abs(p.GetPlanes()(4,3)+1.3)<1e-9); // ordinary crop still inset by radius
  Vec3f bad(1.9569546619,-2.2295969360,1.6620323888);
  assert(!generator.GeneratePolytopeFromPoint(bad,p));
  assert(!generator.GenerateEmptyPolytope(bad,1.,p));

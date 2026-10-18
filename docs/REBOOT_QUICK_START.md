@@ -37,12 +37,12 @@ source "$HOME/ws_livox/install/setup.bash"
 source "$HOME/super_ws/install/setup.bash"
 cd "$HOME/super_ws"
 CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
-  colcon build --packages-select super_planner --executor sequential
+  colcon build --packages-select rog_map super_planner --executor sequential
 '
 )
 ```
 
-The current venue patch also accepts slow from-rest planning and starts the complete primary/backup pair at commit time (`VENUE_REST_COMMIT_V1`). Install it and rebuild even if the preceding A* complete-search patch was already compiled.
+The current patch corrects duplicate virtual floor/ceiling inflation (`VIRTUAL_HEIGHT_QUERY_V1` / `VIRTUAL_HEIGHT_CORRIDOR_V1`) and rejects out-of-venue candidate polynomials before publication (`VENUE_CANDIDATE_CHECK_V1`). It retains the from-rest commit fix. Rebuild both packages even if an earlier venue patch was already compiled; map code is statically linked into the planner.
 
 Each patcher saves a reversible backup. Motion targets and optimization penalties are preserved; the venue patch applies the existing box during planning. The manager/runner verify the installed binary. If motion acceptance has already been compiled, apply the additional venue patch and rebuild once; its rollback preserves motion acceptance. See [motion acceptance](MOTION_ACCEPTANCE.md) and [planner venue bounds](PLANNER_VENUE_BOUNDS.md). Subsequent power-on/reboot starts use the normal command below without rebuilding.
 

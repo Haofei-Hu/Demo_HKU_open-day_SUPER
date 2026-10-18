@@ -36,7 +36,7 @@ source "$HOME/ws_livox/install/setup.bash"
 source "$HOME/super_ws/install/setup.bash"
 cd "$HOME/super_ws"
 CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
-  colcon build --packages-select super_planner --executor sequential
+  colcon build --packages-select rog_map super_planner --executor sequential
 '
 )
 ```

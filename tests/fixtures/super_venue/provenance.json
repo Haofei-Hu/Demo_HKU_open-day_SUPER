@@ -23,6 +23,10 @@
     "super_planner/src/super_core/super_planner.cpp": {
       "source_sha256": "22e0c6d6f4fa220abeaf811a42b3e4a117d0fd81037bd0ca3f8feff75c144cb1",
       "fixture": "super_planner__src__super_core__super_planner.cpp.txt"
+    },
+    "rog_map/src/rog_map/inf_map.cpp": {
+      "source_sha256": "aa45e84c5a207e3d3af32e3f09d94fadd8778f6a791b2f7dea85e0f9cc17226c",
+      "fixture": "rog_map__src__rog_map__inf_map.cpp.txt"
     }
   },
   "timing_test_headers": {

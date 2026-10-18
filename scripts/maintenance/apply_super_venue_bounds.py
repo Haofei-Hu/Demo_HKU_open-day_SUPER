@@ -2,7 +2,8 @@
 """Add optional venue halfspaces to SUPER search and all generated corridors.
 
 Recorded SUPER 2ad3419 layout; source-only, backed up and reversible. The motion
-acceptance patch is independent. Profiles without venue_halfspaces are unchanged.
+acceptance patch is independent. Venue search remains opt-in. The ROG-Map height
+query correction uses the already-inflated virtual bounds for every profile.
 """
 import argparse
 import difflib
@@ -15,6 +16,10 @@ import tempfile
 VERSION='VENUE_BOUNDS_V1'
 SEARCH_VERSION='VENUE_SEARCH_COMPLETE_V1'
 REST_VERSION='VENUE_REST_COMMIT_V1'
+MAP_VERSION='VIRTUAL_HEIGHT_QUERY_V1'
+COMMIT_VERSION='VENUE_CANDIDATE_CHECK_V1'
+HEIGHT_VERSION='VIRTUAL_HEIGHT_CORRIDOR_V1'
+INF_MAP='rog_map/src/rog_map/inf_map.cpp'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
 ASTAR='super_planner/src/super_core/astar.cpp'
@@ -72,6 +77,60 @@ public:
 }
 '''
 
+
+# A corridor constraint is a soft optimizer penalty. Validate the resulting
+# polynomial before publication; subdivision certifies the whole interval,
+# including peaks between command samples. Uncertain candidates are rejected.
+HEADER_V1_TEXT=HEADER_TEXT
+TRAJECTORY_CHECK_TEXT='''    static bool nonpositiveBernstein(const std::vector<double> &b, int depth=0) {
+        double upper=-INFINITY;
+        for (double value:b) {
+            if (!std::isfinite(value)) return false;
+            upper=std::max(upper,value);
+        }
+        if (upper<=1e-9) return true;
+        if (b.front()>1e-9 || b.back()>1e-9 || depth==24) return false;
+        const int n=static_cast<int>(b.size())-1;
+        auto work=b;std::vector<double> left(n+1),right(n+1);
+        left[0]=work[0];right[n]=work[n];
+        for (int level=1;level<=n;++level) {
+            for (int i=0;i<=n-level;++i) work[i]=.5*(work[i]+work[i+1]);
+            left[level]=work[0];right[n-level]=work[n-level];
+        }
+        return nonpositiveBernstein(left,depth+1) && nonpositiveBernstein(right,depth+1);
+    }
+    template<class Trajectory> bool containsTrajectory(const Trajectory &trajectory) const {
+        if (!enabled()) return true;
+        if (trajectory.getPieceNum()==0) return false;
+        for (int piece=0;piece<trajectory.getPieceNum();++piece) {
+            const auto &coeff=trajectory[piece].getCoeffMat();
+            const double duration=trajectory[piece].getDuration();
+            if (coeff.rows()!=3 || coeff.cols()==0 || !coeff.allFinite() ||
+                !std::isfinite(duration) || duration<=0) return false;
+            const int n=static_cast<int>(coeff.cols())-1;
+            for (int face=0;face<planes_.rows();++face) {
+                std::vector<double> power(n+1),bernstein(n+1);
+                double scale=1;
+                for (int i=0;i<=n;++i) {
+                    power[i]=planes_.row(face).head<3>().dot(coeff.col(n-i))*scale;
+                    scale*=duration;
+                }
+                power[0]+=planes_(face,3);
+                for (int k=0;k<=n;++k) {
+                    double ratio=1;
+                    for (int i=0;i<=k;++i) {
+                        if (i) ratio*=double(k-i+1)/double(n-i+1);
+                        bernstein[k]+=power[i]*ratio;
+                    }
+                }
+                if (!nonpositiveBernstein(bernstein)) return false;
+            }
+        }
+        return true;
+    }
+'''
+HEADER_TEXT=HEADER_TEXT.replace('    template<class Matrix>',TRAJECTORY_CHECK_TEXT+'    template<class Matrix>')
+
 CLIP='''        // VENUE_BOUNDS_V1: intersect every corridor, including empty/fallback ones.
         super_utils::DemoVenue demo_venue_;
         bool applyDemoVenue(Polytope &polytope) const {
@@ -84,6 +143,17 @@ CLIP='''        // VENUE_BOUNDS_V1: intersect every corridor, including empty/fa
 '''
 
 EDITS={
+    INF_MAP:[
+        ('        if (pos.z() >= cfg_.virtual_ceil_height - cfg_.inflation_resolution * (1 + cfg_.inflation_step) ||\n'
+         '            pos.z() <= cfg_.virtual_ground_height + cfg_.inflation_resolution * (1 + cfg_.inflation_step)) {',
+         '        // VENUE_BOUNDS_V1 / VIRTUAL_HEIGHT_QUERY_V1: Config already inflates these bounds.\n'
+         '        // Keep obstacle counters and the closed virtual boundary unchanged.\n'
+         '        if (pos.z() >= cfg_.virtual_ceil_height ||\n'
+         '            pos.z() <= cfg_.virtual_ground_height) {',1),
+        ('        std::cout << GREEN << " -- [InfMap] Init successfully -- ." << RESET << std::endl;',
+         '        std::cout << "VIRTUAL_HEIGHT_QUERY_V1: use configured inflated floor/ceiling once" << std::endl;\n'
+         '        std::cout << GREEN << " -- [InfMap] Init successfully -- ." << RESET << std::endl;',1),
+    ],
     ASTAR_H:[
         ('#include <ros_interface/ros_interface.hpp>','#include <ros_interface/ros_interface.hpp>\n#include <super_core/demo_venue.hpp> // VENUE_BOUNDS_V1',1),
         ('        PathSearchConfig cfg_;','        PathSearchConfig cfg_;\n        super_utils::DemoVenue demo_venue_;',1),
@@ -190,6 +260,47 @@ REST_EDITS={
 }
 
 
+
+CANDIDATE_CHECK='''        // VENUE_CANDIDATE_CHECK_V1: never publish a soft-constraint violation.
+        if ((back_ret_code == SUCCESS || back_ret_code == FINISH || back_ret_code == NO_NEED) &&
+            (!astar_ptr_->trajectoryInsideDemoVenue(exp_traj_info.posTraj()) ||
+             (!back_traj_info.empty() && !astar_ptr_->trajectoryInsideDemoVenue(back_traj_info.posTraj())))) {
+            ros_ptr_->warn("VENUE_CANDIDATE_CHECK_V1: candidate outside venue; retain previous command and replan");
+            return FAILED;
+        }
+
+'''
+COMMIT_EDITS={
+    ASTAR_H:[
+        ('        void setVisualProcessEn(const bool &en);',
+         '        void setVisualProcessEn(const bool &en);\n'
+         '        // VENUE_CANDIDATE_CHECK_V1\n'
+         '        template<class Trajectory> bool trajectoryInsideDemoVenue(const Trajectory &trajectory) const {\n'
+         '            return demo_venue_.containsTrajectory(trajectory);\n'
+         '        }',1),
+    ],
+    PLANNER:[
+        ('        if (back_ret_code == SUCCESS) {',
+         CANDIDATE_CHECK+'        if (back_ret_code == SUCCESS) {',2),
+    ],
+}
+
+
+# The same effective virtual bounds feed corridor construction. Keep the radius
+# inset on ordinary crop boxes, but do not inset an already-inflated map face.
+HEIGHT_EDITS={
+    CORRIDOR:[
+        ('        virtual_ceil_height_ = virtual_ceil_height - robot_r;',
+         '        std::cout << "VIRTUAL_HEIGHT_CORRIDOR_V1: configured virtual bounds inset once" << std::endl;\n'
+         '        virtual_ceil_height_ = virtual_ceil_height;',1),
+        ('        virtual_groud_height_ = virtual_groud_height + robot_r;',
+         '        virtual_groud_height_ = virtual_groud_height;',1),
+        ('        box_min.z() += robot_r_;\n        box_max.z() -= robot_r_;',
+         '        if (box_min.z() > virtual_groud_height_) box_min.z() += robot_r_;\n'
+         '        if (box_max.z() < virtual_ceil_height_) box_max.z() -= robot_r_;',2),
+    ],
+}
+
 def patched(relative,text):
     if VERSION in text:
         if not all(text.count(new)==count for _,new,count in EDITS[relative]):
@@ -198,7 +309,7 @@ def patched(relative,text):
         for old,new,count in EDITS[relative]:
             if text.count(old)!=count:raise ValueError('Unsupported source context; no files written: '+relative)
             text=text.replace(old,new)
-    for marker,edits in ((SEARCH_VERSION,SEARCH_EDITS),(REST_VERSION,REST_EDITS)):
+    for marker,edits in ((SEARCH_VERSION,SEARCH_EDITS),(REST_VERSION,REST_EDITS),(COMMIT_VERSION,COMMIT_EDITS),(HEIGHT_VERSION,HEIGHT_EDITS)):
         upgrades=edits.get(relative,[])
         if not upgrades:continue
         if all(text.count(new)==count for _,new,count in upgrades):continue
@@ -218,7 +329,7 @@ def apply(root,dry_run=False):
         before=path.read_bytes() if path.exists() else None
         if name==HEADER:
             after=HEADER_TEXT.encode()
-            if before is not None and before!=after:raise ValueError('Venue header differs; no files written')
+            if before is not None and before not in (after,HEADER_V1_TEXT.encode()):raise ValueError('Venue header differs; no files written')
         else:
             if before is None:raise ValueError('Missing source: '+name)
             after=patched(name,before.decode()).encode()
@@ -239,7 +350,7 @@ def apply(root,dry_run=False):
     (backup/'record.json').write_text(json.dumps(record,indent=2)+'\n')
     for name,(_,after) in changes.items():(root/name).write_bytes(after)
     print('Venue source patch applied. Backup:',backup)
-    print('Rebuild super_planner before running a venue-bounded rehearsal.')
+    print('Rebuild rog_map and super_planner before running a venue-bounded rehearsal.')
     return backup
 
 
@@ -256,7 +367,7 @@ def restore(backup):
     for name,hashes in record['files'].items():
         if hashes['before'] is None:(root/name).unlink()
         else:shutil.copy2(backup/name,root/name)
-    print('Original source restored; rebuild super_planner before restarting.')
+    print('Original source restored; rebuild rog_map and super_planner before restarting.')
 
 
 def require_support(root):
@@ -264,7 +375,7 @@ def require_support(root):
     for name in EDITS:
         text=(root/name).read_text()
         if VERSION not in text or patched(name,text)!=text:
-            raise ValueError('Apply apply_super_venue_bounds.py and rebuild super_planner first')
+            raise ValueError('Apply apply_super_venue_bounds.py and rebuild rog_map and super_planner first')
     if (root/HEADER).read_text()!=HEADER_TEXT:raise ValueError('Venue support header differs; rebuild after inspection')
     workspace=root.parent.parent
     for name in ('install/super_planner/lib/super_planner/fsm_node','install/lib/super_planner/fsm_node'):
@@ -274,11 +385,11 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==3:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION)):]
-    raise ValueError('Installed fsm_node needs complete bounded-search support; rebuild super_planner before the rehearsal')
+                    if len(found)==6:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION)):]
+    raise ValueError('Installed fsm_node needs complete bounded-search and height-query support; rebuild rog_map and super_planner before the rehearsal')
 
 
 def main():
