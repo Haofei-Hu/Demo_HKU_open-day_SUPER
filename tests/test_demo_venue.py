@@ -111,6 +111,25 @@ class Tests(unittest.TestCase):
             self.assertFalse((root/source_patch.HEADER).exists())
             for name,data in originals.items():self.assertEqual((root/name).read_bytes(),data)
 
+    def test_eight_marker_release_gets_map_domain_and_restores_exactly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source_tree(root);source_patch.apply(root)
+            path=root/source_patch.PLANNER
+            old=path.read_text()
+            for before,after,_ in source_patch.MAP_DOMAIN_EDITS[source_patch.PLANNER]:
+                old=old.replace(after,before)
+            path.write_text(old)
+            (root/source_patch.HEADER).write_text(source_patch.HEADER_PRE_MAP_TEXT)
+            backup=source_patch.apply(root)
+            self.assertIn(source_patch.MAP_DOMAIN_VERSION,path.read_text())
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            self.assertEqual(path.read_text(),old)
+            self.assertEqual((root/source_patch.HEADER).read_text(),source_patch.HEADER_PRE_MAP_TEXT)
+            path.write_text(old+'\n// VENUE_MAP_HEIGHT_V1 partial\n')
+            with self.assertRaisesRegex(ValueError,'Partial map-height'):
+                source_patch.apply(root)
+
     def test_unknown_or_later_modified_source_is_preserved(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);source_tree(root);bad=root/source_patch.CORRIDOR;bad.write_text('unknown')
@@ -131,9 +150,13 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode()+source_patch.START_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode()+source_patch.START_VERSION.encode()+source_patch.MAP_DOMAIN_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
-            binary.write_bytes(binary.read_bytes().replace(source_patch.START_VERSION.encode(),b''))
+            complete=binary.read_bytes()
+            binary.write_bytes(complete.replace(source_patch.MAP_DOMAIN_VERSION.encode(),b''))
+            with self.assertRaisesRegex(ValueError,'complete bounded-search'):
+                source_patch.require_support(root)
+            binary.write_bytes(complete.replace(source_patch.START_VERSION.encode(),b''))
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):
                 source_patch.require_support(root)
 
@@ -264,6 +287,28 @@ int main(){
  p.c.row(0)<<0,0,.5;assert(venue.containsTrajectory(t));
  p.duration=5;p.c.row(0)<<-.16,.8,0;assert(venue.containsTrajectory(t)); // normalize real-time coefficients
  p.c(0,0)=NAN;assert(!venue.containsTrajectory(t));p.c(0,0)=0;p.duration=-1;assert(!venue.containsTrajectory(t));
+ // Uploaded tilted venue admits points above the initialized map ceiling.
+ yaml_loader::values={0.6647647168581211,-0.7380225815829381,0.11580388721540341,-4.881888941498794,-0.6647647168581211,0.7380225815829381,-0.11580388721540341,-0.5181110585012061,0.7385968725305324,0.672552937939478,0.04633794942693744,-0.0730315487300488,-0.7385968725305324,-0.672552937939478,-0.04633794942693744,-2.326968451269951,-0.1120826976328595,0.05472855509359144,0.9921906339755021,11.98966827288536,0.1120826976328595,-0.05472855509359144,-0.9921906339755021,-14.604668272885359};
+ super_utils::DemoVenue captured("unused"),bounded=captured;
+ bounded.intersectMapHeight(-15.7,-11.8);
+ Eigen::Vector3d q(1.9653546386302199,-3.104146540400403,-11.796818400889041);
+ assert(captured.contains(q));assert(!bounded.contains(q));
+ p.duration=1;p.c.setZero();p.c.col(2)=q;
+ assert(captured.containsTrajectory(t));assert(!bounded.containsTrajectory(t));
+ p.c(2,2)=-11.9;assert(bounded.containsTrajectory(t));
+ // Endpoints inside; a mid-piece peak above the map ceiling must still fail.
+ p.c.row(2)<<-.8,.8,-11.9;
+ assert(captured.containsTrajectory(t));assert(!bounded.containsTrajectory(t));
+ p.c.row(2)<<0,0,-11.8;assert(!bounded.containsTrajectory(t));
+ Eigen::MatrixXd corridor(0,4);bounded.appendTo(corridor);assert(corridor.rows()==8);
+ assert((corridor.leftCols(3)*q+corridor.col(3)).maxCoeff()>0);
+ // General paired box also covers the lower face and disabled legacy behavior.
+ venue.intersectMapHeight(.2,.8);
+ p.c.setZero();p.c.col(2)<<.5,.5,.1;assert(!venue.containsTrajectory(t));
+ p.c(2,2)=.3;assert(venue.containsTrajectory(t));
+ disabled.intersectMapHeight(.2,.8);assert(disabled.contains(Eigen::Vector3d(0,0,10)));
+ bool invalid=false;try{bounded.intersectMapHeight(1,0);}catch(const std::invalid_argument&){invalid=true;}assert(invalid);
+
 }'''
             (root/'test.cpp').write_text(code)
             result=subprocess.run(['g++','-std=c++17','-I/usr/include/eigen3','-I'+str(root),str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)

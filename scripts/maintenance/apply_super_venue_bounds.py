@@ -21,6 +21,7 @@ COMMIT_VERSION='VENUE_CANDIDATE_CHECK_V1'
 HEIGHT_VERSION='VIRTUAL_HEIGHT_CORRIDOR_V1'
 GRID_VERSION='VENUE_GRID_ANCHOR_V1'
 START_VERSION='VENUE_REST_START_V1'
+MAP_DOMAIN_VERSION='VENUE_MAP_HEIGHT_V1'
 INF_MAP='rog_map/src/rog_map/inf_map.cpp'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
@@ -132,6 +133,24 @@ TRAJECTORY_CHECK_TEXT='''    static bool nonpositiveBernstein(const std::vector<
     }
 '''
 HEADER_TEXT=HEADER_TEXT.replace('    template<class Matrix>',TRAJECTORY_CHECK_TEXT+'    template<class Matrix>')
+
+HEADER_PRE_MAP_TEXT=HEADER_TEXT
+MAP_HEIGHT_TEXT='''    void intersectMapHeight(double floor, double ceiling) {
+        if (!enabled()) return;
+        if (!std::isfinite(floor) || !std::isfinite(ceiling) || ceiling-floor<=2e-6)
+            throw std::invalid_argument("Invalid effective map height interval");
+        // Map queries treat equality as occupied. A micrometre numerical guard
+        // keeps the closed polynomial certificate inside that open interval.
+        const auto n=planes_.rows();
+        planes_.conservativeResize(n+2,4);
+        planes_.row(n)<<0,0,1,-(ceiling-1e-6);
+        planes_.row(n+1)<<0,0,-1,floor+1e-6;
+        std::cout << "VENUE_MAP_HEIGHT_V1: search, all corridors and complete candidate polynomials intersect effective map floor/ceiling="
+                  << floor << "/" << ceiling << std::endl;
+    }
+'''
+HEADER_TEXT=HEADER_TEXT.replace('    bool enabled() const',MAP_HEIGHT_TEXT+'    bool enabled() const')
+
 
 CLIP='''        // VENUE_BOUNDS_V1: intersect every corridor, including empty/fallback ones.
         super_utils::DemoVenue demo_venue_;
@@ -412,7 +431,22 @@ REST_START_NEW = """        // VENUE_REST_START_V1: preserve the measured contin
 START_EDITS={PLANNER:[(REST_START_OLD,REST_START_NEW,1)]}
 
 
+# Use the map's initialized, quantized interval, not the source YAML heights.
+# The same extra planes clip empty fallback corridors and certify both polynomials.
+MAP_DOMAIN_EDITS={PLANNER:[(
+    '        const super_utils::DemoVenue demo_venue(cfg_path);',
+    '        super_utils::DemoVenue demo_venue(cfg_path);\n'
+    '        // VENUE_MAP_HEIGHT_V1: effective map height is part of the admissible domain.\n'
+    '        demo_venue.intersectMapHeight(rog_map_cfg.virtual_ground_height, rog_map_cfg.virtual_ceil_height);',1)]}
+
+
 def patched(relative,text):
+    # Unwrap the latest layer before validating earlier exact source edits.
+    domain_edits=MAP_DOMAIN_EDITS.get(relative,[])
+    if domain_edits and all(text.count(new)==count for _,new,count in domain_edits):
+        for old,new,_ in reversed(domain_edits):text=text.replace(new,old)
+    elif MAP_DOMAIN_VERSION in text:
+        raise ValueError('Partial map-height domain upgrade; no files written: '+relative)
     # Validate an upgraded file against the original guarded contexts too.
     grid_upgrades=GRID_EDITS.get(relative,[])
     grid_applied=bool(grid_upgrades) and all(text.count(new)==count for _,new,count in grid_upgrades)
@@ -439,6 +473,9 @@ def patched(relative,text):
     for old,new,count in grid_upgrades:
         if text.count(old)!=count:raise ValueError('Unsupported grid-anchor source context; no files written: '+relative)
         text=text.replace(old,new)
+    for old,new,count in domain_edits:
+        if text.count(old)!=count:raise ValueError('Unsupported map-height domain context: '+relative)
+        text=text.replace(old,new)
     return text
 
 
@@ -450,7 +487,7 @@ def apply(root,dry_run=False):
         before=path.read_bytes() if path.exists() else None
         if name==HEADER:
             after=HEADER_TEXT.encode()
-            if before is not None and before not in (after,HEADER_V1_TEXT.encode()):raise ValueError('Venue header differs; no files written')
+            if before is not None and before not in (after,HEADER_V1_TEXT.encode(),HEADER_PRE_MAP_TEXT.encode()):raise ValueError('Venue header differs; no files written')
         else:
             if before is None:raise ValueError('Missing source: '+name)
             after=patched(name,before.decode()).encode()
@@ -506,11 +543,11 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION,START_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION,START_VERSION,MAP_DOMAIN_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==8:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION),len(START_VERSION)):]
-    raise ValueError('Installed fsm_node needs complete bounded-search, height-query and continuous rest-start support; rebuild rog_map and super_planner before the rehearsal')
+                    if len(found)==9:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION),len(START_VERSION),len(MAP_DOMAIN_VERSION)):]
+    raise ValueError('Installed fsm_node needs complete bounded-search, height-query, continuous rest-start and map-height domain support; rebuild rog_map and super_planner before the rehearsal')
 
 
 def main():

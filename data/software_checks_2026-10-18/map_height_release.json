@@ -1,0 +1,83 @@
+{
+  "scope": "Software regression on the uploaded failing map; no physical flight",
+  "marker": "VENUE_MAP_HEIGHT_V1",
+  "tests": {
+    "passed": 52,
+    "failed": 0,
+    "command": "python3 -m unittest test_demo_venue test_demo_rest_start test_demo_rest_commit test_demo_rest_handoff_ros test_demo_tracking_ros test_demo_test_release",
+    "additional": "The binary-support test was rerun after adding the eight-marker negative case; passed"
+  },
+  "input": {
+    "onboard_run": "20261018_222714_088769",
+    "archive_sha256": "4e87146f8b03e3bbc2ffaeae399d65ad9015a7b904d20eccc7401ffd9791b8c4",
+    "scene_sha256": "0a900c943554598b5a8b91d65319d445267a79b56fb98aaf9ad1cddfff1b79ef",
+    "captured_planner_sha256": "049e38e20820c6f10fff84051348d6d2d00663f844c6363f9bb9480cdaf0eaae",
+    "alignment_sha256": "21eefe4dd98c5329b15038981d4b0b0d937abf36c9e23f0e91dc6f6134e6f905",
+    "replay_changes": "Local path rebasing only; cloud, alignment, mission, map configuration and motion settings unchanged"
+  },
+  "baseline": {
+    "result": "Reproduced third-return deadlock; operator cancellation in the cloud after diagnosis",
+    "round_trips_completed": 2,
+    "raw_stopped_position": [
+      1.9653546386302199,
+      -3.104146540400403,
+      -11.796818400889041
+    ],
+    "initialized_probability_map_ceiling_m": -11.8,
+    "ceiling_violation_m": 0.00318159911095961,
+    "inside_original_six_venue_planes": true,
+    "report": "map_height_baseline_incomplete_report.json",
+    "report_caveat": "Runner retained RUNNING in the nested report after interruption; this is incomplete, not success",
+    "log_sha256": "52cb6382b373c8aeaa35b6dd47e36866e2a1037d1ec3280871f46c0648a0c51a"
+  },
+  "fix": {
+    "domain": "Venue intersect initialized runtime map-height interval",
+    "numerical_interior_guard_m": 1e-06,
+    "applies_to": [
+      "A* search",
+      "All corridor types, including empty fallback",
+      "Whole primary and backup polynomial certificates"
+    ],
+    "unchanged": [
+      "Source map heights",
+      "Captured obstacle cloud",
+      "Aircraft envelope",
+      "2 m/s and 1 m/s^2 optimization targets",
+      "4 m/s and 2 m/s^2 acceptance",
+      "Controller freshness/continuity checks",
+      "No elapsed mission or planning deadline"
+    ]
+  },
+  "build": {
+    "result": "SUCCESS",
+    "packages": [
+      "rog_map",
+      "super_planner"
+    ],
+    "required_markers": 9,
+    "installed_binary_sha256": "ee94ca0f538a6d2d230fc45421c30475295fbcd0ecbe36e8f2dcd994ae8a7f3e",
+    "warnings": "Existing constructor initialization-order warning"
+  },
+  "replay": {
+    "result": "SUCCESS",
+    "round_trips_completed": 5,
+    "completed_stages": 20,
+    "return_hover_duration_s": 6.049763381997764,
+    "report": "map_height_ground_mission_report.json",
+    "sha256": "cabf596b3a5aa4d71f6ed36f5fd36f40ead66897d1dfa3da4e496cecaadbe4b0",
+    "physical_flight_verified": false,
+    "candidate_rejections": 135,
+    "map_ceiling_warnings": 0,
+    "invalid_rest_start_warnings": 0,
+    "height_observation": {
+      "samples": 3779,
+      "min_raw_z": -14.56529265402168,
+      "max_raw_z": -12.169370295704677,
+      "outside_map_height": 0,
+      "floor": -15.7,
+      "ceiling": -11.8,
+      "result": "SUCCESS"
+    }
+  },
+  "onboard_followup": "Install matching release, apply source patch, rebuild, rerun; hardware validation remains pending"
+}
