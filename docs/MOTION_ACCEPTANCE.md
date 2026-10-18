@@ -28,6 +28,7 @@ First finish or interrupt the current ground rehearsal. Install the matching rel
 (
 set -e
 python3 ~/Downloads/apply_super_motion_acceptance.py
+python3 ~/Downloads/apply_super_venue_bounds.py
 bash --noprofile --norc -c '
 set -e
 source /opt/ros/humble/setup.bash
@@ -40,7 +41,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
-The patcher validates all three source files before writing, saves originals and hashes in the printed `motion_acceptance_backup_*` directory, and is idempotent. `--dry-run` prints its diff without editing. Unsupported or partly modified contexts are reported rather than overwritten. It supports the recorded SUPER source layout; an incompatible source tree needs inspection before patching.
+The motion patcher validates all three source files before writing, saves originals and hashes in the printed `motion_acceptance_backup_*` directory, and is idempotent. `--dry-run` prints its diff without editing. Unsupported or partly modified contexts are reported rather than overwritten. It supports the recorded SUPER source layout; an incompatible source tree needs inspection before patching. The current forward rehearsal also uses the independent [venue-boundary patch](PLANNER_VENUE_BOUNDS.md); apply both before this single build. If motion acceptance was already compiled, only the additional venue patch and rebuild are needed.
 
 To restore these source edits later, use `python3 ~/Downloads/apply_super_motion_acceptance.py --restore /absolute/path/to/motion_acceptance_backup_...` and rebuild again. Restoration refuses to overwrite later source edits. Do not restore while running a rehearsal that uses the new acceptance profile.
 
