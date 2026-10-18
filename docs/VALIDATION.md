@@ -13,12 +13,14 @@ Virtual feedback does not reproduce physical dynamics, wind, FC tracking error, 
 
 The 1.8 m release passed 47 related checks: 13 mission geometry/report checks, five complete-installer checks, three deployment-layout checks, and 26 ROS controller, handoff, and rehearsal-profile checks. ROS checks used an isolated test domain without an aircraft connection.
 
+The continuous-rest-start release passed 51 related checks and a rebuilt real-SUPER replay with five round trips, all 20 stages, a 6.05-second final hover, and confirmed virtual landing/disarming. See the [release verification record](../data/software_checks_2026-10-18/continuous_rest_start_release.json) and [complete replay report](../data/software_checks_2026-10-18/continuous_rest_start_ground_mission_report.json). The recorded 5.44 cm start-selection regression is tested separately; the full replay uses an earlier captured map, not the latest failing onboard scene.
+
 ## Known issues
 
 - MAVROS has exited during startup with `std::future_error: Promise already satisfied`; no permanent root-cause fix has been confirmed. See [restricted core-only recovery](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session).
 - Parameter-service write responses can time out. The current manager confirms the value by readback and does not automatically replay writes.
 - Updating individual scripts from mismatched releases has caused interface errors. Use the [complete installer](QUICK_START.md) to verify matching files.
 - Persistent `WAIT_PLAN` requires inspection of the current planner log: the map may have no path, corridors may be infeasible, or optimization may fail. Waiting alone does not imply an executable trajectory exists.
-- A subsequent onboard virtual rehearsal completed two rounds and stopped during the third outbound leg on a 5.44 cm position discontinuity after a stationary replan. The existing small-handoff handling did not accept this transition; its cause remains under investigation. Earlier successful replays do not establish that every handoff is resolved.
+- An onboard virtual rehearsal stopped during the third outbound leg on a 5.44 cm stationary-replan discontinuity. The continuous-rest-start source patch now removes grid-centre relocation in venue-enabled planning; it requires a planner rebuild. The recorded coordinate regression is covered separately from replay on an earlier captured scene. A new run on the failing onboard scene remains necessary; arbitrary localization jumps are not accepted.
 
 See [development checks](DEVELOPMENT.md) for verification commands and the [history index](HISTORY.md) for earlier debugging details.

@@ -141,3 +141,13 @@ record](../data/software_checks_2026-10-18/live_venue_preparation.json) separate
 geometry tests, a real ROS synthetic-telemetry check-only test and the original
 actual-SUPER frozen-scene regression. Physical measurements, current hardware
 readbacks, RC/manual takeover and supervised tracking trials remain required.
+
+## Continuous starts after a stationary replan
+
+`VENUE_REST_START_V1` separates the continuous trajectory start from the grid used for path search. In the upstream `PlanFromRest`, `getNearestCellNot` returns a grid centre even when the measured position is already in a nonoccupied cell. The returned point becomes the optimizer's initial position. A recorded stationary transition from `[4.1737, -3.4012, 1.6464]` to `[4.15, -3.45, 1.65]` therefore introduced approximately 5.44 cm of position discontinuity before the new trajectory moved.
+
+For profiles with explicit demonstration venue halfspaces, the patch retains `robot_state_.p` as the initial position. The point must be finite, inside the local map and venue, and neither occupied nor out of map. Unknown cells retain the planner's existing downstream unknown-space policy. An invalid or occupied start is rejected rather than replaced with another location. Path search can still use grid centres internally, and the existing path assembly reconnects the guide path to the continuous initial state. Corridor construction, primary/backup optimization, and continuous venue checks still determine whether a plan can be committed.
+
+Profiles without venue halfspaces retain their original start-selection behavior. No speed, acceleration, obstacle inflation, controller continuity tolerance, or in-motion replanning budget changes. The earlier `VENUE_REST_COMMIT_V1` still governs the commit time of a from-rest plan; the new marker governs its initial position.
+
+The complete installer supplies the updated patcher. Apply it and rebuild `rog_map` and `super_planner` once, following the [installation procedure](REBOOT_QUICK_START.md#install-or-update-the-matching-scripts). The source patch is backed up, reversible, and idempotent. Startup now requires all eight venue-support markers in the installed executable, including `VENUE_REST_START_V1`; updating Python alone cannot enable this correction in an older binary.

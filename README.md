@@ -14,6 +14,8 @@ An indoor localization, planning, and obstacle-avoidance demonstration built on 
 | Inspect results or troubleshoot startup and planning | [Reports and recovery](docs/QUICK_START.md#reports-and-results) |
 | Understand the system or contribute | [Documentation index](docs/README.md) |
 
+The current release corrects grid-centre relocation when SUPER restarts from a stationary point. Existing installations need the [one-time source patch and rebuild](docs/QUICK_START.md#install-or-update-once); normal reboots then use the same command below.
+
 ## Ground rehearsal after every reboot
 
 With the matching scripts and ROS workspaces installed, open one terminal on the onboard Ubuntu computer. Keep the physical aircraft stationary and disarmed:
