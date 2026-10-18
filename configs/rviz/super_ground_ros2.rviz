@@ -59,7 +59,7 @@ Visualization Manager:
     Name: RegisteredCloud
     Position Transformer: XYZ
     Selectable: false
-    Size (Pixels): 2
+    Size (Pixels): 5
     Size (m): 0.009999999776482582
     Style: Points
     Topic:
@@ -92,7 +92,7 @@ Visualization Manager:
     Name: OccupiedMap
     Position Transformer: XYZ
     Selectable: false
-    Size (Pixels): 2
+    Size (Pixels): 5
     Size (m): 0.1
     Style: Points
     Topic:

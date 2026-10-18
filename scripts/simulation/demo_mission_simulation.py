@@ -100,7 +100,7 @@ def rehearsal_view_config(scene):
         for name,path in (('CapturedScene','/demo_scene/occupied_points'),('OccupiedMap','/rog_map/occ')):
             displays.append(display('PointCloud2',name,path,Style='Points',Alpha=1.,
                 **{'Position Transformer':'XYZ','Color Transformer':'AxisColor','Axis':'Z',
-                   'Size (Pixels)':2,'Size (m)':.02,'Decay Time':0}))
+                   'Size (Pixels)':5,'Size (m)':.02,'Decay Time':0}))
         for name,path in (('ExpTraj','/visualization/exp_traj'),
                           ('BackupTraj','/visualization/backup_traj'),('PlannerGoal','/visualization/goal')):
             displays.append(display('MarkerArray',name,path))

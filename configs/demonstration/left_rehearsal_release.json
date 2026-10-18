@@ -19,7 +19,7 @@
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "988cc9eb7cd153cee74e40d8b5b91fbb304f67a58ce255b02833e093896c168b"
+      "sha256": "5f37c40c9133e3aad0ba3bbdd8a497e2a6affeb7d5a5a6cc751644bcbf9e71c4"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
