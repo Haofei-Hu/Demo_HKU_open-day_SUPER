@@ -1,12 +1,16 @@
 # Demo_HKU_open-day_SUPER
 
-**Live preparation update — October 18, 2026:** the physical mission entrypoint now gives SUPER and the controller the same captured FC ground/yaw and measured vehicle-inclusive venue. It verifies the running planner configuration before READY. This is separate from the successful virtual rehearsals and does not establish physical flight completion. See [physical preparation](docs/REBOOT_QUICK_START.md#prepare-physical-execution-separately) and the [site measurement checklist](docs/FLIGHT_SITE_MEASUREMENTS.md).
+**中文入口：[开机/重启后一条命令完整演习](docs/QUICK_START_ZH.md)** · [English startup guide](docs/REBOOT_QUICK_START.md) · [October 18 progress](docs/PROGRESS_2026-10-18.md)
 
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
-**Status — October 18, 2026:** the operator has rebuilt and verified the separate 4 m/s / 2 m/s² acceptance profile, retaining 2/1 optimization targets. A further ground-rehearsal correction passes the existing vehicle-inclusive venue to SUPER search and all corridor-generation branches, closing the previous planner/controller boundary mismatch. It has a separate reversible source patch and requires one additional rebuild. A new complete onboard rehearsal remains pending. See [planner venue bounds and validation](docs/PLANNER_VENUE_BOUNDS.md).
+**Current release — October 18, 2026:** use the complete matching 28-file release `4b025e9f6819c9f82dea11f59e434983828b2f36`. A partial update caused an onboard `inverse_goal()` argument mismatch; the full installer includes all matching dependencies and verifies their hashes before replacement. Normal reboots need no download or rebuild.
 
-The following onboard run confirmed both patches but repeatedly hit SUPER's 0.1-second fallback A* budget. The current bounded-search upgrade lets the finite venue search finish without elapsed-time truncation and reports grid exhaustion separately from a timeout. It also fixes outer Ctrl+C handling/report finalization. A completed search can still report no route through the captured obstacles; a new complete onboard result remains pending.
+Completed work includes parallel fresh-start observations (`--fast-start`), automatic QGC/RViz startup with 5-pixel point clouds, 2/1 planning targets with 4/2 acceptance bounds, shared planner/controller venue geometry, parameter-write timeout readback without replaying writes, and verified stationary trajectory handoffs. A real-SUPER replay of a previously captured aircraft map completed all five virtual round trips, six-second final hover and landing with `SUCCESS`; 57 reference/controller regressions and five installer checks passed. The small-handoff fix has a separate targeted reproduction test. See [the verification record](data/software_checks_2026-10-18/stationary_handoff_release.json) and [complete virtual mission report](data/software_checks_2026-10-18/stationary_handoff_ground_mission_report.json).
+
+The physical mission entrypoint gives SUPER and the controller the same captured FC ground/yaw and measured vehicle-inclusive venue, and verifies the running planner configuration before READY. Physical full-mission tracking remains unverified. The MAVROS `Promise already satisfied` startup crash is an observed unresolved upstream failure; bounded recovery instructions do not claim to fix its root cause. The latest onboard full-release rerun result remains pending.
+
+The dated entries below retain earlier milestones and their validation scope.
 
 **Status — October 17, 2026:** the canonical mission now performs **five consecutive 4.5 m out-and-back rounds**, followed by one six-second hover and landing. Ground rehearsal requests 0.5 m height; physical tests retain 1.5 m. Per-round reports and ordered completion checks are implemented. The forward rehearsal is reported successful onboard; its full result file has not yet been archived here. Earlier cloud ROS trials stopped on stale virtual pose feedback and remain recorded as failures. Physical demonstration flight remains unverified. See [the current progress](docs/PROGRESS_2026-10-17.md).
 
@@ -24,11 +28,11 @@ Connect to the onboard Ubuntu desktop, keep the aircraft stationary and disarmed
 
 ```bash
 python3 ~/Downloads/super_demo_test.py \
-  --restart --fixed-lio-extrinsics --fixture-geometry \
+  --restart --fixed-lio-extrinsics --fixture-geometry --fast-start \
   --motion-policy observe
 ```
 
-The runner sources ROS itself, opens or reuses QGroundControl, starts the managed stack, captures and applies this run's quaternion, prepares the session map, waits for a continuous fresh 30-second real vision window and rehearses the complete **0.5 m virtual climb → five rounds of 4.5 m outbound and return → six-second hover → landing** with real SUPER and virtual vehicle feedback. On a desktop, RViz2 opens automatically after the private-domain isolation check and closes when the rehearsal ends. It shows point clouds, planning trajectories and the virtual vehicle body-heading arrow. The actual aircraft remains disarmed. The physical-flight mission retains a 1.5 m height; the 0.5 m rehearsal uses a separate per-run configuration. No manual quaternion copying, numbered terminals or separate goal request is needed. A normal reboot requires no reinstall or rebuild. Use `--no-rviz` for a run without the viewer; missing desktop or RViz is recorded as a skipped viewer.
+The runner sources ROS itself, opens or reuses QGroundControl, starts the managed stack, captures and applies this run's quaternion, prepares the session map, waits for a continuous fresh 30-second real vision window and rehearses the complete **0.5 m virtual climb → five rounds of 4.5 m outbound and return → six-second hover → landing** with real SUPER and virtual vehicle feedback. On a desktop, RViz2 opens automatically after the private-domain isolation check and closes when the rehearsal ends. It shows 5-pixel point clouds, planning trajectories and the virtual vehicle body-heading arrow. The actual aircraft remains disarmed. The physical-flight mission retains a 1.5 m height; the 0.5 m rehearsal uses a separate per-run configuration. No manual quaternion copying, numbered terminals or separate goal request is needed. A normal reboot requires no reinstall or rebuild. Use `--no-rviz` for a run without the viewer; missing desktop or RViz is recorded as a skipped viewer.
 
 Wait for `RESULT: SUCCESS` or `RESULT: FAIL` and the printed `REPORT:` path under `~/Downloads/super_demo_tests/<timestamp>/`. A rehearsal success covers every stage in the virtual mission; physical full-mission flight remains unverified. Fixture geometry is synthetic. Motion targets remain 2 m/s and 1 m/s²; separate trajectory acceptance bounds are 4 m/s and 2 m/s². Observation mode records exceedances with 2.4 m/s and 1.5 m/s² warning advisories while retaining position, freshness and continuity checks. This release needs a one-time source patch/rebuild to separate SUPER's internal acceptance checks; see [installation and validation](docs/MOTION_ACCEPTANCE.md).
 
@@ -44,7 +48,7 @@ python3 ~/Downloads/super_session.py stop
 
 Closing the terminal does not stop the managed tmux processes. Run the same complete-test command for another fresh session. For a separate short-site rehearsal, append `--route-profile short-1m`; use the default 4.5 m route in a suitable laboratory.
 
-See **[the reboot startup guide](docs/REBOOT_QUICK_START.md)** for the pinned installer, saved-result inspection, measured mission configuration and separate supervised physical-flight startup. Physical execution requires surveyed geometry, current RC/manual POSCTL and compatible PX4 readbacks, followed by an explicit start request. The latest cloud stress run stopped on a timer gap; onboard recurrence remains to be checked.
+See **[the reboot startup guide](docs/REBOOT_QUICK_START.md)** for the pinned installer, saved-result inspection, measured mission configuration and separate supervised physical-flight startup. Physical execution requires surveyed geometry, current RC/manual POSCTL and compatible PX4 readbacks, followed by an explicit start request. The latest complete cloud replay succeeded; retain new onboard reports separately from that software evidence.
 
 Individual tools remain documented separately: [compact tmux startup and diagnosis](docs/SESSION_STARTUP.md), [the historical 1 m hover workflow](docs/FIRST_HOVER_2026-10-09.md), [the automatic one-goal ground audit](docs/AUTOMATED_GROUND_TEST.md), and [the complete demonstration specification](docs/DEMONSTRATION_MISSION.md).
 
@@ -61,11 +65,11 @@ Individual tools remain documented separately: [compact tmux startup and diagnos
 | SUPER → flight trajectory execution | Prototype under validation | Aircraft ground audit held AUDIT_END beyond six seconds with fresh concurrent sampling; airborne handover pending |
 | Remote operation | Operational | Mac → NoMachine → onboard Ubuntu desktop, including QGC and terminals |
 | Loop recording and XYZ analysis | Tools ready | Bag export, point-cloud inspection, timing gaps, and return-to-marker metrics |
-| Venue limits and 2 m/s demonstration | Pending | Surveyed boundaries, clearance margins, and staged flight validation |
+| Venue limits and 2 m/s demonstration | Software integrated; physical validation pending | Shared planner/controller bounds, complete five-round virtual replay; actual geometry and staged flight validation remain |
 
 The successful flight is a functional milestone. Height error, horizontal drift, timing distributions, and repeatability will be quantified from flight logs and independent measurements in the next test campaign.
 
-- [Current integration progress and validation scope](docs/PROGRESS_2026-10-16.md)
+- [Current integration progress and validation scope](docs/PROGRESS_2026-10-18.md)
 - [Complete flight workflow: terminals 1–11 and reboot recovery](docs/FIRST_HOVER_2026-10-09.md)
 - [Next development and validation steps](docs/NEXT_STEPS.md)
 - [Three-terminal bag recording and XYZ analysis](docs/BAG_XYZ_2026-10-09.md)

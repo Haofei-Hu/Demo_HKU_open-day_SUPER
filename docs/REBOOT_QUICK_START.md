@@ -1,5 +1,7 @@
 # Startup after power-on or reboot
 
+**[中文快速开始：整套更新、每次重启启动、结果和故障恢复](QUICK_START_ZH.md)**
+
 Use the onboard Ubuntu terminal, locally or through NoMachine. The existing ROS 2 Humble, Livox, FAST_LIO and SUPER workspaces must already be installed. A normal reboot requires no rebuild, script download or dependency installation. Keep the aircraft stationary and disarmed on its actual takeoff floor during initialization.
 
 ## Install or update the matching scripts
@@ -14,12 +16,12 @@ demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
   -o "$demo_update_dir/install_demo_test.py"
-if tmux -L super-aircraft has-session -t super-flight 2>/dev/null; then
-  python3 ~/Downloads/super_session.py stop
-fi
+python3 -m py_compile "$demo_update_dir/install_demo_test.py"
 python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
+
+Always install the complete matching 28-file release. Updating only a controller or reference helper can mix incompatible interfaces: an observed two-file update called a four-argument `inverse_goal()` against an older three-argument implementation. After installation, the normal `--restart` command below clears the previous grounded session before using the new release.
 
 The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M`, and `flight.round_trips` to `5` with the current canonical sequence before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
 
@@ -94,7 +96,7 @@ Retain the existing QGC setup: disable flight-controller USB/serial auto-connect
 
 ### Automatic RViz2 preview
 
-On the onboard desktop, the same command opens RViz2 after the isolated domain 197 check and virtual backend startup, before the controller starts its mission. No second terminal, configuration download or manual launch timing is needed. RViz shows the captured scene and occupied map as points, SUPER's exploration/backup trajectories and goals when published, and an orange virtual-vehicle body-heading arrow. The scene is a frozen snapshot; planning and virtual vehicle feedback update during the rehearsal. The arrow position uses the raw planner/world localization reference. Its direction is body +X transformed from the aligned body attitude into that same world frame, including the mounting rotation; it no longer displays the IMU +X axis as the nose. It represents heading, not velocity. Initial heading is held during return, so backward travel does not turn the arrow. The captured initial heading is fixed for the rehearsal; moving the physical aircraft afterward does not steer the virtual vehicle.
+On the onboard desktop, the same command opens RViz2 after the isolated domain 197 check and virtual backend startup, before the controller starts its mission. No second terminal, configuration download or manual launch timing is needed. RViz shows the captured scene and occupied map as 5-pixel points, SUPER's exploration/backup trajectories and goals when published, and an orange virtual-vehicle body-heading arrow. The scene is a frozen snapshot; planning and virtual vehicle feedback update during the rehearsal. The arrow position uses the raw planner/world localization reference. Its direction is body +X transformed from the aligned body attitude into that same world frame, including the mounting rotation; it no longer displays the IMU +X axis as the nose. It represents heading, not velocity. Initial heading is held during return, so backward travel does not turn the arrow. The captured initial heading is fixed for the rehearsal; moving the physical aircraft afterward does not steer the virtual vehicle.
 
 The runner owns this viewer process and closes it on completion, failure or interruption. Closing the viewer manually does not stop the test. Other desktop windows are unaffected. Close a viewer launched manually in domain 197 before starting a new rehearsal; the isolation check still rejects pre-existing nodes.
 
@@ -145,7 +147,7 @@ print('REPORT:', path)
 PY
 ```
 
-`RUNNING` is unfinished, including when a process was interrupted before it could finalize its report. On failure, retain the printed report and adjacent logs. The runner does not automatically retry, rebase or turn a partial mission into success. The latest cloud stress trial stopped on an approximately 0.5-second setpoint timer gap; its cause and recurrence on the aircraft computer remain unverified. See [validation evidence](../data/software_checks_2026-10-16/flight_motion_policy.json).
+`RUNNING` is unfinished, including when a process was interrupted before it could finalize its report. On failure, retain the printed report and adjacent logs. The runner does not automatically retry, rebase or turn a partial mission into success. The October 16 timer-gap failure remains historical evidence; complete-demo callback gaps are now advisory. The current real-SUPER cloud replay completed five rounds, final hold and landing. See [the current scoped verification](../data/software_checks_2026-10-18/stationary_handoff_release.json). A complete onboard rerun after the matching full-release installation remains pending.
 
 Ctrl+C is forwarded once by the outer startup wrapper to its owned runner. It waits for report finalization and owned-process cleanup instead of printing the outer `subprocess.wait` traceback. An operator-cancelled run remains incomplete: `RESULT: FAIL`, `cancelled_by_operator=true`, an explicit cancellation error and exit status 130. It is not reported as successful completion. Repeated Ctrl+C during cleanup does not send repeated interrupts into the runner's finalization.
 
@@ -164,6 +166,62 @@ python3 ~/Downloads/super_session.py stop
 ```
 
 Run the complete rehearsal command again for another fresh automatic test. Do not reuse a quaternion from a previous boot or LIO initialization. For individual node diagnosis, use [compact session startup](SESSION_STARTUP.md); the historical [numbered hover workflow](FIRST_HOVER_2026-10-09.md) is separate from this demonstration.
+
+## Recover an exited MAVROS in a core-only session
+
+An observed startup reached the FC heartbeat and then aborted with
+`std::future_error: Promise already satisfied` (exit code -6). The serial device
+was still present. With MAVROS gone, `stop` cannot obtain fresh ground state and
+the next `--restart` fails at the stop stage. The C++ crash's root cause remains
+unresolved; increasing a planning or motion limit does not address it.
+
+First run `super_session.py status`, inspect `mavros.log` in the printed session
+directory and check `ls -l /dev/serial/by-id/`. For the observed case with only
+`lidar`, `lio`, `mavros`, and `body` windows, with MAVROS exited and the other three
+active, this explicitly restores the communication process. It refuses other
+managed layouts and a second MAVROS process, and then requires fresh ground
+telemetry. It does not automatically resume a controller or send a flight request.
+
+```bash
+(
+set -e
+source /opt/ros/humble/setup.zsh
+source ~/super_ws/install/setup.zsh
+python3 - <<'PY'
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path.home() / 'Downloads'))
+import super_session as m
+s = m.Session(m.arguments(['start']))
+s.load()
+windows = s.windows()
+if set(windows) != set(m.CORE):
+    raise SystemExit('Not a core-only session; no recovery performed')
+if windows.get('mavros') != '1':
+    raise SystemExit('MAVROS is not exited; no duplicate launch')
+if any(windows.get(n) != '0' for n in ('lidar', 'lio', 'body')):
+    raise SystemExit('Another core process is down; inspect its log')
+if any('mavros_node' in p for p in m.unmanaged_processes()):
+    raise SystemExit('Another MAVROS process exists; no duplicate launch')
+s.tmux('kill-window', '-t', s.name + ':mavros')
+s.launch('mavros', s.core_commands()['mavros'])
+gate = m.GroundGate()
+gate.close()
+print('MAVROS restored; connected/disarmed/on-ground state confirmed')
+PY
+)
+```
+
+After successful recovery, rerun the normal complete-test command. This recovery
+worked on the reported aircraft session; it is not a permanent MAVROS crash fix
+or a general-purpose force-stop command.
+
+During vision startup, the current manager first reads `EKF2_EV_CTRL` and skips a
+redundant write. If a write response times out, it performs a grounded readback:
+the confirmed requested value permits continuation, while an unavailable or
+different value blocks the action with a specific error. The write itself is
+never replayed. Isolated DDS tests cover both applied and unapplied writes with
+delayed replies. A successful readback does not conceal a dead MAVROS process.
 
 ## Prepare physical execution separately
 

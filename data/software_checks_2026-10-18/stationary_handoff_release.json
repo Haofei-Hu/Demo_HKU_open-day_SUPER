@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "runtime_revision": "4b025e9f6819c9f82dea11f59e434983828b2f36",
+  "scope": "Cloud software verification using real compiled SUPER and a previously captured aircraft map; virtual vehicle/FC, no physical flight",
+  "release": {
+    "matching_files": 28,
+    "complete_release_download_checksums_verified": true
+  },
+  "checks": {
+    "stationary_handoff_and_controller_regressions": {
+      "passed": 57,
+      "failed": 0
+    },
+    "release_installer_regressions": {
+      "passed": 5,
+      "failed": 0
+    }
+  },
+  "stationary_handoff": {
+    "reproduced_from_operator_log": {
+      "run": "20261018_211441_666457",
+      "completed_round_trips": 3,
+      "reported_step_m": 0.021635,
+      "previous_allowed_step_m": 0.015
+    },
+    "targeted_reproduction_passed": true,
+    "larger_reanchor_and_moving_restart_rejection_passed": true,
+    "new_polynomial_displacement_after_rest_passed": true
+  },
+  "full_rehearsal": {
+    "report": "stationary_handoff_ground_mission_report.json",
+    "sha256": "4b494522d5b9bf800d77c01e6f347e9bbb17342b6358842038e331b3293f400f",
+    "result": "SUCCESS",
+    "round_trips_completed": 5,
+    "completed_stage_count": 20,
+    "return_hover_duration_s": 6.049888273999386,
+    "peak_reference_speed_mps": 1.5724800191140884,
+    "peak_reference_acceleration_mps2": 1.0110673632496243,
+    "stationary_handoff_branch_observed_in_this_full_run": false
+  },
+  "parameter_reply_recovery": {
+    "runtime_revision": "4c633c39c7a872f2d682f40cf7c44caccec511dd",
+    "dds_cases_passed": 8,
+    "manager_lifecycle_checks_passed": 43,
+    "ground_parameter_integration_passed": true,
+    "write_replayed": false
+  },
+  "onboard_followup": {
+    "run": "20261018_212134_775673",
+    "result": "FAIL",
+    "reason": "Partial two-file update mixed a four-argument inverse_goal caller with an older three-argument implementation",
+    "resolution": "Install all 28 matching files using install_demo_test.py; complete onboard rerun result pending"
+  },
+  "unresolved": [
+    "MAVROS std::future_error: Promise already satisfied startup crash root cause",
+    "Complete onboard rerun after full release installation",
+    "Physical full demonstration flight and tracking",
+    "Measured lateral takeoff offset and verified vehicle envelope"
+  ],
+  "physical_flight_verified": false
+}
