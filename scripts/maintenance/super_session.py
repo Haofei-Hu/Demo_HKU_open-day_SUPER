@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -48,6 +49,31 @@ def source_prefix():
 
 def run(argv, **kwargs):
     return subprocess.run([str(v) for v in argv], check=True, **kwargs)
+
+
+def parallel_observations(commands):
+    """Run independent read-only collectors together and reap both on failure."""
+    children=[]
+    try:
+        for command in commands:
+            children.append(subprocess.Popen(list(map(str,command)),start_new_session=True))
+        while True:
+            codes=[child.poll() for child in children]
+            for child,code in zip(children,codes):
+                if code is not None and code!=0:raise subprocess.CalledProcessError(code,child.args)
+            if all(code is not None for code in codes):return
+            time.sleep(.05)
+    finally:
+        for child in children:
+            if child.poll() is None:
+                try:os.killpg(child.pid,signal.SIGINT)
+                except ProcessLookupError:pass
+        for child in children:
+            try:child.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try:os.killpg(child.pid,signal.SIGKILL)
+                except ProcessLookupError:pass
+                child.wait()
 
 
 class GroundGate:
@@ -507,11 +533,15 @@ class Session:
                     raise RuntimeError('Alignment requires a fresh core-only session; do not rebase a running relay')
                 gate.pull()
                 gate.set_ctrl(0)
-                run(['python3', '-u', self.scripts/'odom_age_check.py'])
+                odometry=['python3', '-u', self.scripts/'odom_age_check.py']
                 survey=['python3', '-u', self.scripts/'frame_alignment_check.py']
                 if self.args.report_json is not None:
                     survey+=['--output-json',self.args.report_json.expanduser()]
-                run(survey)
+                if self.args.parallel_observations:
+                    print('PARALLEL ALIGN: fresh odometry observation and fresh quaternion survey together; both keep their 15 s sampling.',flush=True)
+                    parallel_observations([odometry,survey])
+                else:
+                    run(odometry);run(survey)
                 print('Use this survey: super_session.py vision QX QY QZ QW. No quaternion was auto-saved.')
             elif action == 'vision-restart':
                 if windows.get('preview')!='0' or 'vision' not in windows:
@@ -796,6 +826,7 @@ def arguments(argv=None):
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
     parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
+    parser.add_argument('--parallel-observations',action='store_true',help='align only: collect fresh odometry and alignment concurrently; sampling and quality checks unchanged')
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--report-json',type=Path,help='new JSON report path; align or flight-check only')
@@ -817,6 +848,8 @@ def arguments(argv=None):
         parser.error('--execute is only valid for hover')
     if args.fixed_lio_extrinsics and args.action != 'start':
         parser.error('--fixed-lio-extrinsics is only valid for start')
+    if args.parallel_observations and args.action!='align':
+        parser.error('--parallel-observations is only valid for align')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':
         parser.error('--planner-profile is only valid for planner')
     if args.goal_height is not None and (args.action!='goal' or not math.isfinite(args.goal_height)

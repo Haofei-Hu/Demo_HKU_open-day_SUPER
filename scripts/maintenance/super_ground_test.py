@@ -313,6 +313,9 @@ class GroundTest:
                 self.report['failure_output']=stage['output_tail']
             write_report(self.path, self.report)
 
+    def after_vision_ready(self):
+        """Optional independent observation started before planner preparation."""
+
     def prepare(self,planner_profile=None):
         """Reusable preparation; any future flight entry must add fresh flight gates."""
         required = (*manager.SCRIPTS, 'super_session.py', 'control_chain_age_check.py',
@@ -332,12 +335,14 @@ class GroundTest:
         self.session.load()
         self.report['session'] = self.session.config
         survey = self.folder/'alignment.json'
-        self.action('align', '--report-json', survey)
+        alignment_extra=['--parallel-observations'] if getattr(self.args,'fast_start',False) else []
+        self.action('align', '--report-json', survey,*alignment_extra)
         measured = json.loads(survey.read_text())
         self.report['alignment'] = measured
         q = alignment_quaternion(measured, self.args.max_alignment_spread_deg)
         print('Applying this run\'s measured quaternion xyzw:', q, flush=True)
         self.action('vision', *q)
+        self.after_vision_ready()
         profile=planner_profile or ('forward-5m-2mps' if self.args.test_profile=='forward-5m-2mps' else 'low-speed-3d')
         self.action('planner','--planner-profile',profile)
         self.session.load()

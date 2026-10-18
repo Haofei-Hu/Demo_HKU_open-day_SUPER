@@ -15,6 +15,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import time
 
 import super_session as manager
 from super_ground_test import GroundTest,write_report
@@ -75,7 +76,7 @@ def planner_log_evidence(path):
 
 class DemoTest(GroundTest):
     def __init__(self,args):
-        self.args=args;self.observer=None;self.child=None
+        self.args=args;self.observer=None;self.child=None;self.startup_vision=None
         self.session=manager.Session(manager.arguments(['start','--session',args.session,
                                                       '--scripts-dir',str(args.scripts_dir)]))
         self.folder=args.scripts_dir/'super_demo_tests'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -89,24 +90,79 @@ class DemoTest(GroundTest):
             route_profile=getattr(args,'route_profile','demonstration'),
             motion_policy=getattr(args,'motion_policy','strict'),
             fixture_geometry=args.fixture_geometry,started_at=datetime.now().astimezone().isoformat())
+        self.report['startup_policy']=dict(parallel=getattr(args,'fast_start',False) and not args.logic_only,
+            fresh_alignment=not args.logic_only,fresh_map=not args.logic_only,alignment_sampling_s=15.,vision_sampling_s=30.,
+            cached_scene_used=False)
+
+    def vision_command(self):
+        command=[sys.executable,self.args.scripts_dir/'control_chain_age_check.py',
+                 '--vision-chain','--wait-stable','--seconds','30']
+        if getattr(self.args,'fast_start',False):command+=['--ready-file',self.folder/'planner_preparation_ready']
+        return command
+
+    def after_vision_ready(self):
+        if not getattr(self.args,'fast_start',False):return
+        log=self.folder/(str(len(self.report['stages']))+'_vision_chain.log')
+        stage=dict(action='vision_chain',log=str(log),started_at=datetime.now().astimezone().isoformat(),
+                   parallel_with='planner')
+        self.report['stages'].append(stage)
+        with log.open('w') as out:
+            process=subprocess.Popen(list(map(str,self.vision_command())),stdout=out,stderr=subprocess.STDOUT,
+                                     start_new_session=True)
+        self.startup_vision=dict(process=process,stage=stage,began=time.monotonic(),finished=False)
+        write_report(self.path,self.report)
+        print('[vision_chain] PARALLEL with fresh map/planner preparation; log: '+str(log),flush=True)
+
+    def finish_startup_vision(self,wait=True):
+        observation=self.startup_vision
+        if observation is None:raise RuntimeError('Parallel vision observation was not started')
+        process=observation['process']
+        if observation['finished']:return
+        if not wait and process.poll() is None:return
+        if wait:
+            with Path(observation['stage']['log']).open() as output:
+                while process.poll() is None:
+                    chunk=output.read()
+                    if chunk:print(chunk,end='',flush=True)
+                    time.sleep(.05)
+                chunk=output.read()
+                if chunk:print(chunk,end='',flush=True)
+        code=process.wait();stage=observation['stage'];observation['finished']=True
+        stage.update(returncode=code,finished_at=datetime.now().astimezone().isoformat(),
+                     elapsed_s=time.monotonic()-observation['began'])
+        stage['output_tail']='\n'.join(Path(stage['log']).read_text(errors='replace').splitlines()[-80:])
+        if not wait:print(stage['output_tail'],flush=True)
+        write_report(self.path,self.report)
+        if code:
+            self.report['stage']='vision_chain'
+            self.report['failure_output']=stage['output_tail']
+            raise RuntimeError('vision_chain failed; inspect '+stage['log'])
 
     def step(self,name,command,env=None):
         self.report['stage']=name
         log=self.folder/(str(len(self.report['stages']))+'_'+name+'.log')
-        stage=dict(action=name,log=str(log));self.report['stages'].append(stage);write_report(self.path,self.report)
+        began=time.monotonic()
+        stage=dict(action=name,log=str(log),started_at=datetime.now().astimezone().isoformat())
+        self.report['stages'].append(stage);write_report(self.path,self.report)
         print('['+name+']',log,flush=True)
         try:
             with log.open('w') as out:
                 self.child=subprocess.Popen(list(map(str,command)),stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
                                             text=True,start_new_session=True,env=env)
-                for line in self.child.stdout:out.write(line);out.flush();print(line,end='',flush=True)
+                for line in self.child.stdout:
+                    out.write(line);out.flush();print(line,end='',flush=True)
+                    if self.startup_vision is not None:self.finish_startup_vision(wait=False)
                 stage['returncode']=self.child.wait()
             if stage['returncode']:
                 raise RuntimeError(name+' failed; inspect '+str(log))
         finally:
+            stage.update(finished_at=datetime.now().astimezone().isoformat(),elapsed_s=time.monotonic()-began)
+            if self.child is not None and self.child.poll() is not None and self.child.stdout is not None:
+                self.child.stdout.close()
             if log.exists():
                 stage['output_tail']='\n'.join(log.read_text(errors='replace').splitlines()[-80:])
-                if stage.get('returncode')!=0:self.report['failure_output']=stage['output_tail']
+                if stage.get('returncode')!=0 and self.report['stage']==name:
+                    self.report['failure_output']=stage['output_tail']
             write_report(self.path,self.report)
 
     def action(self,action,*extra):
@@ -152,8 +208,11 @@ class DemoTest(GroundTest):
                     total_wait_deadline_s=None,header_age_band_s=[-.05,.25],receive_gap_limit_s=.25,
                     temporal_interruptions='Record lifetime evidence and restart observation only',
                     integrity_faults='Fail on invalid/reordered stamps, wrong frames or changed/duplicate sources')
-                self.step('vision_chain',[sys.executable,self.args.scripts_dir/'control_chain_age_check.py',
-                                          '--vision-chain','--wait-stable','--seconds','30'])
+                if getattr(self.args,'fast_start',False):
+                    (self.folder/'planner_preparation_ready').touch(exist_ok=False)
+                    print('PARALLEL STARTUP: waiting for the same 30 s fresh vision window before scene capture.',flush=True)
+                    self.finish_startup_vision()
+                else:self.step('vision_chain',self.vision_command())
                 self.report['actual_localization_tested']=True
                 self.session.load();scene=self.folder/'scene.json'
                 self.step('capture_scene',[sys.executable,self.args.scripts_dir/'capture_demo_scene.py',
@@ -199,6 +258,20 @@ class DemoTest(GroundTest):
                 os.killpg(self.child.pid,signal.SIGINT)
                 try:self.child.wait(timeout=20)
                 except subprocess.TimeoutExpired:os.killpg(self.child.pid,signal.SIGTERM);self.child.wait(timeout=5)
+            if self.child is not None and self.child.stdout is not None:self.child.stdout.close()
+            if self.startup_vision is not None and not self.startup_vision['finished']:
+                observation=self.startup_vision;process=observation['process']
+                if process.poll() is None:
+                    try:os.killpg(process.pid,signal.SIGINT)
+                    except ProcessLookupError:pass
+                    try:process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        try:os.killpg(process.pid,signal.SIGKILL)
+                        except ProcessLookupError:pass
+                        process.wait()
+                observation['stage'].update(returncode=process.returncode,
+                    finished_at=datetime.now().astimezone().isoformat(),elapsed_s=time.monotonic()-observation['began'],
+                    output_tail='\n'.join(Path(observation['stage']['log']).read_text(errors='replace').splitlines()[-80:]))
             planner_log=self.folder/'planner_rehearsal.log'
             if planner_log.is_file():
                 self.report['planner_diagnostics']=planner_log_evidence(planner_log)
@@ -214,6 +287,7 @@ def main():
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
+    p.add_argument('--fast-start',action='store_true',help='cold start with fresh alignment collectors in parallel and the unchanged 30 s vision window overlapping map/planner preparation')
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
     p.add_argument('--route-profile',choices=('demonstration','short-1m'),default='demonstration',
                    help='full 4.5 m demonstration or separate 1 m short-site rehearsal')

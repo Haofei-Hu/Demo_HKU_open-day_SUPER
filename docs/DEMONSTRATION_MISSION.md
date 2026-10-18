@@ -19,7 +19,7 @@ The entrypoint sources the installed workspaces itself. It:
 
 1. Opens or reuses QGC, stops the managed grounded session, starts MID360/FAST_LIO/MAVROS/body conversion and measures a fresh alignment.
 2. Applies this run's quaternion, initializes vision using the existing readback-confirmed procedure, and creates the session-relative demonstration map profile.
-3. Waits for a continuous fresh 30-second real vision window and captures a fresh occupied map plus paired raw/aligned geometry.
+3. Waits for a continuous fresh 30-second real vision window and captures a fresh occupied map plus paired raw/aligned geometry. With `--fast-start`, that observation runs concurrently with map/planner preparation and keeps monitoring until preparation is complete. The raw-odometry observation and current quaternion survey also run concurrently, retaining their original 15-second durations.
 4. Starts real SUPER in localhost-only ROS domain 197, with the captured static obstacle model and virtual FC/vehicle feedback. All takeoff, OFFBOARD, arming and landing operations in this rehearsal address that virtual backend.
 5. Runs every mission stage in order, checks the final return hold and landing confirmation, and confirms the actual aircraft remains grounded and disarmed.
 6. Saves the report and prints `RESULT: SUCCESS` or `RESULT: FAIL`, `REPORT: <path>` and the execution scope. Any failure exits nonzero. It never substitutes a synthetic planner when real SUPER fails.

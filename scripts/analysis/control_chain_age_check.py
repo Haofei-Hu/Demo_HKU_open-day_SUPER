@@ -6,6 +6,7 @@ measured aircraft motion or a validated flight-capable FC-centre reference.
 """
 import argparse
 import math
+from pathlib import Path
 import time
 
 
@@ -146,9 +147,11 @@ class StableVisionWindow:
         return now-self.started>=self.seconds and all(s.fresh(now) for s in self.samples.values())
 
 
-def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, vision_chain=False,wait_stable=False):
+def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, vision_chain=False,wait_stable=False,ready_file=None):
     if wait_stable and (not vision_chain or check_motion):
         raise ValueError('Stable observation requires --vision-chain without motion checking')
+    if ready_file is not None and not wait_stable:
+        raise ValueError('Preparation completion signal requires stable vision observation')
     import rclpy
     from rclpy.qos import QoSProfile, ReliabilityPolicy
     from nav_msgs.msg import Odometry
@@ -246,11 +249,14 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
                               f'header_age={header_age:.6f}s last_stamp_ns={samples[topic].last_stamp}',flush=True)
                         live_states[topic]=reason
             if stable is not None:
-                if stable.update(samples,time.monotonic(),node.get_clock().now().nanoseconds) or stable.fault:
+                qualified=stable.update(samples,time.monotonic(),node.get_clock().now().nanoseconds)
+                preparation_ready=ready_file is None or ready_file.is_file()
+                if (qualified and preparation_ready) or stable.fault:
                     break
                 if time.monotonic()-progress_at>=5.:
                     elapsed=0. if stable.started is None else time.monotonic()-stable.started
-                    print(f'VISION WAIT: qualified window={elapsed:.1f}/{seconds:g}s; resets={stable.restarts}; {stable.reason}',flush=True)
+                    reason='awaiting parallel map/planner preparation' if qualified and not preparation_ready else stable.reason
+                    print(f'VISION WAIT: qualified window={elapsed:.1f}/{seconds:g}s; resets={stable.restarts}; {reason}',flush=True)
                     progress_at=time.monotonic()
         now = time.monotonic()
         if stable is not None:
@@ -310,6 +316,7 @@ def monitor(seconds, check_motion=False, max_speed=.3, max_acceleration=.5, visi
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--seconds', type=float, default=10.)
+    parser.add_argument('--ready-file',type=Path,help='with --wait-stable, keep checking until this preparation-completion file exists')
     parser.add_argument('--check-motion', action='store_true')
     parser.add_argument('--vision-chain',action='store_true',
                         help='sample raw/aligned/native vision/FC pose; print timed receive/header freshness events')
@@ -321,11 +328,12 @@ def main():
     if args.vision_chain and args.check_motion:
         parser.error('--vision-chain and --check-motion select different topic sets')
     if args.wait_stable and not args.vision_chain:parser.error('--wait-stable requires --vision-chain')
+    if args.ready_file is not None and not args.wait_stable:parser.error('--ready-file requires --wait-stable')
     if not math.isfinite(args.seconds) or not 1 <= args.seconds <= 30:
         parser.error('--seconds must be finite and in [1, 30]')
     if not all(math.isfinite(v) and v > 0 for v in (args.max_speed,args.max_acceleration)):
         parser.error('Motion limits must be finite and positive')
-    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration,args.vision_chain,args.wait_stable)
+    return monitor(args.seconds,args.check_motion,args.max_speed,args.max_acceleration,args.vision_chain,args.wait_stable,args.ready_file)
 
 
 if __name__ == '__main__':

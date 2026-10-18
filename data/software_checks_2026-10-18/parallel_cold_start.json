@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-18",
+  "scope": "Fresh cold-start preparation concurrency; no cached scene or calibration",
+  "option": "super_demo_test.py --fast-start",
+  "defaults_unchanged": true,
+  "alignment": {
+    "odometry_observation_s": 15.0,
+    "quaternion_survey_s": 15.0,
+    "concurrent": true,
+    "quality_thresholds_unchanged": true
+  },
+  "vision": {
+    "qualified_window_s": 30.0,
+    "concurrent_with": "session map capture and planner preparation",
+    "stays_active_until_preparation_ready": true,
+    "source_integrity_checks_retained": true,
+    "temporal_reset_policy_unchanged": true
+  },
+  "ros_alignment_benchmark": {
+    "scope": "Real ROS with synthetic stationary sensor publishers; no actual hardware",
+    "sampling_duration_s": 15.0,
+    "durations_s": {
+      "sequential": 30.647092173006968,
+      "parallel": 15.400493480003206
+    },
+    "saved_s": 15.246598693003762,
+    "alignment_evidence": {
+      "sequential": {
+        "matched": 748,
+        "rotation_spread_max_deg": 0.0,
+        "body_age_max_s": 0.003830803
+      },
+      "parallel": {
+        "matched": 748,
+        "rotation_spread_max_deg": 0.0,
+        "body_age_max_s": 0.003125122
+      }
+    },
+    "result": "PASS"
+  },
+  "ros_vision_preparation_checks": {
+    "result": "PASS",
+    "scope": "Real ROS with synthetic publishers; one-second test windows only. Production startup retains 30 seconds.",
+    "cases": [
+      {
+        "case": "healthy",
+        "code": 0,
+        "duration_s": 3.013553098004195
+      },
+      {
+        "case": "late_integrity_fault",
+        "code": 2,
+        "duration_s": 2.0102370550011983
+      },
+      {
+        "case": "late_temporal_gap",
+        "code": 0,
+        "duration_s": 3.215908110003511
+      }
+    ]
+  },
+  "checks": {
+    "unit_and_regression_tests": 107,
+    "result": "PASS",
+    "subprocess_overlap_barriers": "PASS",
+    "parallel_failure_and_cancel_reaping": "PASS",
+    "original_stable_vision_ros_cases": [
+      "startup_old",
+      "mid_gap",
+      "mid_header",
+      "wrong_frame"
+    ],
+    "fresh_measured_quaternion_applied_before_vision": "PASS",
+    "scene_capture_waits_for_preparation_and_observation": "PASS"
+  },
+  "source_sha256": {
+    "scripts/maintenance/super_session.py": "538eda792b8dcf3b885b2312d0840396391d8bef783b05b9fc1171c7afcec091",
+    "scripts/maintenance/super_ground_test.py": "b0ee1d28476f0fc600bced3872afcc7fbdc0dbd15695c4b64f1b47ab346e95ca",
+    "scripts/maintenance/super_demo_test.py": "7316a1653aea44ea2515f31695d5aec4b4715edd0ce1e41afa6b939e668bfc1d",
+    "scripts/analysis/control_chain_age_check.py": "568f9ca3b945d98b35be4d6f99eac7e56c071009fe0986f381d17fe650cf1d04"
+  },
+  "limitations": [
+    "Actual aircraft cold-boot latency has not been measured after this update",
+    "Benchmark uses live ROS with synthetic stationary sensor publishers",
+    "FC connection, parameter retrieval, sensor initialization and data settling still take their actual required time",
+    "No real flight or new full-mission flight validation; planner and mission execution are unchanged"
+  ]
+}

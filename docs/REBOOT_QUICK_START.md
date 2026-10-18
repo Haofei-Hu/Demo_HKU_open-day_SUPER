@@ -54,7 +54,7 @@ Connect NoMachine if needed, open one terminal on onboard Ubuntu, and run:
 
 ```bash
 python3 ~/Downloads/super_demo_test.py \
-  --restart --fixed-lio-extrinsics --fixture-geometry \
+  --restart --fixed-lio-extrinsics --fixture-geometry --fast-start \
   --motion-policy observe
 ```
 
@@ -67,6 +67,10 @@ The runner performs the following sequence:
 3. Wait for a continuous fresh 30-second real vision window, then capture a fresh occupied scene.
 4. Run real SUPER with virtual FC/vehicle feedback in isolated localhost-only ROS domain 197: rise to 0.5 m, stabilize, complete five 4.5 m outbound/return rounds, hover six seconds after the fifth return, land, and confirm landed/disarmed feedback.
 5. Save the result, stage logs, alignment, scene and mission report; confirm the actual aircraft remains grounded and disarmed.
+
+`--fast-start` accelerates a fresh start after every computer reboot. The 15-second raw-odometry observation and 15-second quaternion survey run concurrently, after the existing grounded initialization. Once that new quaternion is applied and native vision is fresh, the unchanged 30-second continuous vision observation overlaps session-map capture and planner preparation. Both preparation and the qualified vision window must finish before the fresh scene is captured. If map preparation takes longer, vision monitoring continues through its completion, including source-identity and freshness checks. It never uses a previous boot's quaternion or an old scene. Omit the flag to retain the sequential workflow.
+
+The component nodes continue to run in automatically managed tmux windows. Independent sampling runs in separate processes with logs and progress collected by the main terminal; manually opening desktop terminals is unnecessary for concurrency. A collector failure or cancellation reaps its parallel peer. Reports include `startup_policy`, per-stage start/end times and elapsed duration, and mark the vision stage as overlapping planner preparation. On a live ROS test with synthetic stationary publishers, identical 15-second collectors took 30.65 seconds sequentially and 15.40 seconds concurrently. This measures that sampling phase, not actual aircraft cold-boot latency; FC connection/parameter retrieval, sensor startup and data settling still determine the remaining wait. No sampling duration, quality threshold or mission waiting policy changes.
 
 Alignment excludes body samples outside the existing -0.05..0.25 s receive-time header-age band before estimation, and reports excluded counts and raw age extrema. It still requires enough valid matched pairs and the existing pairing/rotation checks. Full-rehearsal preparation streams progress without the historical 120-second action deadline.
 
