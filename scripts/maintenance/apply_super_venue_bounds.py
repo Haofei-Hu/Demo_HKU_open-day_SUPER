@@ -20,6 +20,7 @@ MAP_VERSION='VIRTUAL_HEIGHT_QUERY_V1'
 COMMIT_VERSION='VENUE_CANDIDATE_CHECK_V1'
 HEIGHT_VERSION='VIRTUAL_HEIGHT_CORRIDOR_V1'
 GRID_VERSION='VENUE_GRID_ANCHOR_V1'
+START_VERSION='VENUE_REST_START_V1'
 INF_MAP='rog_map/src/rog_map/inf_map.cpp'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
@@ -381,6 +382,36 @@ GRID_EDITS={
     ],
 }
 
+# Grid centres guide search; they must not replace the physical initial state.
+# This applies only to the explicit demonstration venue. Obstacle/corridor and
+# primary/backup trajectory checks still run from the retained measured start.
+REST_START_OLD = """        /// 1) First, shift the start_point to free space.
+        Vec3f local_star_pt;
+        if (!map_ptr_->getNearestCellNot(GridType::OCCUPIED, robot_state_.p, local_star_pt, 3.0)) {
+"""
+REST_START_NEW = """        // VENUE_REST_START_V1: preserve the measured continuous rest start.
+        Vec3f local_star_pt;
+        bool start_valid = false;
+        if (astar_ptr_->hasDemoVenue()) {
+            local_star_pt = robot_state_.p;
+            if (local_star_pt.allFinite() && map_ptr_->insideLocalMap(local_star_pt) &&
+                astar_ptr_->pointInsideDemoVenue(local_star_pt)) {
+                const auto type = map_ptr_->getGridType(local_star_pt);
+                start_valid = type != GridType::OCCUPIED && type != GridType::OUT_OF_MAP;
+            }
+            if (start_valid)
+                ros_ptr_->info("VENUE_REST_START_V1: measured start retained={} (no grid-centre relocation)",
+                               local_star_pt.transpose());
+            else
+                ros_ptr_->warn("VENUE_REST_START_V1: measured start occupied, invalid, or outside map/venue; no relocation");
+        } else {
+            start_valid = map_ptr_->getNearestCellNot(GridType::OCCUPIED, robot_state_.p, local_star_pt, 3.0);
+        }
+        if (!start_valid) {
+"""
+START_EDITS={PLANNER:[(REST_START_OLD,REST_START_NEW,1)]}
+
+
 def patched(relative,text):
     # Validate an upgraded file against the original guarded contexts too.
     grid_upgrades=GRID_EDITS.get(relative,[])
@@ -396,7 +427,7 @@ def patched(relative,text):
         for old,new,count in EDITS[relative]:
             if text.count(old)!=count:raise ValueError('Unsupported source context; no files written: '+relative)
             text=text.replace(old,new)
-    for marker,edits in ((SEARCH_VERSION,SEARCH_EDITS),(REST_VERSION,REST_EDITS),(COMMIT_VERSION,COMMIT_EDITS),(HEIGHT_VERSION,HEIGHT_EDITS)):
+    for marker,edits in ((SEARCH_VERSION,SEARCH_EDITS),(REST_VERSION,REST_EDITS),(COMMIT_VERSION,COMMIT_EDITS),(HEIGHT_VERSION,HEIGHT_EDITS),(START_VERSION,START_EDITS)):
         upgrades=edits.get(relative,[])
         if not upgrades:continue
         if all(text.count(new)==count for _,new,count in upgrades):continue
@@ -475,11 +506,11 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION,START_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==7:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION)):]
-    raise ValueError('Installed fsm_node needs complete bounded-search and height-query support; rebuild rog_map and super_planner before the rehearsal')
+                    if len(found)==8:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION),len(START_VERSION)):]
+    raise ValueError('Installed fsm_node needs complete bounded-search, height-query and continuous rest-start support; rebuild rog_map and super_planner before the rehearsal')
 
 
 def main():

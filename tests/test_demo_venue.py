@@ -131,8 +131,11 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode()+source_patch.START_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
+            binary.write_bytes(binary.read_bytes().replace(source_patch.START_VERSION.encode(),b''))
+            with self.assertRaisesRegex(ValueError,'complete bounded-search'):
+                source_patch.require_support(root)
 
 
     def test_previous_release_upgrades_header_map_and_commit_checks_reversibly(self):

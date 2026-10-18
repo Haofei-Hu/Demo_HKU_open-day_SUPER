@@ -101,6 +101,24 @@ class Tests(unittest.TestCase):
         self.assertTrue(self.sample(follower,next_msg,.1))
         self.assertEqual(len(follower.rest_handoffs),1)
 
+    def test_recorded_five_cm_snap_is_rejected_but_exact_rest_start_resumes(self):
+        # The rounded raw-coordinate delta from the third outbound failure.
+        snap_delta=np.array([-.0237,-.0488,.0036])
+        for relocated in (True,False):
+            follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
+            follower.add_plan(msg);self.sample(follower,msg,3.0018)
+            next_start=self.stop+snap_delta if relocated else self.stop
+            next_msg=stage_plan(next_start,self.goal,103.111194,2.1605)
+            follower.add_plan(next_msg)
+            if relocated:
+                with self.assertRaisesRegex(ValueError,'position step'):
+                    self.sample(follower,next_msg,.028)
+            else:
+                self.assertTrue(self.sample(follower,next_msg,.028))
+                self.assertLess(follower.rest_handoffs[-1]['seam_m'],1e-12)
+                for t in np.arange(.048,2.15,.02):
+                    self.assertTrue(self.sample(follower,next_msg,float(t)))
+
     def test_stationary_handoff_cannot_hide_a_larger_reanchor_or_moving_restart(self):
         for offset,moving in ((.041,False),(.02,True)):
             follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)

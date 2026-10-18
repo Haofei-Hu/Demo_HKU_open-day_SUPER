@@ -1,0 +1,51 @@
+{
+  "scope": "Software regression; no physical flight",
+  "marker": "VENUE_REST_START_V1",
+  "tests": {
+    "passed": 51,
+    "failed": 0,
+    "command": "python3 -m unittest test_demo_rest_start test_demo_rest_commit test_demo_venue test_demo_rest_handoff_ros test_demo_tracking_ros test_demo_test_release"
+  },
+  "recorded_reproduction": {
+    "raw_stop": [
+      4.1737,
+      -3.4012,
+      1.6464
+    ],
+    "old_snapped_start": [
+      4.15,
+      -3.45,
+      1.65
+    ],
+    "rounded_coordinate_jump_m": 0.05436993654585225,
+    "patched_start": "Unchanged measured position",
+    "scope": "Compiled original and replacement start-selection blocks plus ROS reference continuity regression"
+  },
+  "retained_checks": [
+    "Occupied/invalid/out-of-map/out-of-venue start rejection",
+    "Existing unknown-space policy downstream",
+    "Corridor and primary/backup trajectory checks",
+    "Controller position continuity",
+    "Existing speed and acceleration settings"
+  ],
+  "build": {
+    "packages": [
+      "rog_map",
+      "super_planner"
+    ],
+    "result": "SUCCESS",
+    "required_markers": 8,
+    "installed_binary_sha256": "fc4540d568d5798b2d565be012946d9561a074e006637e9fb5217443bbbb8a1f"
+  },
+  "replay": {
+    "result": "SUCCESS",
+    "completed_stages": 20,
+    "round_trips_completed": 5,
+    "return_hover_duration_s": 6.049911344998691,
+    "report": "continuous_rest_start_ground_mission_report.json",
+    "sha256": "0d1323e17408bb3c4221244ac023b042d2e71113352fc3ee9db87774da9d553b",
+    "scene": "Earlier captured aircraft branch-debug scene; not the new onboard failing scene",
+    "physical_flight_verified": false
+  },
+  "onboard_followup": "Install matching scripts, apply source patch, rebuild, and rerun the current scene; result pending"
+}
