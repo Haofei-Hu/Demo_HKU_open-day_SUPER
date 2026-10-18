@@ -9,7 +9,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='10e0bd9fd4ecdf0cf953f6e57667b188fbc4b0e5'
+demo_revision='463512df92d09a830ca40db1edd9ebb47b042328'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
