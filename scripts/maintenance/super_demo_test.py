@@ -22,6 +22,34 @@ from demo_mission import DemoMission
 from apply_super_venue_bounds import require_support as require_venue_support
 
 
+def run_ros_bootstrap(command):
+    """Forward terminal cancellation once, then let the runner save and clean up."""
+    process=subprocess.Popen(command,start_new_session=True)
+    interrupted=False;requested=None
+    previous={sig:signal.getsignal(sig) for sig in (signal.SIGHUP,signal.SIGTERM)}
+    def terminate(signum,frame):
+        nonlocal requested
+        if requested is None:
+            requested=signum
+            raise KeyboardInterrupt()
+    for sig in previous:signal.signal(sig,terminate)
+    try:
+        while True:
+            try:
+                code=process.wait()
+                return 128+requested if interrupted else code
+            except KeyboardInterrupt:
+                if not interrupted:
+                    interrupted=True
+                    requested=requested or signal.SIGINT
+                    reason='Ctrl+C' if requested==signal.SIGINT else signal.Signals(requested).name
+                    print(f'CANCEL: {reason} received; waiting for the run report and owned-process cleanup.',flush=True)
+                    try:os.killpg(process.pid,signal.SIGINT)
+                    except ProcessLookupError:pass
+    finally:
+        for sig,handler in previous.items():signal.signal(sig,handler)
+
+
 def planner_log_evidence(path):
     """Retain planner evidence without treating an optimizer error as its cause."""
     markers={
@@ -30,6 +58,8 @@ def planner_log_evidence(path):
         'backup_constraint_rejection':'Opt failed, Omg or thr or Pos violation',
         'goal_received':'Receive click goal',
         'missing_odometry':'[Fsm] No odom.',
+        'astar_time_limit':'seconds time limit exceeded',
+        'bounded_search_exhausted':'VENUE_SEARCH_COMPLETE_V1 exhausted:',
     }
     counts={name:0 for name in markers};tail=deque(maxlen=100)
     with path.open(errors='replace') as handle:
@@ -150,7 +180,9 @@ class DemoTest(GroundTest):
             self.report.update(result='SUCCESS',stage='complete',demonstration_completed=mission.demonstration)
             return 0
         except (Exception,KeyboardInterrupt) as exc:
-            self.report.update(result='FAIL',error=type(exc).__name__+': '+str(exc),failed_stage=self.report['stage'])
+            cancelled=isinstance(exc,KeyboardInterrupt)
+            error='Operator cancelled the ground rehearsal (Ctrl+C)' if cancelled else type(exc).__name__+': '+str(exc)
+            self.report.update(result='FAIL',error=error,failed_stage=self.report['stage'],cancelled_by_operator=cancelled)
             childpath=self.folder/'mission_report.json'
             if childpath.exists():
                 child=json.loads(childpath.read_text())
@@ -158,7 +190,8 @@ class DemoTest(GroundTest):
                 self.report['round_trips_completed']=child.get('round_trips_completed',0)
                 # Planner participation and mission completion are independent facts.
                 self.report['actual_SUPER_tested']=child.get('simulation_backend',{}).get('actual_SUPER_used') is True
-            print('ERROR:',self.report['error'],flush=True);return 1
+            print('CANCELLED:' if cancelled else 'ERROR:',self.report['error'],flush=True)
+            return 130 if cancelled else 1
         finally:
             if self.child is not None and self.child.poll() is None:
                 os.killpg(self.child.pid,signal.SIGINT)
@@ -191,8 +224,8 @@ def main():
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args();args.scripts_dir=args.scripts_dir.expanduser().resolve()
     if not args.ros_env:
-        return subprocess.run(['bash','--noprofile','--norc','-c',manager.source_prefix()+'exec '+
-            manager.shell_command([sys.executable,Path(__file__).resolve(),'--ros-env',*sys.argv[1:]])]).returncode
+        return run_ros_bootstrap(['bash','--noprofile','--norc','-c',manager.source_prefix()+'exec '+
+            manager.shell_command([sys.executable,Path(__file__).resolve(),'--ros-env',*sys.argv[1:]])])
     args.test_profile='forward-5m-2mps';args.max_alignment_spread_deg=2.
     runner=DemoTest(args)
     lockpath=Path.home()/'.local/state/super-session/automated_ground_test.lock';lockpath.parent.mkdir(parents=True,exist_ok=True)

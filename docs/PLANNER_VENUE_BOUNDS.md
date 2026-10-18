@@ -21,6 +21,14 @@ The source patch:
 
 Obstacle processing and backup optimization remain active. The controller continues to validate actual references and feedback; the planner constraint does not replace those checks. If the captured map admits no route or backup inside the box, planning can continue waiting for a valid result without a mission deadline. Such a wait is not a successful mission.
 
+## Complete the finite search instead of restarting at 100 ms
+
+Run `20261018_144849_141272` confirmed both the 4/2 motion marker and the venue marker, but stayed in `WAIT_PLAN`. Inflated-map search exhausted its reachable component after 1,071 iterations. The probability-map fallback repeatedly hit upstream's 0.1-second per-search cutoff, returned `TIME_OUT` and restarted. Waiting longer at mission level did not accumulate a longer individual search. This establishes repeated truncation; it does not establish whether the probability map contains a path.
+
+The current upgrade disables the original elapsed-time cutoffs only when explicit finite venue halfspaces are enabled: the point-to-point 0.1-second budget, its post-loop elapsed-time rejection and the escape-search 0.2-second budget. A search then ends on goal/horizon completion or exhaustion of the finite admissible grid. Profiles without venue halfspaces keep upstream behavior. Venue planes, cloud/occupancy, inflation, unknown-cell policy, robot radius, motion limits and backup optimization are unchanged.
+
+The upgrade also logs exhausted searches with map type, node count, elapsed time, start/goal coordinates and goal occupancy on both maps. A completed `NO_PATH` remains a distinct outcome from `TIME_OUT`; removing a deadline cannot create a route through obstacles. The mission holds while awaiting a verified trajectory, and Ctrl+C remains available. `venue_reference.json` records `search_policy.elapsed_time_limit_s=null`.
+
 ## Install once, then use normal startup
 
 Use the pinned installer in [reboot quick start](REBOOT_QUICK_START.md#install-or-update-the-matching-scripts). After finishing or interrupting a rehearsal, apply the backed-up source change on the grounded, disarmed aircraft computer:
@@ -31,7 +39,7 @@ python3 ~/Downloads/apply_super_venue_bounds.py
 
 Then rebuild `super_planner` as shown in the quick start. Only that package needs rebuilding; ROG-Map is unchanged. If the motion-acceptance patch has already been applied and compiled, it is retained. New installations apply both patches and compile once. Normal reboots need no patch or build step.
 
-The venue patch validates the five existing source files before writing and adds one helper header. It prints a `venue_bounds_backup_*` directory with originals and hashes. Repeating the command is idempotent; `--dry-run` shows the source diff. `--restore /absolute/path/to/venue_bounds_backup_...` restores only those edits and removes its added header, refusing to overwrite later changes. Rebuild after restoring and use a compatible runner version. The separate motion-acceptance patch is preserved by venue rollback.
+The venue patch validates the five existing source files before writing and adds one helper header. Upgrading an already deployed venue V1 installation changes only `astar.cpp` and `super_planner.cpp`; the plane helper and geometry are retained. It prints a `venue_bounds_backup_*` directory with originals and hashes. Repeating the command is idempotent; `--dry-run` shows the source diff. `--restore /absolute/path/to/venue_bounds_backup_...` restores only the files recorded in that backup and removes an added header only if that application created it, refusing to overwrite later changes. Rebuild after restoring and use a compatible runner version. The separate motion-acceptance patch is preserved by venue rollback.
 
 Before actual-stack preparation, the new forward runner checks both the patched source and the marker in the installed `fsm_node`. This avoids spending a full alignment/map preparation cycle with an uncompiled planner. A normal bounded rehearsal prints:
 
@@ -43,12 +51,15 @@ Its `planner_rehearsal.log` includes:
 
 ```text
 VENUE_BOUNDS_V1: search and corridors use six world-frame FC-centre halfspaces
+VENUE_SEARCH_COMPLETE_V1: finite venue search; no elapsed-time cutoff
 ```
 
 ## Scope and evidence
 
 This automatic boundary injection applies to the original forward and short-site **frozen-scene ground rehearsals in private domain 197**. The independent left experiment keeps its own pinned workflow. Physical preparation does not infer laboratory boundaries from a frozen scene; its existing surveyed-venue/controller checks remain. Automatic planner-side injection for a physical flight is not established by this release.
 
-All 135 focused checks passed. The [validation record](../data/software_checks_2026-10-18/planner_venue_bounds.json) distinguishes software tests from onboard execution. Compiled C++ checks exercise the actual patched A* admission predicate and all three complete upstream corridor-generator functions, covering all five success branches with map/decomposition test doubles. They reject the recorded out-of-box location and admit a curved route inside the box. Geometry tests compare the generated planes directly with the controller across rotated/tilted frames, a nonzero mounting lever, all six faces and random points. Full upstream-file apply, repeat, coexistence with the motion patch and byte-exact restore are verified separately.
+The initial venue release passed 135 focused checks; its [validation record](../data/software_checks_2026-10-18/planner_venue_bounds.json) distinguishes software tests from onboard execution. Compiled C++ checks exercise the actual patched A* admission predicate and all three complete upstream corridor-generator functions, covering all five success branches with map/decomposition test doubles. They reject the recorded out-of-box location and admit a curved route inside the box. Geometry tests compare the generated planes directly with the controller across rotated/tilted frames, a nonzero mounting lever, all six faces and random points. Full upstream-file apply, repeat, coexistence with the motion patch and byte-exact restore are verified separately. The subsequent search-completion and cancellation checks are recorded [separately](../data/software_checks_2026-10-18/bounded_search_completion.json).
+
+The follow-up release passed 140 focused checks plus a real ROS virtual-backend cancellation trial. The trial confirms exit 130, a finalized operator-cancel report and no remaining private-domain nodes; it does not run real SUPER or PX4. Source upgrade, idempotence and exact rollback were also checked against the pinned full upstream files.
 
 A new complete onboard real-SUPER rehearsal remains required after deployment. These checks do not establish physical tracking, obstacle clearance in an unsurveyed room, or aircraft flight completion.

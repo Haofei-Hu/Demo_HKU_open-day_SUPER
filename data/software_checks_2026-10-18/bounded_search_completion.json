@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-18",
+  "scope": "Bounded ground-rehearsal search and operator cancellation; no physical flight validation",
+  "observed_run": "20261018_144849_141272",
+  "observations": {
+    "phase": "WAIT_PLAN",
+    "inflated_search_exhausted_nodes": 1071,
+    "probability_search_time_limit_s": 0.1,
+    "probability_reachability": "Not established"
+  },
+  "change": {
+    "finite_venue_elapsed_cutoffs_removed_s": [
+      0.1,
+      0.2
+    ],
+    "unbounded_profiles_keep_upstream_cutoffs": true,
+    "geometry_and_motion_parameters_changed": false,
+    "collision_and_unknown_space_checks_retained": true
+  },
+  "tests": {
+    "count": 140,
+    "failures": 0,
+    "errors": 0,
+    "result": "PASS",
+    "compiled_cpp_timeout_guard_comparison": true
+  },
+  "source_validation": {
+    "upstream_revision": "2ad3419c127a617c6d7df6925e81a14175a9c096",
+    "deployed_v1_upgrade_files": {
+      "super_planner/src/super_core/astar.cpp": {
+        "before": "d65ff0f96e3e68ed8ca9d7a8ccb8ce037670092391fe1d6331c8d95b46736f68",
+        "after": "6c0389d30e10687c5d1166407aef05c44512aadb9c75b6017f73b2bf1a879207"
+      },
+      "super_planner/src/super_core/super_planner.cpp": {
+        "before": "cc81462b0660116e3eb9b28705578b7f9c39b1564e5c1ba2b2c3f229bc1c9167",
+        "after": "226bf8d8ec450c5ab28ee5f9de49ffc5bc20d4532306a38db96f72c89bd1d725"
+      }
+    },
+    "upgrade_idempotent": true,
+    "restore_exact_v1_bytes": true,
+    "geometry_header_changed": false,
+    "fresh_install_files": {
+      "super_planner/include/path_search/astar.h": {
+        "before_sha256": "3e22b1d04f6149f18cac809c119bfb2d67e849a0d52f2902c6b94b0b50085679",
+        "after_sha256": "4356cb5d96d957d7f8b53ee9cdeeb473e22e2bc9e545beb4951d0f8af8a1b30d"
+      },
+      "super_planner/src/super_core/astar.cpp": {
+        "before_sha256": "7e69c7ff12cc342276b0a06b253a3a7500e28be057931af9477d121d17121b55",
+        "after_sha256": "6c0389d30e10687c5d1166407aef05c44512aadb9c75b6017f73b2bf1a879207"
+      },
+      "super_planner/include/super_core/corridor_generator.h": {
+        "before_sha256": "30e2fe95053aecbd0cd4853e8656ebef65b3ca6d3b1b8c0bb4317d220cad5954",
+        "after_sha256": "dc471455b0019459d3b1e7ced6e1a5fdface4603e966baa5fc4ce5ae3d974e11"
+      },
+      "super_planner/src/super_core/corridor_generator.cpp": {
+        "before_sha256": "054c486ff22ec6a57fdb5d7e544428f2dba16be8dd18b25cc860749209a0e04c",
+        "after_sha256": "64907478681e13e9a380816e90ff662a9f755a4a97230d63c73b866a1bc39ba5"
+      },
+      "super_planner/src/super_core/super_planner.cpp": {
+        "before_sha256": "22e0c6d6f4fa220abeaf811a42b3e4a117d0fd81037bd0ca3f8feff75c144cb1",
+        "after_sha256": "226bf8d8ec450c5ab28ee5f9de49ffc5bc20d4532306a38db96f72c89bd1d725"
+      }
+    },
+    "fresh_install_and_restore_exact": true,
+    "motion_patch_preserved": true
+  },
+  "ros_cancellation_trial": {
+    "scope": "Real ROS virtual-backend cancellation only; no real SUPER/PX4/aircraft",
+    "result": "PASS",
+    "exit_code": 130,
+    "report_result": "FAIL",
+    "cancelled_by_operator": true,
+    "report_finalized": true,
+    "outer_traceback": false,
+    "leftover_private_domain_nodes": []
+  },
+  "not_validated": [
+    "Full onboard SUPER build after this update",
+    "Complete search on the recorded frozen map",
+    "Complete onboard rehearsal after this update",
+    "Physical flight"
+  ]
+}

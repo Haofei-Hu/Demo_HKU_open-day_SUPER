@@ -13,6 +13,7 @@ import shutil
 import tempfile
 
 VERSION='VENUE_BOUNDS_V1'
+SEARCH_VERSION='VENUE_SEARCH_COMPLETE_V1'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
 ASTAR='super_planner/src/super_core/astar.cpp'
@@ -124,15 +125,49 @@ EDITS={
     ],
 }
 
+# Upgrade the deployed V1 venue patch without changing geometry or the motion
+# patch. Only searches with an explicit finite venue lose upstream time cutoffs.
+SEARCH_EDITS={
+    ASTAR:[
+        ('if (!cfg_.visual_process && (time_2 - time_1) > time_out)',
+         'if (!demo_venue_.enabled() && !cfg_.visual_process && (time_2 - time_1) > time_out)',1),
+        ('if ((time_2 - time_1) > time_out)',
+         'if (!demo_venue_.enabled() && (time_2 - time_1) > time_out)',1),
+        ('if (!cfg_.visual_process && (time_2 - time_1) > 0.2)',
+         'if (!demo_venue_.enabled() && !cfg_.visual_process && (time_2 - time_1) > 0.2)',1),
+        ('        ros_ptr_->error(" -- [A*] Point to point path cannot find path with iter num: {}, return.", num_iter);',
+         '        if (demo_venue_.enabled()) {\n'
+         '            ros_ptr_->warn(" -- [A*] VENUE_SEARCH_COMPLETE_V1 exhausted: map={} nodes={} elapsed_s={} start={} goal={} goal_occupied_raw={} goal_occupied_inflated={}",\n'
+         '                md_.use_inf_map ? "inflated" : "probability", num_iter, time_2-time_1,\n'
+         '                local_start_pt.transpose(), local_end_pt.transpose(),\n'
+         '                map_ptr_->getGridType(local_end_pt)==OCCUPIED, map_ptr_->getInfGridType(local_end_pt)==OCCUPIED);\n'
+         '        }\n'
+         '        ros_ptr_->error(" -- [A*] Point to point path cannot find path with iter num: {}, return.", num_iter);',1),
+    ],
+    PLANNER:[
+        ('        cg_ptr_->setDemoVenue(demo_venue);',
+         '        cg_ptr_->setDemoVenue(demo_venue);\n'
+         '        if (demo_venue.enabled()) ros_ptr_->info("VENUE_SEARCH_COMPLETE_V1: finite venue search; no elapsed-time cutoff");',1),
+    ],
+}
+
 
 def patched(relative,text):
     if VERSION in text:
         if not all(text.count(new)==count for _,new,count in EDITS[relative]):
             raise ValueError('Incomplete or modified venue patch: '+relative)
-        return text
-    for old,new,count in EDITS[relative]:
-        if text.count(old)!=count:raise ValueError('Unsupported source context; no files written: '+relative)
-        text=text.replace(old,new)
+    else:
+        for old,new,count in EDITS[relative]:
+            if text.count(old)!=count:raise ValueError('Unsupported source context; no files written: '+relative)
+            text=text.replace(old,new)
+    upgrades=SEARCH_EDITS.get(relative,[])
+    if upgrades:
+        if all(text.count(new)==count for _,new,count in upgrades):return text
+        if SEARCH_VERSION in text:
+            raise ValueError('Partial bounded-search upgrade; no files written: '+relative)
+        if not all(text.count(old)==count for old,_,count in upgrades):
+            raise ValueError('Unsupported/partial bounded-search upgrade; no files written: '+relative)
+        for old,new,_ in upgrades:text=text.replace(old,new)
     return text
 
 
@@ -198,11 +233,13 @@ def require_support(root):
         if path.is_file():
             with path.open('rb') as handle:
                 if handle.read(4)!=b'\x7fELF':continue
-                handle.seek(0);previous=b''
+                handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    if VERSION.encode() in previous+chunk:return path
-                    previous=chunk[-len(VERSION):]
-    raise ValueError('Installed fsm_node has no venue support; rebuild super_planner before the rehearsal')
+                    for marker in (VERSION,SEARCH_VERSION):
+                        if marker.encode() in previous+chunk:found.add(marker)
+                    if len(found)==2:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION)):]
+    raise ValueError('Installed fsm_node needs complete bounded-search support; rebuild super_planner before the rehearsal')
 
 
 def main():

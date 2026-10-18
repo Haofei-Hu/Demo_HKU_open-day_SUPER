@@ -112,6 +112,8 @@ Both planned positions/stage endpoints and measured vehicle positions are checke
 
 The forward ground rehearsal now also passes the same vehicle-centre box to A* search and every corridor-generation branch. This prevents the previous mismatch in which SUPER could plan outside the box and only then encounter the controller boundary check. It writes `venue_reference.json` and a separate per-run profile, preserving the captured cloud and existing geometry. It adds no boundary inset or mission deadline. [Planner-side venue injection](PLANNER_VENUE_BOUNDS.md) is currently scoped to the frozen-scene ground rehearsal; it is not a new physical-flight clearance measurement.
 
+Finite-venue A* searches also run to goal/horizon completion or grid exhaustion, with no inherited 0.1/0.2-second elapsed-time cutoff. The upgraded planner logs `VENUE_SEARCH_COMPLETE_V1` at startup and detailed evidence when a search exhausts. Update the scripts, rerun the same venue patch command and rebuild once to upgrade an existing venue V1 installation; only two additional C++ files change. Profiles without venue halfspaces retain upstream search budgets. A full search can still return `NO_PATH` for the captured obstacles.
+
 ## Read the result and retain the report
 
 Wait for the foreground runner to finish. It prints `RESULT: SUCCESS` or `RESULT: FAIL` and the exact `REPORT:` path. Success requires the entire rehearsal, including the return, six-second hold and confirmed landing. It does not establish physical flight completion. Do not replace a failed result with a successful preparation stage.
@@ -136,6 +138,8 @@ PY
 ```
 
 `RUNNING` is unfinished, including when a process was interrupted before it could finalize its report. On failure, retain the printed report and adjacent logs. The runner does not automatically retry, rebase or turn a partial mission into success. The latest cloud stress trial stopped on an approximately 0.5-second setpoint timer gap; its cause and recurrence on the aircraft computer remain unverified. See [validation evidence](../data/software_checks_2026-10-16/flight_motion_policy.json).
+
+Ctrl+C is forwarded once by the outer startup wrapper to its owned runner. It waits for report finalization and owned-process cleanup instead of printing the outer `subprocess.wait` traceback. An operator-cancelled run remains incomplete: `RESULT: FAIL`, `cancelled_by_operator=true`, an explicit cancellation error and exit status 130. It is not reported as successful completion. Repeated Ctrl+C during cleanup does not send repeated interrupts into the runner's finalization.
 
 ## Inspect or stop the background stack
 

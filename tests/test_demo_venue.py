@@ -97,6 +97,8 @@ class Tests(unittest.TestCase):
             self.assertEqual(source.read_bytes(),before)
             self.assertEqual(record['planner_profile_sha256'],hashlib.sha256(result.read_bytes()).hexdigest())
             self.assertFalse(record['captured_cloud_changed'])
+            self.assertIsNone(record['search_policy']['elapsed_time_limit_s'])
+            self.assertTrue(record['search_policy']['obstacle_checks_retained'])
 
     def test_guarded_patch_is_idempotent_and_restores_original_and_added_header(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -128,7 +130,56 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'rebuild'):source_patch.require_support(root)
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
+            with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
+
+    def test_deployed_venue_v1_upgrade_changes_only_search_and_planner_startup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source_tree(root)
+            for name,edits in source_patch.EDITS.items():
+                path=root/name;text=path.read_text()
+                for old,new,count in edits:
+                    self.assertEqual(text.count(old),count);text=text.replace(old,new)
+                path.write_text(text)
+            (root/source_patch.HEADER).write_text(source_patch.HEADER_TEXT)
+            before={name:(root/name).read_bytes() for name in [*source_patch.EDITS,source_patch.HEADER]}
+            backup=source_patch.apply(root)
+            changed=json.loads((backup/'record.json').read_text())['files']
+            self.assertEqual(set(changed),{source_patch.ASTAR,source_patch.PLANNER})
+            self.assertEqual((root/source_patch.HEADER).read_bytes(),before[source_patch.HEADER])
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            for name,data in before.items():self.assertEqual((root/name).read_bytes(),data)
+
+    def test_search_budget_guards_compile_and_preserve_profiles_without_venue(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            code='''#include <cassert>
+struct Venue {bool active;bool enabled() const{return active;}};
+'''
+            for index,(old,new,_) in enumerate(source_patch.SEARCH_EDITS[source_patch.ASTAR][:3]):
+                for label,condition in (('old',old),('new',new)):
+                    code+=f'''bool {label}{index}(bool active,double elapsed,bool visual=false) {{
+Venue demo_venue_{{active}};struct {{bool visual_process;}} cfg_{{visual}};
+double time_1=0,time_2=elapsed,time_out=.1;
+{condition} return true;
+return false;
+}}
+'''
+            code+='int main() {\n'
+            for index in range(3):
+                code+=f'''assert(old{index}(true,.35));
+assert(!new{index}(true,.35));
+assert(new{index}(false,.35));
+assert(!new{index}(false,.01));
+'''
+            code+='}\n'
+            path=root/'guard.cpp';path.write_text(code)
+            result=subprocess.run(['g++','-std=c++17',str(path),'-o',str(root/'guard')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([str(root/'guard')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_compiled_search_predicate_and_corridor_intersection(self):
         with tempfile.TemporaryDirectory() as folder:

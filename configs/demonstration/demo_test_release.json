@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "ead95a56ec7e3acd1a2ea9e20d6753ae2ad6dcf089f852c535ad38f11f0c8476"
+      "sha256": "826ae5909130ec4ed221f37020acd64e8949bb7c941e9f97a4e3aefaac7d5e1d"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -96,11 +96,11 @@
     },
     "apply_super_venue_bounds.py": {
       "path": "scripts/maintenance/apply_super_venue_bounds.py",
-      "sha256": "90ea89100caf8805a6ccd872b010c6c85adcdde3cf44e83ebbe1ffb9d19584ae"
+      "sha256": "872c720dd732c7c7b002274652b1bff63d8e4dc9d734ecb90cf9e41ec94b8af0"
     },
     "demo_venue.py": {
       "path": "scripts/simulation/demo_venue.py",
-      "sha256": "f00a75a4e387e2c3bf96ef5a56f158fe25a4e7cd0b2870d312d049877e467027"
+      "sha256": "9a108e64dbe3a8aa882a96c79c8a887caa978a1a2a2adc6b80c9e9896d809a5f"
     }
   }
 }

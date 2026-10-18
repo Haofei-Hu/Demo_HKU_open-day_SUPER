@@ -7,3 +7,11 @@
         posToGlobalIndex(local_start_pt, start_idx);
 
         GridNodePtr startPtr
+/* next upstream context */
+if (!cfg_.visual_process && (time_2 - time_1) > time_out)
+/* next upstream context */
+if ((time_2 - time_1) > time_out)
+/* next upstream context */
+if (!cfg_.visual_process && (time_2 - time_1) > 0.2)
+/* next upstream context */
+        ros_ptr_->error(" -- [A*] Point to point path cannot find path with iter num: {}, return.", num_iter);
