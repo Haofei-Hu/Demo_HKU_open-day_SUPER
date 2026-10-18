@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `3d0d96f7083a86af372e473c425fbce4d73952bc`.
+Matching release: `93555c73ee227eda441a2ccc8f4b59cbed6d47c3`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='3d0d96f7083a86af372e473c425fbce4d73952bc'
+demo_revision='93555c73ee227eda441a2ccc8f4b59cbed6d47c3'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -23,7 +23,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-This release includes a C++ correction for continuous starts after stationary replanning. **Apply the venue patch and rebuild once after updating**, even if an earlier venue patch is already installed:
+This release includes C++ corrections for continuous stationary starts and consistent map-height bounds. **Apply the venue patch and rebuild once after updating**, even if an earlier venue patch is already installed:
 
 ```bash
 (
@@ -140,6 +140,7 @@ python3 ~/Downloads/super_session.py stop
 | `set_parameters response` timeout | The manager reads back `EKF2_EV_CTRL` and continues only if the requested value is confirmed; it does not replay the write |
 | `mavros: EXITED` and grounded-state timeout during stop | Inspect the MAVROS log; an exited bridge cannot supply state. Use the [restricted core-only recovery procedure](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session) |
 | `std::future_error: Promise already satisfied` | Observed MAVROS crash with no confirmed permanent root-cause fix |
+| `Odom above virtual ceil` followed by an occupied rest start | Confirm the rebuilt planner logs `VENUE_MAP_HEIGHT_V1`. Search, all corridors and complete candidate trajectories must share the initialized map-height bounds; do not enlarge the ceiling to hide a violation |
 | `position step` after a stationary replan | Confirm the rebuilt planner logs `VENUE_REST_START_V1`. It retains the measured start instead of relocating it to a grid centre; controller continuity checks remain active |
 | Persistent `WAIT_PLAN` | No executable trajectory yet; inspect this run's `planner_rehearsal.log` for path-search, corridor, or optimization failures |
 

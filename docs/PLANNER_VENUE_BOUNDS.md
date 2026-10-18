@@ -150,4 +150,33 @@ For profiles with explicit demonstration venue halfspaces, the patch retains `ro
 
 Profiles without venue halfspaces retain their original start-selection behavior. No speed, acceleration, obstacle inflation, controller continuity tolerance, or in-motion replanning budget changes. The earlier `VENUE_REST_COMMIT_V1` still governs the commit time of a from-rest plan; the new marker governs its initial position.
 
-The complete installer supplies the updated patcher. Apply it and rebuild `rog_map` and `super_planner` once, following the [installation procedure](REBOOT_QUICK_START.md#install-or-update-the-matching-scripts). The source patch is backed up, reversible, and idempotent. Startup now requires all eight venue-support markers in the installed executable, including `VENUE_REST_START_V1`; updating Python alone cannot enable this correction in an older binary.
+The complete installer supplies the updated patcher. Apply it and rebuild `rog_map` and `super_planner` once, following the [installation procedure](REBOOT_QUICK_START.md#install-or-update-the-matching-scripts). The source patch is backed up, reversible, and idempotent. That release required all eight venue-support markers in the installed executable, including `VENUE_REST_START_V1`; updating Python alone cannot enable this correction in an older binary.
+
+## Effective map height and candidate trajectories
+
+`VENUE_MAP_HEIGHT_V1` intersects the six transformed venue planes with the
+initialized ROGMap floor and ceiling. It uses the runtime map configuration,
+including inflation and grid quantization, rather than the unprocessed YAML
+values. Search, ordinary and empty fallback corridors, and the full primary and
+backup polynomial checks all receive this same intersection. Existing obstacle
+checks still apply.
+
+The uploaded run `20261018_222714_088769` stalled on its third return after ROGMap
+reported odometry above its virtual ceiling. Replaying that exact captured map
+with the preceding release reproduced the third-return hold: raw odometry Z was
+`-11.796818400889041 m`, while the initialized probability map ceiling was
+`-11.8 m`. A 3.18 mm violation made the subsequent rest start occupied. The point
+was still inside the tilted venue, so the previous venue-only polynomial check
+could admit it. Empty fallback corridors also lacked the map-height intersection.
+
+The correction prevents publication of that candidate; it does not relocate the
+vehicle or enlarge the map. Because map queries classify equality as occupied,
+the height planes have a 1 micrometre numerical interior guard. This is separate
+from mission tolerances and is not an additional aircraft-size deduction. The
+configured map heights, captured cloud, hull, optimization targets, motion
+acceptance and waiting policies remain unchanged. A failed candidate retains the
+previous verified command and replans through the existing mechanism.
+
+Apply the updated source patch and rebuild both packages. The executable check
+now requires nine markers, including `VENUE_MAP_HEIGHT_V1`. An eight-marker
+binary must be rebuilt even if all Python scripts are current.

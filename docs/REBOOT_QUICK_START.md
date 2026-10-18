@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='3d0d96f7083a86af372e473c425fbce4d73952bc'
+demo_revision='93555c73ee227eda441a2ccc8f4b59cbed6d47c3'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
@@ -44,7 +44,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
-The current patch preserves the measured continuous initial position in venue-enabled `PlanFromRest` (`VENUE_REST_START_V1`), eliminating grid-centre relocation at a stationary restart. It rejects occupied, invalid, or out-of-map/venue starts and retains downstream obstacle and trajectory checks. Apply the patch and rebuild once even when the previous seven venue markers are already installed.
+The current patch preserves the measured continuous initial position in venue-enabled `PlanFromRest` (`VENUE_REST_START_V1`), eliminating grid-centre relocation at a stationary restart. It rejects occupied, invalid, or out-of-map/venue starts and retains downstream obstacle and trajectory checks. It also intersects all planner checks with the initialized map-height interval (`VENUE_MAP_HEIGHT_V1`). Apply the patch and rebuild once even when the previous eight venue markers are already installed.
 
 The patch also joins valid continuous endpoints to admissible neighbouring search cells (`VENUE_GRID_ANCHOR_V1`). This prevents a near-boundary rest point from being rejected solely because its nearest grid centre lies outside the rotated venue. The short connector must pass the existing map/unknown checks. A failed search initialization retains an unfinished in-venue goal instead of silently returning to `WAIT_GOAL`. No boundary tolerance, inset or mission deadline is added. The patch retains the duplicate virtual floor/ceiling inflation fixes (`VIRTUAL_HEIGHT_QUERY_V1` / `VIRTUAL_HEIGHT_CORRIDOR_V1`), candidate polynomial checks (`VENUE_CANDIDATE_CHECK_V1`) and from-rest commit fix. Rebuild both packages when upgrading an older release; map code is statically linked into the planner.
 
@@ -243,7 +243,7 @@ python3 ~/Downloads/super_demo.py \
   --motion-policy observe
 ```
 
-This starts a new stack, captures a fresh quaternion and prepares the real planner/controller. It writes `venue_reference.json` in the managed session log directory and a separate live venue planner YAML. The six planes use the supplied aircraft extents and surveyed wall offsets, the captured FC ground position/yaw and the paired localization origin. The controller reads this same record, verifies the source identities, file hashes and running SUPER `config_name`, and retains the captured anchor at READY. It changes no source YAML, cloud, speed target, acceptance bound or mission deadline. Existing compiled venue support is required; this Python integration needs no additional C++ rebuild if all eight current markers, including `VENUE_REST_START_V1`, are already installed. `PREPARATION: READY; MISSION: NOT RUN (check-only)` means preparation passed; the check-only controller then exits. Reports are saved under `~/Downloads/super_demo_reports/<timestamp>/`. This entrypoint requires actual mission geometry even in check-only mode.
+This starts a new stack, captures a fresh quaternion and prepares the real planner/controller. It writes `venue_reference.json` in the managed session log directory and a separate live venue planner YAML. The six planes use the supplied aircraft extents and surveyed wall offsets, the captured FC ground position/yaw and the paired localization origin. The controller reads this same record, verifies the source identities, file hashes and running SUPER `config_name`, and retains the captured anchor at READY. It changes no source YAML, cloud, speed target, acceptance bound or mission deadline. Existing compiled venue support is required; this Python integration needs no additional C++ rebuild if all nine current markers, including `VENUE_MAP_HEIGHT_V1`, are already installed. `PREPARATION: READY; MISSION: NOT RUN (check-only)` means preparation passed; the check-only controller then exits. Reports are saved under `~/Downloads/super_demo_reports/<timestamp>/`. This entrypoint requires actual mission geometry even in check-only mode.
 
 For a supervised physical trial after prerequisites and clearance have been confirmed, run the separate execution entry in terminal A:
 
