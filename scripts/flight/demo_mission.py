@@ -30,7 +30,12 @@ class DemoMission:
         if isinstance(self.round_trips,bool) or not isinstance(self.round_trips,int) or self.round_trips<1:
             raise ValueError('Round trips must be a positive integer')
         self.outbound_stage=outbound
-        stages=['TAKEOFF_TO_0_5M' if self.rehearsal_only else 'TAKEOFF_TO_1_5M','STABILIZE_AT_HOME']
+        height=f.get('height_fc_above_floor_m')
+        allowed_heights=(.5,) if self.rehearsal_only else (1.5,1.8)
+        if isinstance(height,bool) or height not in allowed_heights:
+            raise ValueError('Final demonstration settings differ: unsupported height')
+        takeoff_stage='TAKEOFF_TO_'+str(height).replace('.','_')+'M'
+        stages=[takeoff_stage,'STABILIZE_AT_HOME']
         for number in range(1,self.round_trips+1):
             stages.extend(self.round_stage(stage,number) for stage in
                           (outbound,'STABILIZE_AT_FAR_POINT','SUPER_RETURN_HOME'))
@@ -38,7 +43,7 @@ class DemoMission:
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
         fixed={'length_forward_m':venue_length,'width_left_m':2.8,'height_m':2.8}
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
-        expected={'height_fc_above_floor_m':.5 if self.rehearsal_only else 1.5,'outbound_forward_m':self.distance,
+        expected={'height_fc_above_floor_m':height,'outbound_forward_m':self.distance,
                   'horizontal_speed_limit_mps':self.MOTION_LIMITS[0],'acceleration_limit_mps2':self.MOTION_LIMITS[1],
                   'return_hover_s':6.,'axis_error_limit_m':.1}
         if any(f.get(k)!=n for k,n in expected.items()):raise ValueError('Final demonstration settings differ')
@@ -69,6 +74,17 @@ class DemoMission:
     @classmethod
     def load(cls,path):
         return cls(json.loads(Path(path).read_text()))
+
+    @classmethod
+    def physical_height(cls,config,height):
+        """Create a validated flight copy; retain the surveyed geometry and route."""
+        if config.get('execution_context') is not None or 'SYNTHETIC' in str(config.get('status','')).upper():
+            raise ValueError('Physical height override requires a measured physical mission')
+        result=deepcopy(config)
+        result['flight']['height_fc_above_floor_m']=height
+        mission=cls(result)
+        result['sequence']=list(mission.PHASES)
+        return result
 
     @staticmethod
     def ground_rehearsal(config):
@@ -113,7 +129,7 @@ class DemoMission:
 class MissionReport:
     def __init__(self,path,mission,mode):
         if mission.rehearsal_only and mode!='simulation':
-            raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
+            raise ValueError('Ground rehearsal height is for virtual execution only; use a measured physical mission')
         self.path=Path(path)
         self.phases=mission.PHASES
         self.demonstration=mission.demonstration

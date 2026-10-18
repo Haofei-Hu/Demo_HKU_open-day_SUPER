@@ -36,6 +36,8 @@ class DemoPreparation(GroundTest):
 def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mission-file',type=Path,required=True)
+    p.add_argument('--flight-height',type=float,choices=(1.5,1.8),
+                   help='FC-centre height above floor; saves a per-run mission copy without editing the survey')
     p.add_argument('--scripts-dir',type=Path,default=Path.home()/'Downloads')
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
@@ -64,9 +66,17 @@ def main():
             runner.report.update(result='FAIL',error='Another automatic task owns the stack')
             write_report(runner.path,runner.report);print('RESULT: FAIL\nREPORT:',runner.path);return 1
         try:
+            if args.flight_height is not None:
+                source=args.mission_file.expanduser().resolve()
+                config=DemoMission.physical_height(json.loads(source.read_text()),args.flight_height)
+                args.mission_file=runner.folder/'flight_mission.json'
+                args.mission_file.write_text(json.dumps(config,indent=2)+'\n')
+                runner.report.update(source_mission=str(source),effective_mission=str(args.mission_file),
+                                     requested_fc_floor_height_m=args.flight_height)
+                print('FLIGHT MISSION:',args.mission_file,flush=True)
             mission=DemoMission.load(args.mission_file)
             if mission.rehearsal_only:
-                raise ValueError('Physical preparation requires the 1.5 m mission, not a frozen ground rehearsal')
+                raise ValueError('Physical preparation requires a measured physical mission, not a frozen ground rehearsal')
             if args.execute and not args.on_site_supervised:
                 raise ValueError('Explicit on-site supervision is required for flight execution')
             for name in ('super_demo_control.py','demo_mission.py','create_live_venue_profile.py',

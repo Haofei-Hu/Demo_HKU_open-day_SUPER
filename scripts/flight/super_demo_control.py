@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One complete venue-bounded demonstration; check-only unless explicitly enabled.
 
-    0.5 m virtual / 1.5 m physical takeoff -> SUPER outbound/return -> 6 s hold -> LAND
+    0.5 m virtual / 1.5 or 1.8 m physical takeoff -> SUPER outbound/return -> 6 s hold -> LAND
 
 No parameter writes. Execution also requires an explicit start service, current
 RC/POSCTL and the on-site-supervision flag. Reports distinguish simulation.
@@ -152,7 +152,7 @@ class DemoMissionControl(SuperFlightControl):
             raise ValueError('Synthetic test geometry cannot enable a physical flight')
         self.mission=mission_class(config)
         if self.mission.rehearsal_only and not simulation:
-            raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
+            raise ValueError('Ground rehearsal height is for virtual execution only; use a measured physical mission')
         self.live_venue=None
         if not simulation:
             from live_venue import LiveVenue

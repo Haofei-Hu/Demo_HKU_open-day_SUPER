@@ -60,6 +60,40 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'virtual execution only'):
                 MissionReport(Path(directory)/'flight.json',mission,'flight')
 
+    def test_physical_1_8m_copy_retains_route_survey_and_ground_height(self):
+        original=fixture();original['flight']['round_trips']=5
+        before=deepcopy(original)
+        config=DemoMission.physical_height(original,1.8)
+        mission=DemoMission(config)
+        self.assertEqual(original,before)
+        self.assertEqual(config['vehicle'],original['vehicle'])
+        self.assertEqual(config['takeoff'],original['takeoff'])
+        self.assertEqual(mission.waypoints()['home_hover'],[0.,0.,1.8])
+        self.assertEqual(mission.waypoints()['far_hover'],[4.5,0.,1.8])
+        self.assertEqual(config['sequence'][0],'TAKEOFF_TO_1_8M')
+        self.assertEqual(len(mission.PHASES),20)
+        self.assertEqual(DemoMission(DemoMission.ground_rehearsal(config)).hover_height,.5)
+        with tempfile.TemporaryDirectory() as folder:
+            report=MissionReport(Path(folder)/'report.json',mission,'simulation')
+            for stage in mission.PHASES:report.completed(stage)
+            report.finish()
+            self.assertEqual(report.data['requested_fc_floor_height_m'],1.8)
+            self.assertEqual(report.data['round_trips_completed'],5)
+            self.assertFalse(report.data['physical_flight_verified'])
+
+    def test_physical_height_copy_rejects_fixture_missing_survey_and_ceiling_violation(self):
+        for config in (DemoMission.ground_rehearsal(fixture()),
+                       dict(fixture(),status='SYNTHETIC_FIXTURE')):
+            with self.assertRaisesRegex(ValueError,'measured physical'):
+                DemoMission.physical_height(config,1.8)
+        config=fixture();config['takeoff']['distance_from_left_m']=None
+        with self.assertRaisesRegex(ValueError,'measured geometry'):
+            DemoMission.physical_height(config,1.8)
+        config=fixture();config['vehicle']['centre_to_top_m']=1.01
+        DemoMission(config)  # Fits at 1.5 m, but not at 1.8 m.
+        with self.assertRaisesRegex(ValueError,'outside venue'):
+            DemoMission.physical_height(config,1.8)
+
     def test_lower_height_requires_explicit_rehearsal_context(self):
         config=fixture();config['flight']['height_fc_above_floor_m']=.5
         with self.assertRaisesRegex(ValueError,'settings differ'):DemoMission(config)

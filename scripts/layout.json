@@ -18,6 +18,7 @@
   "create_flight_pose_transport.py": "scripts/maintenance/create_flight_pose_transport.py",
   "create_ground_height_fusion_transport.py": "scripts/maintenance/create_ground_height_fusion_transport.py",
   "create_ground_xy_fusion_transport.py": "scripts/maintenance/create_ground_xy_fusion_transport.py",
+  "create_live_venue_profile.py": "scripts/maintenance/create_live_venue_profile.py",
   "create_session_map_profile.py": "scripts/maintenance/create_session_map_profile.py",
   "create_super_3d_goal_profile.py": "scripts/maintenance/create_super_3d_goal_profile.py",
   "create_super_ground_diagnostic.py": "scripts/maintenance/create_super_ground_diagnostic.py",
@@ -44,6 +45,7 @@
   "install_left_rehearsal.py": "scripts/maintenance/install_left_rehearsal.py",
   "left_demo_control.py": "scripts/simulation/left_demo_control.py",
   "left_rehearsal.py": "scripts/simulation/left_rehearsal.py",
+  "live_venue.py": "scripts/planning/live_venue.py",
   "odom_age_check.py": "odom_age_check.py",
   "qgc_startup.py": "scripts/maintenance/qgc_startup.py",
   "raw_pose_cov_transport.py": "scripts/localization/raw_pose_cov_transport.py",
@@ -58,5 +60,6 @@
   "super_ground_test.py": "scripts/maintenance/super_ground_test.py",
   "super_left_test.py": "scripts/maintenance/super_left_test.py",
   "super_session.py": "scripts/maintenance/super_session.py",
-  "update_preview_alignment.py": "update_preview_alignment.py"
+  "update_preview_alignment.py": "update_preview_alignment.py",
+  "venue_geometry.py": "scripts/planning/venue_geometry.py"
 }

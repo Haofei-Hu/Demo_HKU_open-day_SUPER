@@ -129,12 +129,27 @@ class Tests(unittest.TestCase):
         self.assertEqual(arguments(required+['--motion-policy','strict']).motion_policy,'strict')
 
     def test_physical_entry_accepts_observation_without_initiating_flight(self):
+        self.physical_entry(1.5)
+
+    def test_physical_1_8m_entry_preserves_start_gate_and_motion_policy(self):
+        self.physical_entry(1.8)
+
+    def test_preparation_height_option_does_not_enable_execution(self):
+        from super_demo import arguments as preparation_arguments
+        args=preparation_arguments(['--mission-file','measured.json','--flight-height','1.8'])
+        self.assertEqual(args.flight_height,1.8)
+        self.assertFalse(args.execute)
+        self.assertFalse(args.on_site_supervised)
+
+    def physical_entry(self,height):
         import rclpy
         from std_srvs.srv import Trigger
         from test_demo_mission import fixture
         with tempfile.TemporaryDirectory() as folder:
             folder=Path(folder);mission=folder/'mission.json';config=fixture()
-            config['flight']['round_trips']=5;mission.write_text(json.dumps(config))
+            config['flight']['round_trips']=5
+            from demo_mission import DemoMission
+            config=DemoMission.physical_height(config,height);mission.write_text(json.dumps(config))
             alignment=folder/'alignment.py';alignment.write_text('def convert(p,q,c):\n return p,q,c\n')
             planner=folder/'planner.json';planner.write_text(json.dumps(dict(super_planner={},
                 fsm=dict(click_height=-6.,click_goal_topic='/goal_pose',click_goal_en=True,cmd_topic='/planning/pos_cmd'),
@@ -146,8 +161,8 @@ class Tests(unittest.TestCase):
                 node=DemoMissionControl(mission,folder/'report.json',execute=True,on_site_supervised=True,
                     alignment_path=alignment,planner_config=planner,motion_policy='observe',venue_reference=record)
                 self.assertEqual(node.motion_policy,'observe')
-                self.assertEqual(node.mission.hover_height,1.5)
-                self.assertEqual(node.hover_fc_height,1.5)
+                self.assertEqual(node.mission.hover_height,height)
+                self.assertEqual(node.hover_fc_height,height)
                 self.assertEqual(node.mission.round_trips,5)
                 self.assertEqual(node.offboard_budget,float('inf'))
                 self.assertEqual(node.mission_report.data['execution_limits'],
