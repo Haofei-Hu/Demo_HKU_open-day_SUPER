@@ -36,8 +36,8 @@ class DemoPreparation(GroundTest):
 def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mission-file',type=Path,required=True)
-    p.add_argument('--flight-height',type=float,choices=(1.5,1.8),
-                   help='FC-centre height above floor; saves a per-run mission copy without editing the survey')
+    p.add_argument('--flight-height',type=float,choices=(1.5,1.8),default=1.5,
+                   help='FC-centre height above floor (default: 1.5 m); saves a per-run mission copy without editing the survey')
     p.add_argument('--scripts-dir',type=Path,default=Path.home()/'Downloads')
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')

@@ -7,7 +7,7 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "55269dac4f9fbcc9543ffec2adcbfad4883dcbcdcfae508c65057c9230078095"
+      "sha256": "b5df98d3fe5c31d3ce88c471b1d7cf66ebf81215caefaec3aaea5fb3666f7629"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",

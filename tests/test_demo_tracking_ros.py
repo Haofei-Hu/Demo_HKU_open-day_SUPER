@@ -136,6 +136,9 @@ class Tests(unittest.TestCase):
 
     def test_preparation_height_option_does_not_enable_execution(self):
         from super_demo import arguments as preparation_arguments
+        default=preparation_arguments(['--mission-file','measured.json'])
+        self.assertEqual(default.flight_height,1.5)
+        self.assertFalse(default.execute)
         args=preparation_arguments(['--mission-file','measured.json','--flight-height','1.8'])
         self.assertEqual(args.flight_height,1.8)
         self.assertFalse(args.execute)
