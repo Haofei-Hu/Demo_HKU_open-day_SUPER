@@ -1,6 +1,6 @@
 # Startup after power-on or reboot
 
-**[中文快速开始：整套更新、每次重启启动、结果和故障恢复](QUICK_START_ZH.md)**
+**[Quick start: complete installation, reboot startup, results, and recovery](QUICK_START.md)**
 
 Use the onboard Ubuntu terminal, locally or through NoMachine. The existing ROS 2 Humble, Livox, FAST_LIO and SUPER workspaces must already be installed. A normal reboot requires no rebuild, script download or dependency installation. Keep the aircraft stationary and disarmed on its actual takeoff floor during initialization.
 

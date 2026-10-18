@@ -1,6 +1,6 @@
-# 历史与调试记录
+# Historical and debugging records
 
-以下资料用于追溯旧版本、现场观察和故障背景，可能包含已替换的命令与设置。当前运行入口见[快速开始](QUICK_START_ZH.md)和[实飞操作](PHYSICAL_FLIGHT_ZH.md)。
+These records preserve earlier releases, field observations, and diagnostic context. They may contain superseded commands and settings. Use the [quick start](QUICK_START.md) and [physical flight guide](PHYSICAL_FLIGHT.md) for current operation.
 
 - [REMOTE_RECOVERY_2026-10-09](REMOTE_RECOVERY_2026-10-09.md)
 - [PROGRESS_2026-10-18](PROGRESS_2026-10-18.md)

@@ -1,23 +1,24 @@
-# 验证范围与已知问题
+# Verification scope and known issues
 
-## 已有证据
+## Available evidence
 
-| 项目 | 结果与适用范围 |
+| Item | Result and scope |
 |---|---|
-| 完整五次往返 | 真实 SUPER、已捕获实际点云、虚拟飞机反馈下完成 20 个阶段、最终悬停及降落；[完整报告](../data/software_checks_2026-10-18/stationary_handoff_ground_mission_report.json) |
-| 停车后轨迹接续 | 有针对性的微小接续复现及控制器回归；完整五次回归未触发该分支，证据分别记录；[验证摘要](../data/software_checks_2026-10-18/stationary_handoff_release.json) |
-| 实际定点飞行 | 较早的自动起飞、悬停和降落现场记录；不等于完整避障表演通过 |
-| 1.8 m 实飞入口 | 配置与机体边界验证、报告阶段、ROS 控制器初始化和显式开始条件已测试；没有在云端驱动实际飞机 |
+| Complete five-round mission | Real SUPER, captured aircraft point clouds, and virtual vehicle feedback completed 20 stages, final hover, and landing; [full report](../data/software_checks_2026-10-18/stationary_handoff_ground_mission_report.json) |
+| Stationary trajectory handoffs | Targeted small-handoff reproduction and controller regressions; the full five-round replay did not exercise that branch, so the evidence is recorded separately; [verification summary](../data/software_checks_2026-10-18/stationary_handoff_release.json) |
+| Physical fixed-position flight | Earlier on-site takeoff, hover, and landing records; these do not establish complete obstacle-avoidance mission success |
+| 1.8 m physical entrypoint | Configuration and aircraft-envelope validation, report stages, ROS controller initialization, and explicit start conditions tested without operating an aircraft from the cloud |
 
-虚拟反馈并不复现实际动力学、风、飞控跟踪误差或雷达漏检。真实飞机完整五次往返及 1.8 m 任务仍需现场验证。`SUCCESS` 必须来自对应运行的完整报告，不能用部分航段或旧报告代替。
+Virtual feedback does not reproduce physical dynamics, wind, FC tracking error, or missed LiDAR detections. The complete physical five-round and 1.8 m missions still require on-site validation. `SUCCESS` must come from the complete report for the corresponding run, not a partial leg or an earlier report.
 
-1.8 m 发布的相关检查共 47 项通过：任务几何/报告 13 项、完整安装器 5 项、部署目录 3 项、ROS 控制器与接续/演习配置 26 项。ROS 检查使用隔离测试域，没有连接实际飞机。
+The 1.8 m release passed 47 related checks: 13 mission geometry/report checks, five complete-installer checks, three deployment-layout checks, and 26 ROS controller, handoff, and rehearsal-profile checks. ROS checks used an isolated test domain without an aircraft connection.
 
-## 已知问题
+## Known issues
 
-- MAVROS 曾在启动时出现 `std::future_error: Promise already satisfied` 并退出，尚未确认永久根因修复；见[限定核心会话恢复](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session)。
-- 参数服务写回复可能超时。当前管理器通过只读回查确认是否生效，写请求不自动重放。
-- 混合更新单个脚本曾造成函数接口不匹配。使用[完整安装器](QUICK_START_ZH.md)校验配套文件。
-- 长时间 `WAIT_PLAN` 需要查看本次规划日志：可能是地图无通路、避障走廊不可行或优化失败。等待本身不代表已经有可执行轨迹。
+- MAVROS has exited during startup with `std::future_error: Promise already satisfied`; no permanent root-cause fix has been confirmed. See [restricted core-only recovery](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session).
+- Parameter-service write responses can time out. The current manager confirms the value by readback and does not automatically replay writes.
+- Updating individual scripts from mismatched releases has caused interface errors. Use the [complete installer](QUICK_START.md) to verify matching files.
+- Persistent `WAIT_PLAN` requires inspection of the current planner log: the map may have no path, corridors may be infeasible, or optimization may fail. Waiting alone does not imply an executable trajectory exists.
+- A subsequent onboard virtual rehearsal completed two rounds and stopped during the third outbound leg on a 5.44 cm position discontinuity after a stationary replan. The existing small-handoff handling did not accept this transition; its cause remains under investigation. Earlier successful replays do not establish that every handoff is resolved.
 
-开发验证入口见[开发检查](DEVELOPMENT.md)。旧调试细节见[历史索引](HISTORY.md)。
+See [development checks](DEVELOPMENT.md) for verification commands and the [history index](HISTORY.md) for earlier debugging details.
