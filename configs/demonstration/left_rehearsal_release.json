@@ -47,7 +47,7 @@
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
-      "sha256": "618e44f2eb45c7809850ddbe454e7eca5a5089820a6270213593109f23bf6cc9"
+      "sha256": "d12985636dfea7b632428588cb437fc47b19d85b94e0b107d4985206b2da78a3"
     },
     "create_super_speed_ground_profile.py": {
       "path": "scripts/maintenance/create_super_speed_ground_profile.py",

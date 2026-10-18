@@ -191,8 +191,27 @@ class GroundGate:
 
     def set_ctrl(self, value):
         from rclpy.parameter import Parameter
-        response = self.call(self.SetParameters, '/mavros/param/set_parameters',
-            self.SetParameters.Request(parameters=[Parameter('EKF2_EV_CTRL', value=value).to_parameter_msg()]))
+        current = self.parameters(['EKF2_EV_CTRL'])['EKF2_EV_CTRL']
+        if type(current) is int and current == value:
+            return
+        topic = '/mavros/param/set_parameters'
+        try:
+            response = self.call(self.SetParameters, topic,
+                self.SetParameters.Request(parameters=[Parameter('EKF2_EV_CTRL', value=value).to_parameter_msg()]))
+        except RuntimeError as exc:
+            if not str(exc).startswith('Timed out waiting for '+topic+' response;'):
+                raise
+            # A lost service reply leaves the write outcome unknown. Never
+            # replay the write; require a fresh readback and a grounded gate.
+            actual = self.parameters(['EKF2_EV_CTRL'])['EKF2_EV_CTRL']
+            self.check()
+            if type(actual) is not int or actual != value:
+                raise RuntimeError(f'EV_CTRL write reply timed out; readback={actual!r}, '
+                                   f'expected={value}; write was not repeated') from exc
+            self.node.get_logger().warning(
+                f'EV_CTRL write reply timed out, but readback confirms {value}; '
+                'continuing without repeating the write')
+            return
         if len(response.results) != 1 or not response.results[0].successful:
             raise RuntimeError('EV_CTRL write rejected')
         if self.parameters(['EKF2_EV_CTRL'])['EKF2_EV_CTRL'] != value:

@@ -23,7 +23,7 @@ def run(case):
     context=Context();rclpy.init(context=context)
     probe=Node('service_retry_fixture',context=context)
     group=ReentrantCallbackGroup()
-    settings={'armed':False};reads=[];writes=[];gate=None;arm_timer=None
+    settings={'armed':False,'ctrl':11 if case=='ctrl_already_set' else 0};reads=[];writes=[];gate=None;arm_timer=None
     topics={
         '/mavros/state':State,'/mavros/extended_state':ExtendedState,
         '/mavros/local_position/pose':PoseStamped,'/mavros/estimator_status':EstimatorStatus,
@@ -47,12 +47,15 @@ def run(case):
         reads.append(tuple(request.names));number=len(reads)
         if case in ('delayed_first','armed_during_wait') and number==1:time.sleep(.7)
         if case=='all_timeout':time.sleep(1.5)
-        value=99 if case=='delayed_first' and number==1 else 11
+        value=(settings['ctrl'] if case.startswith('ctrl_') else
+               99 if case=='delayed_first' and number==1 else 11)
         response.values=[ParameterValue(type=2,integer_value=value) for _ in request.names]
         return response
 
     def write(request,response):
-        writes.append(request);time.sleep(1.5)
+        writes.append(request)
+        if case=='ctrl_lost_reply':settings['ctrl']=request.parameters[0].value.integer_value
+        time.sleep(1.5)
         response.results=[SetParametersResult(successful=True)]
         return response
 
@@ -66,7 +69,15 @@ def run(case):
         if case=='armed_during_wait':
             arm_timer=threading.Timer(.2,lambda:settings.update(armed=True));arm_timer.start()
         began=time.monotonic()
-        if case=='write_timeout':
+        if case.startswith('ctrl_'):
+            if case=='ctrl_mismatch':
+                try:gate.set_ctrl(11)
+                except RuntimeError as exc:assert 'readback=0, expected=11' in str(exc),str(exc)
+                else:raise AssertionError('Unapplied parameter write was accepted')
+            else:gate.set_ctrl(11)
+            assert len(writes)==(0 if case=='ctrl_already_set' else 1),'Write was replayed'
+            assert len(reads)==(1 if case=='ctrl_already_set' else 2)
+        elif case=='write_timeout':
             try:gate.call(SetParameters,'/mavros/param/set_parameters',SetParameters.Request())
             except RuntimeError as exc:assert '1 attempt(s)' in str(exc),str(exc)
             else:raise AssertionError('Write timeout was not rejected')
@@ -93,5 +104,6 @@ def run(case):
 
 
 if __name__=='__main__':
-    for case in ('healthy','delayed_first','all_timeout','write_timeout','armed_during_wait'):
+    for case in ('healthy','delayed_first','all_timeout','write_timeout','armed_during_wait',
+                 'ctrl_already_set','ctrl_lost_reply','ctrl_mismatch'):
         run(case)
