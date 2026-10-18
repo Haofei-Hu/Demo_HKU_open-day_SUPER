@@ -56,7 +56,7 @@ VENUE_SEARCH_COMPLETE_V1: finite venue search; no elapsed-time cutoff
 
 ## Scope and evidence
 
-This automatic boundary injection applies to the original forward and short-site **frozen-scene ground rehearsals in private domain 197**. The independent left experiment keeps its own pinned workflow. Physical preparation does not infer laboratory boundaries from a frozen scene; its existing surveyed-venue/controller checks remain. Automatic planner-side injection for a physical flight is not established by this release.
+The original forward and short-site frozen-scene rehearsals use private domain 197. The live physical preparation entrypoint now has a separate capture path described below. The independent left experiment keeps its own pinned workflow. Neither capture infers measured laboratory boundaries from the scene.
 
 The initial venue release passed 135 focused checks; its [validation record](../data/software_checks_2026-10-18/planner_venue_bounds.json) distinguishes software tests from onboard execution. Compiled C++ checks exercise the actual patched A* admission predicate and all three complete upstream corridor-generator functions, covering all five success branches with map/decomposition test doubles. They reject the recorded out-of-box location and admit a curved route inside the box. Geometry tests compare the generated planes directly with the controller across rotated/tilted frames, a nonzero mounting lever, all six faces and random points. Full upstream-file apply, repeat, coexistence with the motion patch and byte-exact restore are verified separately. The subsequent search-completion and cancellation checks are recorded [separately](../data/software_checks_2026-10-18/bounded_search_completion.json).
 
@@ -70,7 +70,7 @@ Run `20261018_160943_724717` advanced beyond A*: its probability-map searches su
 
 `VENUE_REST_COMMIT_V1` exempts only a from-rest candidate with an explicit venue from that elapsed-time rejection. After primary optimization, its preliminary epoch is refreshed before backup construction. Once the primary/backup pair is accepted, both position/yaw epochs are shifted to the commit time, preserving the backup's relative start offset. This avoids treating time spent waiting for optimization as already executed motion. Corridor, goal-connected and known-free flags, polynomial shape/duration, geometry and motion constraints remain intact. Failed backup generation still does not commit a trajectory.
 
-Moving replans continue to use their original splice-time checks: they predict a future state on an already executing trajectory, and shifting that result as if the vehicle were stationary would be incorrect. This update does not impose a mission waiting deadline and does not change `replan_forward_dt` or any motion/geometric parameter. The automatic venue scope remains the frozen-map ground rehearsal described above.
+Moving replans continue to use their original splice-time checks: they predict a future state on an already executing trajectory, and shifting that result as if the vehicle were stationary would be incorrect. This update does not impose a mission waiting deadline and does not change `replan_forward_dt` or any motion/geometric parameter. The initial from-rest release covered the frozen-map rehearsal; the live preparation extension below reuses the same compiled constraints.
 
 That from-rest upgrade used the same `apply_super_venue_bounds.py` and changed `astar.h` and `super_planner.cpp`. The current combined release additionally requires the ROG-Map rebuild described above. The runner requires the additional marker in the installed binary. A successful from-rest commit logs:
 
@@ -84,7 +84,7 @@ VENUE_REST_COMMIT_V1: from-rest plan starts at commit; backup offset preserved
 
 The frozen map from `20261018_162423_709951` exposed two independent issues. ROG-Map `Config` already moves its virtual floor/ceiling inward for inflation. `InfMap::getGridType(Vec3f)` moved them inward a second time by `(1 + inflation_step) * inflation_resolution`. In this capture, the configured effective raw bounds were -1.3/2.7 m, but A* saw -0.7/2.1 m. A real ROG-Map empty-cell probe at raw Z=2.35 m returned occupied from that interface and free from `isOccupiedInflate`. This extra band can remove an upper route while the ordinary-map fallback tries an inadequate low gap. The uploaded backup seed ended only 0.141421 m from a recorded obstacle, below the unchanged 0.2 m radius.
 
-`VIRTUAL_HEIGHT_QUERY_V1` removes the second height subtraction/addition from that query. It retains the already-inflated bounds, their closed-boundary rejection, obstacle counters, unknown-cell classification and local-map checks. It changes no YAML parameter or captured point. This API correction also applies to profiles without venue halfspaces; it does not enable venue injection for physical flight.
+`VIRTUAL_HEIGHT_QUERY_V1` removes the second height subtraction/addition from that query. It retains the already-inflated bounds, their closed-boundary rejection, obstacle counters, unknown-cell classification and local-map checks. It changes no YAML parameter or captured point. This API correction also applies to profiles without venue halfspaces; live venue injection is handled separately by the physical preparation extension below.
 
 The corresponding `VIRTUAL_HEIGHT_CORRIDOR_V1` change also removes the second radius inset when a corridor crop is clipped by those already-inflated virtual faces. Ordinary crop faces keep their existing radius inset. This fixes the observed disagreement where A* admitted a raw Z=2.55 m seed but corridor construction capped it at 2.5 m despite a configured effective ceiling of 2.7 m.
 
@@ -107,3 +107,37 @@ For a bounded search, an initialization failure no longer invalidates a goal tha
 The [branch replay record](../data/software_checks_2026-10-18/branch_grid_replay.json) documents an actual-SUPER baseline that reproduced the same intermediate stop and `WAIT_GOAL`, followed by two completed five-round fixed replays. The captured planner YAML was reconstructed byte-for-byte and verified against its recorded SHA256; the 8,792-point occupied cloud, alignment, mission, hull, venue and 2/1 targets with 4/2 acceptance were preserved. The final [mission report](../data/software_checks_2026-10-18/branch_grid_replay_mission_report.json) contains all ten accepted goals, twenty ordered completed stages, final six-second hold, landing and disarmed confirmation. Validation also includes 64 regression checks, compiled checks of the observed point and all six rotated faces, blocked/unknown connector cases, legacy goal invalidation, source upgrades and exact rollback. These remain frozen-map software rehearsals with ideal feedback, without real PX4 or physical flight.
 
 The final binary also completed five round trips, final hover, landing and disarm using the previous 8,395-point fence capture (`20261018_162423_709951`), preserving that earlier successful workflow. Both final-scene replays retained all ten goals without a goal-invalidation event.
+
+
+## Live physical preparation
+
+`super_demo.py` now passes the measured mission to the manager as
+`planner --planner-profile demo --venue-mission <measured.json>`. After the
+existing session-map observation, `create_live_venue_profile.py` reads ten fresh
+identical-stamp raw/aligned pairs and current grounded FC feedback. It records
+one FC ground position and heading, the fixed localization origin and publisher
+identities in `venue_reference.json`. No map snapshot or control output is used
+by this capture. The existing single-source, fresh grounded localization gates
+remain in effect.
+
+The shared `venue_geometry.py` function constructs the same six planes for the
+live entry and frozen rehearsal. The live profile adds only those planes to a
+new session YAML, retaining live cloud input, raycasting, motion targets,
+acceptance bounds, radius and virtual map settings. Actual mission measurements
+are required even for check-only physical preparation; null or synthetic
+rehearsal geometry is not supplied automatically.
+
+The physical controller requires the resulting reference, checks its mission,
+alignment and planner hashes, recomputes its planes, and reads the actual
+`/fsm_node` `config_name` before READY. It checks that localization/FC source
+identities and origin still match. READY binds its hover point and venue to the
+captured FC ground position and heading rather than independently rebasing the
+box. Both outbound and return goals use the record's fixed raw heading/lever
+conversion. Existing ground displacement and heading checks remain; no new
+margin or mission time limit is introduced.
+
+This is a software integration, not an airborne validation. The [validation
+record](../data/software_checks_2026-10-18/live_venue_preparation.json) separates
+geometry tests, a real ROS synthetic-telemetry check-only test and the original
+actual-SUPER frozen-scene regression. Physical measurements, current hardware
+readbacks, RC/manual takeover and supervised tracking trials remain required.

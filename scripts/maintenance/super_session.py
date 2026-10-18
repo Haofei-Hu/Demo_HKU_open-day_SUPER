@@ -673,6 +673,14 @@ class Session:
                     from mars_quadrotor_msgs.msg import PositionCommand
                     PositionCommand()  # Verify generated message support before launching.
                     config = self.session_map_profile(self.planner_profile(),gate)
+                    if self.args.venue_mission is not None:
+                        from apply_super_venue_bounds import require_support
+                        from create_live_venue_profile import create
+                        require_support(config.parents[2])
+                        record=Path(self.config['logs'])/'venue_reference.json'
+                        config=create(config,self.args.venue_mission,self.scripts/'aligned_pose_preview.py',record,gate)
+                        self.config['venue_reference_path']=str(record)
+                    else:self.config.pop('venue_reference_path',None)
                     self.config['planner_profile']=self.args.planner_profile
                     self.config['planner_config_path']=str(config)
                     self.save()
@@ -827,6 +835,7 @@ def arguments(argv=None):
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
     parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
     parser.add_argument('--parallel-observations',action='store_true',help='align only: collect fresh odometry and alignment concurrently; sampling and quality checks unchanged')
+    parser.add_argument('--venue-mission',type=Path,help='demo planner only: measured physical mission; capture one live planner/controller venue frame')
     parser.add_argument('--hold-seconds', type=float, default=6.)
     parser.add_argument('--ros-env', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--report-json',type=Path,help='new JSON report path; align or flight-check only')
@@ -852,6 +861,8 @@ def arguments(argv=None):
         parser.error('--parallel-observations is only valid for align')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':
         parser.error('--planner-profile is only valid for planner')
+    if args.venue_mission is not None and (args.action!='planner' or args.planner_profile!='demo'):
+        parser.error('--venue-mission is only valid for planner --planner-profile demo')
     if args.goal_height is not None and (args.action!='goal' or not math.isfinite(args.goal_height)
                                        or not .085<args.goal_height<=1.):
         parser.error('--goal-height is only for goal, with FC floor height in (0.085, 1] m')

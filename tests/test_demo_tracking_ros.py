@@ -136,13 +136,15 @@ class Tests(unittest.TestCase):
             folder=Path(folder);mission=folder/'mission.json';config=fixture()
             config['flight']['round_trips']=5;mission.write_text(json.dumps(config))
             alignment=folder/'alignment.py';alignment.write_text('def convert(p,q,c):\n return p,q,c\n')
-            planner=folder/'planner.json';planner.write_text(json.dumps(dict(
+            planner=folder/'planner.json';planner.write_text(json.dumps(dict(super_planner={},
                 fsm=dict(click_height=-6.,click_goal_topic='/goal_pose',click_goal_en=True,cmd_topic='/planning/pos_cmd'),
                 traj_opt=dict(boundary=dict(max_vel=2.,max_acc=1.)))))
+            from test_live_venue import write_reference
+            record,_,_,planner=write_reference(folder,mission=mission,alignment=alignment,source=planner)
             rclpy.init();node=None
             try:
                 node=DemoMissionControl(mission,folder/'report.json',execute=True,on_site_supervised=True,
-                    alignment_path=alignment,planner_config=planner,motion_policy='observe')
+                    alignment_path=alignment,planner_config=planner,motion_policy='observe',venue_reference=record)
                 self.assertEqual(node.motion_policy,'observe')
                 self.assertEqual(node.mission.hover_height,1.5)
                 self.assertEqual(node.hover_fc_height,1.5)

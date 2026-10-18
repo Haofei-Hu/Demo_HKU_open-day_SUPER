@@ -66,6 +66,25 @@ class MemorySession(m.Session):
 
 
 class Tests(unittest.TestCase):
+    def test_measured_physical_planner_launches_the_live_profile_and_saves_its_reference(self):
+        s=self.manager(['planner','--planner-profile','demo','--venue-mission','measured.json'])
+        s.window_state.update(preview='0',vision='0')
+        source=Path('/tmp/SUPER/super_planner/config/profile.yaml')
+        live=source.with_name('profile_live_venue.yaml')
+        s.planner_profile=lambda:source
+        s.session_map_profile=lambda profile,gate:profile
+        with patch.object(m,'GroundGate',FakeGate),\
+                patch('apply_super_venue_bounds.require_support') as support,\
+                patch('create_live_venue_profile.create',return_value=live) as create:
+            s.mutate('planner')
+        support.assert_called_once_with(Path('/tmp/SUPER'))
+        self.assertEqual(create.call_args.args[:4],(source,Path('measured.json'),
+            s.scripts/'aligned_pose_preview.py',Path('/tmp/logs/venue_reference.json')))
+        self.assertEqual(s.config['planner_config_path'],str(live))
+        self.assertEqual(s.config['venue_reference_path'],'/tmp/logs/venue_reference.json')
+        self.assertIn('config_name:=profile_live_venue.yaml',s.started[0][1])
+        self.assertEqual([name for name,_ in s.started],['planner','cmd_preview'])
+
     def test_complete_demo_map_capture_waits_without_changing_diagnostic_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             folder=Path(directory)

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-18",
+  "scope": "Software validation only; no actual aircraft, RC or PX4 flight",
+  "live_preparation": {
+    "entry": "super_demo.py",
+    "mission_geometry": "Supplied physical mission measurements; no fixture substitution",
+    "anchor": "One fresh FC ground position/yaw, raw-aligned mapping origin and source identities",
+    "planner_controller_same_six_planes": true,
+    "running_config_name_readback": true,
+    "ready_rebase": false,
+    "new_mission_deadline": false,
+    "source_cloud_and_motion_settings_unchanged": true
+  },
+  "ros_checks": {
+    "command": "ROS_DOMAIN_ID=193 ROS_LOCALHOST_ONLY=1 python3 tests/test_live_venue_ros.py",
+    "result": "PASS",
+    "cases": [
+      "Fresh paired capture + live config_name + check-only READY + unchanged captured FC anchor despite 2 cm later pose shift",
+      "Wrong planner config_name blocks READY with no native output",
+      "Existing native writer blocks capture before any venue profile is created"
+    ],
+    "telemetry_and_parameter_server": "Synthetic real ROS publishers/services, not actual aircraft hardware"
+  },
+  "ground_regression": {
+    "backend": "Actual compiled SUPER, captured user map, virtual FC/vehicle; not PX4 SITL",
+    "source_capture": "20261018_170834_397877",
+    "result": "SUCCESS",
+    "round_trips_completed": 5,
+    "completed_stages": 20,
+    "planner_goals_sent": 10,
+    "return_hover_duration_s": 6.050017160996504,
+    "peak_reference_speed_mps": 1.5846020112571184,
+    "peak_reference_acceleration_mps2": 1.0152508312358928,
+    "mission_report": "live_venue_ground_mission_report.json",
+    "mission_report_sha256": "0d5d30d7007374aed37d2a5914e12c0e2c76508c2a86a98dc970ffc59debe763",
+    "physical_flight_verified": false
+  },
+  "not_verified": [
+    "Measured aircraft extents, wall offsets and grounded FC floor height",
+    "Actual MAVROS/PX4 readbacks and raw position-plus-velocity reception",
+    "RC/manual takeover and supervised physical tracking/obstacle avoidance"
+  ],
+  "regression_checks": {
+    "result": "PASS",
+    "suite_test_count": 143,
+    "additional_fixed_goal_test_count": 1,
+    "command": "python3 -m unittest test_live_venue test_demo_venue test_demo_tracking_ros test_demo_accepted_goal_ros test_super_demo_test test_super_session test_parallel_startup test_demo_mission test_demo_rehearsal_profile test_demo_rest_commit test_demo_test_release test_left_rehearsal",
+    "additional_command": "python3 -m unittest test_live_venue.Tests.test_live_goals_keep_the_captured_raw_heading_and_its_lever_transform",
+    "coverage": [
+      "Live plane/controller agreement including tilt and lever arm, all six faces and random points",
+      "Captured-anchor binding, config/file/source/origin mismatch rejection",
+      "Physical manager wiring and required reference before ROS controller construction",
+      "Existing frozen-scene venue/search/corridor behavior, mission sequencing, parallel startup and installers"
+    ]
+  }
+}

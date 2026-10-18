@@ -28,6 +28,10 @@ class DemoPreparation(GroundTest):
         self.path=self.folder/'preparation.json'
         self.report=dict(result='RUNNING',stage='preflight',stages=[],scope='Complete demonstration preparation')
 
+    def action(self,action,*extra):
+        if action=='planner':extra=(*extra,'--venue-mission',self.args.mission_file.resolve())
+        return super().action(action,*extra)
+
 
 def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
@@ -65,7 +69,8 @@ def main():
                 raise ValueError('Physical preparation requires the 1.5 m mission, not a frozen ground rehearsal')
             if args.execute and not args.on_site_supervised:
                 raise ValueError('Explicit on-site supervision is required for flight execution')
-            for name in ('super_demo_control.py','demo_mission.py'):
+            for name in ('super_demo_control.py','demo_mission.py','create_live_venue_profile.py',
+                         'live_venue.py','venue_geometry.py','apply_super_venue_bounds.py'):
                 if not (args.scripts_dir/name).is_file():raise ValueError('Missing mission dependency: '+name)
             runner.open_qgc(required=args.execute)
             runner.prepare(planner_profile='demo')
@@ -74,6 +79,7 @@ def main():
             command=[sys.executable,str(args.scripts_dir/'super_demo_control.py'),
                 '--mission-file',str(args.mission_file),'--alignment-path',str(args.scripts_dir/'aligned_pose_preview.py'),
                 '--planner-config',runner.session.config['planner_config_path'],
+                '--venue-reference',runner.session.config['venue_reference_path'],
                 '--preparation-report',str(runner.path),'--report-json',str(runner.folder/'report.json'),
                 '--motion-policy',args.motion_policy]
             if args.execute:command+=['--execute','--on-site-supervised']

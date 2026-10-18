@@ -114,7 +114,7 @@ class DemoMissionControl(SuperFlightControl):
 
     def __init__(self,mission_file,report_path,execute=False,on_site_supervised=False,
                  alignment_path=None,planner_config=None,simulation=False,motion_policy='strict',
-                 mission_class=DemoMission):
+                 mission_class=DemoMission,venue_reference=None):
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         self.motion_policy=motion_policy;self.motion_warned_legs=set()
         if execute and not on_site_supervised:
@@ -128,6 +128,11 @@ class DemoMissionControl(SuperFlightControl):
         self.mission=mission_class(config)
         if self.mission.rehearsal_only and not simulation:
             raise ValueError('Ground rehearsal height is for virtual execution only; physical tests require 1.5 m')
+        self.live_venue=None
+        if not simulation:
+            from live_venue import LiveVenue
+            if venue_reference is None:raise ValueError('Physical preparation requires a shared live venue reference')
+            self.live_venue=LiveVenue(venue_reference,mission_file,alignment_path,planner_config)
         self.MAX_DISTANCE=self.mission.distance
         self.FRAME_FORWARD_LIMIT=self.mission.distance+.1
         self.mission_report=MissionReport(report_path,self.mission,'simulation' if simulation else
@@ -172,6 +177,14 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['accepted_goals']={}
         super().__init__(execute=execute,hover_fc_height=self.mission.hover_height,hold_seconds=6.,distance=self.mission.distance,
                          alignment_path=alignment_path,planner_config=planner_config)
+        if self.live_venue is not None:
+            from rcl_interfaces.srv import GetParameters
+            self.live_parameter_type=GetParameters
+            self.live_config_client=self.create_client(GetParameters,'/fsm_node/get_parameters')
+            self.live_config_future=None;self.live_config_at=0.;self.live_config_confirmed=False
+            self.live_config_error=None
+            self.create_timer(1.,self.poll_live_config)
+            self.mission_report.data['live_venue_reference']=self.live_venue.data
         # Also disable the inherited first-hover rise-time fallback.
         self.offboard_budget=math.inf
         self.create_subscription(TwistStamped,'/mavros/local_position/velocity_local',
@@ -237,6 +250,25 @@ class DemoMissionControl(SuperFlightControl):
     def goal_policy_message(self):
         return f'{self.mission.round_trips} round trips, {2*self.mission.round_trips} ordered goals; no automatic goal replay'
 
+    def poll_live_config(self):
+        if self.live_config_confirmed or not self.live_config_client.service_is_ready():return
+        future=self.live_config_future
+        if future is not None:
+            if not future.done() and time.monotonic()-self.live_config_at<=3.:return
+            if not future.done():
+                future.cancel();self.live_config_client.remove_pending_request(future)
+            else:
+                try:
+                    values=future.result().values
+                    if (len(values)!=1 or values[0].type!=4
+                            or values[0].string_value!=self.config_path.name):
+                        raise ValueError('Live planner config_name differs from the shared venue profile')
+                    self.live_config_confirmed=True;return
+                except Exception as exc:self.live_config_error=str(exc)
+        self.live_config_future=self.live_config_client.call_async(
+            self.live_parameter_type.Request(names=['config_name']))
+        self.live_config_at=time.monotonic()
+
     def validate(self,ground=False):
         result=super().validate(ground)
         if self.mission_file.read_bytes()!=self.mission_bytes:raise ValueError('Mission definition changed')
@@ -245,12 +277,17 @@ class DemoMissionControl(SuperFlightControl):
             raise ValueError('Need one local velocity source')
         if not self.execute and any(self.count_publishers(t) for t in NATIVE_CONTROL_TOPICS):
             raise ValueError('Native controller present during mission check')
+        if self.live_venue is not None:
+            self.live_venue.validate(self,self.mapping)
+            if not self.live_config_confirmed:
+                raise ValueError(self.live_config_error or 'Waiting for live planner config_name confirmation')
         return result
 
     def change(self,phase):
         if self.plan_wait_started_at is not None and phase!='WAIT_PLAN':
             self.plan_wait_elapsed_s=self.planning_wait_seconds()
             self.plan_wait_started_at=None
+        if phase=='READY' and getattr(self,'live_venue',None) is not None:self.live_venue.bind(self.reference)
         super().change(phase)
         if phase=='WAIT_PLAN':self.plan_wait_started_at=self.phase_at
         self.mission_report.data['planner_wait_elapsed_s']=self.planning_wait_seconds()
@@ -260,6 +297,9 @@ class DemoMissionControl(SuperFlightControl):
                 self.mission,lambda:self.extended is not None and self.extended.landed_state==1)
             self.home=np.array(self.reference.ground)+np.array([0.,0.,self.reference.lift])
             self.far=self.home+self.frame.axes.T@np.array([self.distance,0.,0.])
+            if self.live_venue is not None:
+                self.get_logger().info(f'LIVE VENUE LOCK ground_fc_xyz={list(self.reference.ground)}; '
+                    f'yaw_rad={self.reference.yaw:.9f}; fixed hover z={self.home[2]:.3f}; no READY rebase')
         self.mission_report.event(phase,leg=self.leg,round_trip=self.round_index)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
@@ -444,7 +484,9 @@ class DemoMissionControl(SuperFlightControl):
         self.previous_accepted_raw=self.accepted_raw
         self.accepted_raw=self.accepted_target=None
         self.leg=leg;self.requested_target=np.array(target,copy=True)
-        self.requested_raw,self.goal_q=inverse_goal(self.mapping,self.raw_pose,self.requested_target)
+        live_venue=getattr(self,'live_venue',None)
+        fixed_q=live_venue.goal_q if live_venue is not None else None
+        self.requested_raw,self.goal_q=inverse_goal(self.mapping,self.raw_pose,self.requested_target,fixed_q)
         zero=self.mapping.converter(np.zeros(3),self.goal_q,np.eye(6))[0]
         self.goal_rotation=np.column_stack([self.mapping.converter(v,self.goal_q,np.eye(6))[0]-zero for v in np.eye(3)])
         self.follower=self.make_follower();self.pending.clear();self.poly_pending.clear()
@@ -580,6 +622,7 @@ def arguments(argv=None):
     p.add_argument('--mission-file',type=Path,required=True)
     p.add_argument('--alignment-path',type=Path,required=True)
     p.add_argument('--planner-config',type=Path,required=True)
+    p.add_argument('--venue-reference',type=Path,help='immutable live venue reference from physical preparation')
     p.add_argument('--report-json',type=Path,default=None)
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
@@ -595,7 +638,8 @@ def main():
     rclpy.init()
     try:
         node=DemoMissionControl(args.mission_file,report,args.execute,args.on_site_supervised,
-                               args.alignment_path,args.planner_config,motion_policy=args.motion_policy)
+                               args.alignment_path,args.planner_config,motion_policy=args.motion_policy,
+                               venue_reference=args.venue_reference)
         if args.preparation_report:
             node.mission_report.data['preparation']=json.loads(args.preparation_report.read_text())
             node.mission_report.save()

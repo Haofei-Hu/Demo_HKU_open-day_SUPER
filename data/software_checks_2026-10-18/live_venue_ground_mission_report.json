@@ -1,0 +1,2209 @@
+{
+  "schema_version": 1,
+  "result": "SUCCESS",
+  "mode": "simulation",
+  "execution_context": "ground_rehearsal",
+  "requested_fc_floor_height_m": 0.5,
+  "round_trips_requested": 5,
+  "round_trips_completed": 5,
+  "mission": {
+    "schema_version": 1,
+    "mission_id": "open_day_out_and_back",
+    "units": "metres_seconds",
+    "venue": {
+      "boundary_type": "outer",
+      "length_forward_m": 5.8,
+      "width_left_m": 2.8,
+      "height_m": 2.8
+    },
+    "takeoff": {
+      "forward_from_rear_m": 0.5,
+      "heading_along_length_confirmed": true,
+      "note": "Aircraft centre must be inside the short-edge takeoff area; capture a fresh session origin. Coordinates are in the surveyed venue frame, not LIO world.",
+      "distance_from_left_m": 1.4
+    },
+    "vehicle": {
+      "centre_to_front_m": 0.2,
+      "centre_to_rear_m": 0.2,
+      "centre_to_left_m": 0.2,
+      "centre_to_right_m": 0.2,
+      "centre_to_top_m": 0.1,
+      "centre_to_bottom_m": 0.085,
+      "note": "Envelope includes propellers and is measured relative to the FC centre; do not subtract a guessed radius."
+    },
+    "flight": {
+      "height_fc_above_floor_m": 0.5,
+      "outbound_forward_m": 4.5,
+      "return_to": "locked_takeoff_xy",
+      "yaw_policy": "hold_takeoff_heading",
+      "horizontal_speed_limit_mps": 2.0,
+      "acceleration_limit_mps2": 1.0,
+      "return_hover_s": 6.0,
+      "axis_error_limit_m": 0.1,
+      "landing": "PX4_AUTO.LAND_then_confirm_ground_and_disarmed",
+      "round_trips": 5
+    },
+    "sequence": [
+      "TAKEOFF_TO_0_5M",
+      "STABILIZE_AT_HOME",
+      "ROUND_01_SUPER_OUTBOUND_4_5M",
+      "ROUND_01_STABILIZE_AT_FAR_POINT",
+      "ROUND_01_SUPER_RETURN_HOME",
+      "ROUND_02_SUPER_OUTBOUND_4_5M",
+      "ROUND_02_STABILIZE_AT_FAR_POINT",
+      "ROUND_02_SUPER_RETURN_HOME",
+      "ROUND_03_SUPER_OUTBOUND_4_5M",
+      "ROUND_03_STABILIZE_AT_FAR_POINT",
+      "ROUND_03_SUPER_RETURN_HOME",
+      "ROUND_04_SUPER_OUTBOUND_4_5M",
+      "ROUND_04_STABILIZE_AT_FAR_POINT",
+      "ROUND_04_SUPER_RETURN_HOME",
+      "ROUND_05_SUPER_OUTBOUND_4_5M",
+      "ROUND_05_STABILIZE_AT_FAR_POINT",
+      "ROUND_05_SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "acceptance": {
+      "whole_mission_required": true,
+      "partial_stage_is_success": false,
+      "report_requires_mode": "simulation_or_flight_explicit",
+      "automatic_goal_replay": false,
+      "parameter_changes": "none_implicit",
+      "venue_measurements_required_before_flight": true
+    },
+    "status": "SYNTHETIC_TEST_GEOMETRY_NOT_AIRCRAFT_MEASUREMENTS",
+    "execution_context": "ground_rehearsal"
+  },
+  "waypoints": {
+    "ground": [
+      0.0,
+      0.0,
+      0.085
+    ],
+    "home_hover": [
+      0.0,
+      0.0,
+      0.5
+    ],
+    "far_hover": [
+      4.5,
+      0.0,
+      0.5
+    ],
+    "return_hover": [
+      0.0,
+      0.0,
+      0.5
+    ]
+  },
+  "expected_stages": [
+    "TAKEOFF_TO_0_5M",
+    "STABILIZE_AT_HOME",
+    "ROUND_01_SUPER_OUTBOUND_4_5M",
+    "ROUND_01_STABILIZE_AT_FAR_POINT",
+    "ROUND_01_SUPER_RETURN_HOME",
+    "ROUND_02_SUPER_OUTBOUND_4_5M",
+    "ROUND_02_STABILIZE_AT_FAR_POINT",
+    "ROUND_02_SUPER_RETURN_HOME",
+    "ROUND_03_SUPER_OUTBOUND_4_5M",
+    "ROUND_03_STABILIZE_AT_FAR_POINT",
+    "ROUND_03_SUPER_RETURN_HOME",
+    "ROUND_04_SUPER_OUTBOUND_4_5M",
+    "ROUND_04_STABILIZE_AT_FAR_POINT",
+    "ROUND_04_SUPER_RETURN_HOME",
+    "ROUND_05_SUPER_OUTBOUND_4_5M",
+    "ROUND_05_STABILIZE_AT_FAR_POINT",
+    "ROUND_05_SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "events": [
+    {
+      "phase": "READY",
+      "time": "2026-10-18T09:55:33.627692+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "PRESTREAM",
+      "time": "2026-10-18T09:55:33.631251+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "MODE_REQUEST",
+      "time": "2026-10-18T09:55:35.677056+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "ARM_REQUEST",
+      "time": "2026-10-18T09:55:35.726711+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "RISE",
+      "time": "2026-10-18T09:55:35.777485+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "HOLD",
+      "time": "2026-10-18T09:55:39.676904+00:00",
+      "leg": null,
+      "round_trip": 1
+    },
+    {
+      "phase": "GOAL_OUTBOUND",
+      "time": "2026-10-18T09:55:41.727750+00:00",
+      "round_trip": 1,
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:55:41.728799+00:00",
+      "leg": "outbound",
+      "round_trip": 1
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:55:41.827056+00:00",
+      "leg": "outbound",
+      "round_trip": 1
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:55:48.578182+00:00",
+      "leg": "outbound",
+      "round_trip": 1
+    },
+    {
+      "phase": "GOAL_RETURN",
+      "time": "2026-10-18T09:55:49.628706+00:00",
+      "round_trip": 1,
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:55:49.629686+00:00",
+      "leg": "return",
+      "round_trip": 1
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:55:49.678662+00:00",
+      "leg": "return",
+      "round_trip": 1
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:55:56.328834+00:00",
+      "leg": "return",
+      "round_trip": 1
+    },
+    {
+      "phase": "GOAL_OUTBOUND",
+      "time": "2026-10-18T09:55:57.328910+00:00",
+      "round_trip": 2,
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:55:57.329861+00:00",
+      "leg": "outbound",
+      "round_trip": 2
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:55:57.378008+00:00",
+      "leg": "outbound",
+      "round_trip": 2
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:04.378304+00:00",
+      "leg": "outbound",
+      "round_trip": 2
+    },
+    {
+      "phase": "GOAL_RETURN",
+      "time": "2026-10-18T09:56:05.378970+00:00",
+      "round_trip": 2,
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:05.380414+00:00",
+      "leg": "return",
+      "round_trip": 2
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:05.429015+00:00",
+      "leg": "return",
+      "round_trip": 2
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:12.378227+00:00",
+      "leg": "return",
+      "round_trip": 2
+    },
+    {
+      "phase": "GOAL_OUTBOUND",
+      "time": "2026-10-18T09:56:13.379379+00:00",
+      "round_trip": 3,
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:13.381089+00:00",
+      "leg": "outbound",
+      "round_trip": 3
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:13.428395+00:00",
+      "leg": "outbound",
+      "round_trip": 3
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:20.227783+00:00",
+      "leg": "outbound",
+      "round_trip": 3
+    },
+    {
+      "phase": "GOAL_RETURN",
+      "time": "2026-10-18T09:56:21.280357+00:00",
+      "round_trip": 3,
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:21.281990+00:00",
+      "leg": "return",
+      "round_trip": 3
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:21.327935+00:00",
+      "leg": "return",
+      "round_trip": 3
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:27.978407+00:00",
+      "leg": "return",
+      "round_trip": 3
+    },
+    {
+      "phase": "GOAL_OUTBOUND",
+      "time": "2026-10-18T09:56:28.979892+00:00",
+      "round_trip": 4,
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:28.981845+00:00",
+      "leg": "outbound",
+      "round_trip": 4
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:29.077564+00:00",
+      "leg": "outbound",
+      "round_trip": 4
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:36.128356+00:00",
+      "leg": "outbound",
+      "round_trip": 4
+    },
+    {
+      "phase": "GOAL_RETURN",
+      "time": "2026-10-18T09:56:37.180787+00:00",
+      "round_trip": 4,
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:37.183076+00:00",
+      "leg": "return",
+      "round_trip": 4
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:37.229710+00:00",
+      "leg": "return",
+      "round_trip": 4
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:44.178757+00:00",
+      "leg": "return",
+      "round_trip": 4
+    },
+    {
+      "phase": "GOAL_OUTBOUND",
+      "time": "2026-10-18T09:56:45.180569+00:00",
+      "round_trip": 5,
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:45.182828+00:00",
+      "leg": "outbound",
+      "round_trip": 5
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:45.229463+00:00",
+      "leg": "outbound",
+      "round_trip": 5
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:52.079482+00:00",
+      "leg": "outbound",
+      "round_trip": 5
+    },
+    {
+      "phase": "GOAL_RETURN",
+      "time": "2026-10-18T09:56:53.132730+00:00",
+      "round_trip": 5,
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ]
+    },
+    {
+      "phase": "WAIT_PLAN",
+      "time": "2026-10-18T09:56:53.135137+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "TRACK",
+      "time": "2026-10-18T09:56:53.179227+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "END_HOLD",
+      "time": "2026-10-18T09:56:59.927760+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "FINAL_HOLD",
+      "time": "2026-10-18T09:57:00.932525+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "LAND_REQUEST",
+      "time": "2026-10-18T09:57:06.979098+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "LANDING",
+      "time": "2026-10-18T09:57:07.025479+00:00",
+      "leg": "return",
+      "round_trip": 5
+    },
+    {
+      "phase": "DONE",
+      "time": "2026-10-18T09:57:07.825636+00:00",
+      "leg": "return",
+      "round_trip": 5
+    }
+  ],
+  "completed_stages": [
+    "TAKEOFF_TO_0_5M",
+    "STABILIZE_AT_HOME",
+    "ROUND_01_SUPER_OUTBOUND_4_5M",
+    "ROUND_01_STABILIZE_AT_FAR_POINT",
+    "ROUND_01_SUPER_RETURN_HOME",
+    "ROUND_02_SUPER_OUTBOUND_4_5M",
+    "ROUND_02_STABILIZE_AT_FAR_POINT",
+    "ROUND_02_SUPER_RETURN_HOME",
+    "ROUND_03_SUPER_OUTBOUND_4_5M",
+    "ROUND_03_STABILIZE_AT_FAR_POINT",
+    "ROUND_03_SUPER_RETURN_HOME",
+    "ROUND_04_SUPER_OUTBOUND_4_5M",
+    "ROUND_04_STABILIZE_AT_FAR_POINT",
+    "ROUND_04_SUPER_RETURN_HOME",
+    "ROUND_05_SUPER_OUTBOUND_4_5M",
+    "ROUND_05_STABILIZE_AT_FAR_POINT",
+    "ROUND_05_SUPER_RETURN_HOME",
+    "HOLD_HOME_6S",
+    "AUTO_LAND",
+    "CONFIRM_LANDED_AND_DISARMED"
+  ],
+  "error": null,
+  "physical_flight_verified": false,
+  "started_at": "2026-10-18T09:55:20.506860+00:00",
+  "committed_endpoints": [
+    {
+      "leg": "outbound",
+      "round_trip": 1,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        5.279178350522122,
+        0.202869475053476,
+        2.4287359051525983
+      ],
+      "error_forward_left_up": [
+        -1.5765675876606273,
+        0.2537579079859109,
+        2.1783463617873613
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 1,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        6.248728501958817,
+        -1.2567455974917834,
+        0.3737033436176955
+      ],
+      "error_forward_left_up": [
+        0.0031290041289672374,
+        -0.06951274802812347,
+        0.01184751665276984
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 1,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        4.439032229041436,
+        1.2502105689545537,
+        2.23717112115817
+      ],
+      "error_forward_left_up": [
+        1.5792647520110203,
+        0.40270964997266756,
+        2.0759128791447514
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 1,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        3.1500000000000004,
+        1.9499999999999997,
+        0.04999999999999993
+      ],
+      "error_forward_left_up": [
+        0.032940571681480096,
+        0.011428234366447342,
+        -0.019512431303725486
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 2,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        5.015080110355276,
+        0.438520893085778,
+        2.169985737601256
+      ],
+      "error_forward_left_up": [
+        -1.946082760430917,
+        0.23667898465561593,
+        1.942978632567469
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 2,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        6.303184480628784,
+        -1.32608451529642,
+        0.3923088366841336
+      ],
+      "error_forward_left_up": [
+        0.09168219429261534,
+        -0.08026600213739737,
+        0.024583432221330692
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 2,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        4.297188283438396,
+        1.4117896798668335,
+        2.3074098365227376
+      ],
+      "error_forward_left_up": [
+        1.3697620595860083,
+        0.41589933498656784,
+        2.1601485319255707
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 2,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        3.152372088205035,
+        1.9594322896864849,
+        0.07971651624354978
+      ],
+      "error_forward_left_up": [
+        0.029904421826350867,
+        0.01943485359783545,
+        0.010559849477355221
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 3,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        5.553821580003164,
+        0.008640158307776119,
+        2.4502914772135997
+      ],
+      "error_forward_left_up": [
+        -1.244271412312285,
+        0.3103046740802816,
+        2.178883728781847
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 3,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        6.25,
+        -1.25,
+        0.3500000000000006
+      ],
+      "error_forward_left_up": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842590676
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 3,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        4.325680930626623,
+        1.2708413404341816,
+        2.297713065941372
+      ],
+      "error_forward_left_up": [
+        1.488612933605454,
+        0.3364746037080172,
+        2.141750855483524
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 3,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        3.149504566141663,
+        1.9552543706965375,
+        0.07263659409642546
+      ],
+      "error_forward_left_up": [
+        0.030362706948913343,
+        0.014534306387416112,
+        0.0033780948682979872
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 4,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        4.984697319755794,
+        0.3233442717556611,
+        2.2194037971427845
+      ],
+      "error_forward_left_up": [
+        -1.8831263818529593,
+        0.1331815608027993,
+        1.9872018202257837
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 4,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        6.265009814201058,
+        -1.310446304904379,
+        0.36656904724999023
+      ],
+      "error_forward_left_up": [
+        0.052018383369003426,
+        -0.09589819600355906,
+        0.0011994171855281288
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 4,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        4.456346704402703,
+        0.9877889224360004,
+        2.19081782081631
+      ],
+      "error_forward_left_up": [
+        1.7734617382607043,
+        0.22989769950235706,
+        2.0147810512863105
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 4,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        3.1487916997142724,
+        1.9661659069922999,
+        0.07526663699020854
+      ],
+      "error_forward_left_up": [
+        0.02233877662251855,
+        0.021716798947956428,
+        0.006620820764072388
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 5,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        5.334249377241104,
+        0.1036522915443154,
+        2.4335116039812448
+      ],
+      "error_forward_left_up": [
+        -1.4674194852554912,
+        0.22246824127326192,
+        2.1756402049101116
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "outbound",
+      "round_trip": 5,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "committed_planner_endpoint": [
+        6.25,
+        -1.25,
+        0.34999999999999976
+      ],
+      "error_forward_left_up": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591509
+      ],
+      "completion_target_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 5,
+      "kind": "INTERMEDIATE_STOP",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        4.45713357539483,
+        1.0260503323449826,
+        2.205941904031836
+      ],
+      "error_forward_left_up": [
+        1.7480317551650184,
+        0.2573388469412845,
+        2.031915575915834
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    },
+    {
+      "leg": "return",
+      "round_trip": 5,
+      "kind": "FINAL_GOAL_CANDIDATE",
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "committed_planner_endpoint": [
+        3.138513885630434,
+        1.9987917235376893,
+        0.0623755791047921
+      ],
+      "error_forward_left_up": [
+        -0.008759832599134876,
+        0.03767181430833097,
+        -0.004082951016454672
+      ],
+      "completion_target_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ]
+    }
+  ],
+  "tracking_policy": "FC pose timestamp matched to previously sent position/velocity reference",
+  "post_takeoff_position_policy": {
+    "abort_boundary": "Configured outer venue including propeller-inclusive vehicle envelope",
+    "straight_line_corridor_m": null,
+    "tracking_error_abort_m": null,
+    "initial_offset_abort_m": null,
+    "arrival_tolerance_per_axis_m": 0.1
+  },
+  "peak_reference_speed_mps": 1.5846020112571184,
+  "peak_reference_acceleration_mps2": 1.0152508312358928,
+  "motion_policy": "observe",
+  "motion_acceptance": {
+    "planner_target_speed_mps": 2.0,
+    "planner_target_acceleration_mps2": 1.0,
+    "acceptance_speed_mps": 4.0,
+    "acceptance_acceleration_mps2": 2.0,
+    "reference_exceedance_action": "record_only",
+    "planner_exceedance_action": "reject_candidate_and_replan"
+  },
+  "planner_motion_by_leg": {
+    "round_01_outbound": {
+      "checked_samples": 136,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 17,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.5537920467882222,
+      "peak_acceleration_mps2": 1.0042793383274045,
+      "last_violation": {
+        "stamp_ns": 1792317347366512896,
+        "speed_mps": 0.6430219568679673,
+        "acceleration_mps2": 1.0034166382496141,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          0.13070897237363882,
+          -0.24857815122385302,
+          -0.5784473219658541
+        ],
+        "acceleration_xyz": [
+          -0.33641063671765137,
+          0.494536161283854,
+          0.8056716568193343
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_01_return": {
+      "checked_samples": 134,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 6,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.5846020112571182,
+      "peak_acceleration_mps2": 1.001909296602292,
+      "last_violation": {
+        "stamp_ns": 1792317353816439296,
+        "speed_mps": 1.5081494039194114,
+        "acceleration_mps2": 1.0011548714970366,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          -0.9658986390990698,
+          0.8206718536494659,
+          -0.8173445736998506
+        ],
+        "acceleration_xyz": [
+          0.42352119744651107,
+          -0.6803673811224304,
+          -0.6000342479728361
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_02_outbound": {
+      "checked_samples": 141,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 12,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.4659160026612725,
+      "peak_acceleration_mps2": 1.005102448251322,
+      "last_violation": {
+        "stamp_ns": 1792317363166254080,
+        "speed_mps": 0.654095797626631,
+        "acceleration_mps2": 1.0045558134935229,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          0.09433611603660769,
+          -0.22819087857797715,
+          -0.6056987143933501
+        ],
+        "acceleration_xyz": [
+          -0.26029912078389605,
+          0.4742689582584333,
+          0.8464311580838837
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_02_return": {
+      "checked_samples": 140,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 2,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.470512995724639,
+      "peak_acceleration_mps2": 1.00101274352659,
+      "last_violation": {
+        "stamp_ns": 1792317369616240896,
+        "speed_mps": 1.2962515244414983,
+        "acceleration_mps2": 1.0006027198840663,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          -0.7886842607701142,
+          0.8072248220186249,
+          -0.6376780050679229
+        ],
+        "acceleration_xyz": [
+          0.24397779847161602,
+          -0.4709383158771042,
+          -0.8484678777250036
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_03_outbound": {
+      "checked_samples": 137,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 6,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.4871913942914985,
+      "peak_acceleration_mps2": 1.0040555648978586,
+      "last_violation": {
+        "stamp_ns": 1792317377566068480,
+        "speed_mps": 1.4335476042275925,
+        "acceleration_mps2": 1.0011436197250394,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          0.8743097658674789,
+          -0.9621254608760932,
+          -0.6041156879517284
+        ],
+        "acceleration_xyz": [
+          -0.4918155497005989,
+          0.3419423251103903,
+          -0.8021729605807917
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_03_return": {
+      "checked_samples": 134,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 7,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.5121898509782408,
+      "peak_acceleration_mps2": 1.0116812584170043,
+      "last_violation": {
+        "stamp_ns": 1792317386915992064,
+        "speed_mps": 0.5455382825881858,
+        "acceleration_mps2": 1.0010063445555177,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          -0.11302368062550489,
+          0.11886144637577452,
+          -0.5202976282404044
+        ],
+        "acceleration_xyz": [
+          0.3232437279788196,
+          -0.2854067126245672,
+          0.9033660401806083
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_04_outbound": {
+      "checked_samples": 142,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 8,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.4614794183128583,
+      "peak_acceleration_mps2": 1.0037424348591164,
+      "last_violation": {
+        "stamp_ns": 1792317393315858688,
+        "speed_mps": 1.4404214067015784,
+        "acceleration_mps2": 1.002493438346717,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          0.8521892779202761,
+          -0.965878542756825,
+          -0.6447215710086209
+        ],
+        "acceleration_xyz": [
+          -0.4878737411222029,
+          0.2481109310257977,
+          -0.8398888453582178
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_04_return": {
+      "checked_samples": 140,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 5,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.453309976354931,
+      "peak_acceleration_mps2": 1.0152508312358928,
+      "last_violation": {
+        "stamp_ns": 1792317401615761408,
+        "speed_mps": 1.2566296486483715,
+        "acceleration_mps2": 1.0056775280102672,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          -0.818805920747576,
+          0.6233053874130535,
+          -0.7212248831208662
+        ],
+        "acceleration_xyz": [
+          0.4896230904234156,
+          -0.465888044585326,
+          -0.7447179664688687
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_05_outbound": {
+      "checked_samples": 138,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 3,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.5270479717175491,
+      "peak_acceleration_mps2": 1.0030215676583085,
+      "last_violation": {
+        "stamp_ns": 1792317409615651584,
+        "speed_mps": 1.4511392059521582,
+        "acceleration_mps2": 1.0006393564739249,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          0.7935275224642476,
+          -0.9725863199634085,
+          -0.7281448457300562
+        ],
+        "acceleration_xyz": [
+          -0.5678604629033155,
+          0.45742514711191373,
+          -0.6852560479013863
+        ]
+      },
+      "policy": "observe"
+    },
+    "round_05_return": {
+      "checked_samples": 136,
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 9,
+      "acceptance_speed_exceedances": 0,
+      "acceptance_acceleration_exceedances": 0,
+      "peak_speed_mps": 1.5215060642569325,
+      "peak_acceleration_mps2": 1.012049110864627,
+      "last_violation": {
+        "stamp_ns": 1792317418815514112,
+        "speed_mps": 0.5625037221038977,
+        "acceleration_mps2": 1.005892180862936,
+        "speed_target_mps": 2.0,
+        "acceleration_target_mps2": 1.0,
+        "speed_acceptance_mps": 4.0,
+        "acceleration_acceptance_mps2": 2.0,
+        "velocity_xyz": [
+          -0.1627899380994054,
+          0.10250057769291601,
+          -0.5285863269201627
+        ],
+        "acceleration_xyz": [
+          0.3846791342767644,
+          -0.24309497602584063,
+          0.8970762931904224
+        ]
+      },
+      "policy": "observe"
+    }
+  },
+  "motion_advisories": {
+    "speed_mps": 2.4,
+    "acceleration_mps2": 1.5,
+    "action": "warning_only",
+    "derivative_exceedance_alone_stops_motion": false
+  },
+  "motion_advisory_by_leg": {
+    "round_01_outbound": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_01_return": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_02_outbound": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_02_return": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_03_outbound": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_03_return": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_04_outbound": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_04_return": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_05_outbound": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    },
+    "round_05_return": {
+      "speed_exceedances": 0,
+      "acceleration_exceedances": 0
+    }
+  },
+  "planning_wait_policy": {
+    "timeout_s": null,
+    "action": "Hold the leg start until a verified trajectory arrives or the operator stops"
+  },
+  "execution_limits": {
+    "controller_timeout_s": null,
+    "committed_trajectory_duration_s": null,
+    "callback_gap_abort_s": null,
+    "reference_stamp_gap_abort_s": null
+  },
+  "navigation_goal_policy": {
+    "source": "/visualization/goal",
+    "policy": "SUPER accepted free-space goal inside vehicle-inclusive venue",
+    "requested_targets_preserved": true,
+    "arrival_tolerance_per_axis_m": 0.1
+  },
+  "accepted_goals": {
+    "round_01_outbound": {
+      "round_trip": 1,
+      "leg": "outbound",
+      "goal_request_stamp_ns": 1792317341727635207,
+      "feedback_stamp_ns": 1792317341756636315,
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "accepted_planner_xyz": [
+        6.25,
+        -1.25,
+        0.35000000000000003
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "adjustment_forward_left_up_m": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591231
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_01_return": {
+      "round_trip": 1,
+      "leg": "return",
+      "goal_request_stamp_ns": 1792317349628605908,
+      "feedback_stamp_ns": 1792317349646484844,
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "accepted_planner_xyz": [
+        3.1500000000000004,
+        1.9500000000000002,
+        0.05
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "adjustment_forward_left_up_m": [
+        0.032940571681479784,
+        0.011428234366447467,
+        -0.019512431303725375
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_02_outbound": {
+      "round_trip": 2,
+      "leg": "outbound",
+      "goal_request_stamp_ns": 1792317357328746082,
+      "feedback_stamp_ns": 1792317357346452876,
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "accepted_planner_xyz": [
+        6.25,
+        -1.25,
+        0.35000000000000003
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "adjustment_forward_left_up_m": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591231
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_02_return": {
+      "round_trip": 2,
+      "leg": "return",
+      "goal_request_stamp_ns": 1792317365378866705,
+      "feedback_stamp_ns": 1792317365396290932,
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "accepted_planner_xyz": [
+        3.1500000000000004,
+        1.9500000000000002,
+        0.05
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "adjustment_forward_left_up_m": [
+        0.032940571681479784,
+        0.011428234366447467,
+        -0.019512431303725375
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_03_outbound": {
+      "round_trip": 3,
+      "leg": "outbound",
+      "goal_request_stamp_ns": 1792317373379277459,
+      "feedback_stamp_ns": 1792317373396108953,
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "accepted_planner_xyz": [
+        6.25,
+        -1.25,
+        0.35000000000000003
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "adjustment_forward_left_up_m": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591231
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_03_return": {
+      "round_trip": 3,
+      "leg": "return",
+      "goal_request_stamp_ns": 1792317381280174241,
+      "feedback_stamp_ns": 1792317381296224804,
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "accepted_planner_xyz": [
+        3.1500000000000004,
+        1.9500000000000002,
+        0.05
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "adjustment_forward_left_up_m": [
+        0.032940571681479784,
+        0.011428234366447467,
+        -0.019512431303725375
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_04_outbound": {
+      "round_trip": 4,
+      "leg": "outbound",
+      "goal_request_stamp_ns": 1792317388979772180,
+      "feedback_stamp_ns": 1792317388995969064,
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "accepted_planner_xyz": [
+        6.25,
+        -1.25,
+        0.35000000000000003
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "adjustment_forward_left_up_m": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591231
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_04_return": {
+      "round_trip": 4,
+      "leg": "return",
+      "goal_request_stamp_ns": 1792317397180675350,
+      "feedback_stamp_ns": 1792317397195816213,
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "accepted_planner_xyz": [
+        3.1500000000000004,
+        1.9500000000000002,
+        0.05
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "adjustment_forward_left_up_m": [
+        0.032940571681479784,
+        0.011428234366447467,
+        -0.019512431303725375
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_05_outbound": {
+      "round_trip": 5,
+      "leg": "outbound",
+      "goal_request_stamp_ns": 1792317405180443232,
+      "feedback_stamp_ns": 1792317405195741455,
+      "requested_planner_xyz": [
+        6.2961094412202305,
+        -1.2060227875793492,
+        0.3608807227704797
+      ],
+      "accepted_planner_xyz": [
+        6.25,
+        -1.25,
+        0.35000000000000003
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "adjustment_forward_left_up_m": [
+        -0.0022738114443888943,
+        -0.06357164184282812,
+        -0.011486602842591231
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    },
+    "round_05_return": {
+      "round_trip": 5,
+      "leg": "return",
+      "goal_request_stamp_ns": 1792317413132538682,
+      "feedback_stamp_ns": 1792317413145628248,
+      "requested_planner_xyz": [
+        3.11791424019705,
+        1.966196510957426,
+        0.06745273129034834
+      ],
+      "accepted_planner_xyz": [
+        3.1500000000000004,
+        1.9500000000000002,
+        0.05
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "adjustment_forward_left_up_m": [
+        0.032940571681479784,
+        0.011428234366447467,
+        -0.019512431303725375
+      ],
+      "feedback": "Pinned SUPER goal/path markers"
+    }
+  },
+  "planner_venue_bounds": {
+    "schema_version": 1,
+    "frame": "world",
+    "inequality": "normal dot raw_planner_position + offset <= 0",
+    "halfspaces": [
+      [
+        0.7062656002273738,
+        -0.7049376218970616,
+        0.06520622032891807,
+        -5.920428017351924
+      ],
+      [
+        -0.7062656002273738,
+        0.7049376218970616,
+        -0.06520622032891807,
+        0.5204280173519238
+      ],
+      [
+        0.7069247418983289,
+        0.7071958205848822,
+        -0.011466500741575333,
+        -4.793843227716729
+      ],
+      [
+        -0.7069247418983289,
+        -0.7071958205848822,
+        0.011466500741575333,
+        2.3938432277167285
+      ],
+      [
+        -0.03803039872850084,
+        0.05419428550494229,
+        0.9978059271176735,
+        -2.255285828399469
+      ],
+      [
+        0.03803039872850084,
+        -0.05419428550494229,
+        -0.9978059271176735,
+        -0.359714171600531
+      ]
+    ],
+    "world_to_venue_matrix": [
+      [
+        0.7062656002273738,
+        -0.7049376218970616,
+        0.06520622032891807
+      ],
+      [
+        0.7069247418983289,
+        0.7071958205848822,
+        -0.011466500741575333
+      ],
+      [
+        -0.03803039872850084,
+        0.05419428550494229,
+        0.9978059271176735
+      ]
+    ],
+    "world_to_venue_offset": [
+      -0.8204280173519237,
+      -3.5938432277167287,
+      0.444714171600531
+    ],
+    "fc_centre_lower_forward_left_floor_m": [
+      -0.3,
+      -1.2,
+      0.085
+    ],
+    "fc_centre_upper_forward_left_floor_m": [
+      5.1,
+      1.2,
+      2.6999999999999997
+    ],
+    "ground_aligned_xyz": [
+      -0.0036890808685323684,
+      -0.006802650626042683,
+      0.01062480546138006
+    ],
+    "takeoff_aligned_yaw_rad": 1.9535362147811326,
+    "fixed_raw_goal_quaternion_xyzw": [
+      0.0,
+      0.0,
+      5.482418929782932e-05,
+      0.9999999984971542
+    ],
+    "additional_boundary_inset_m": 0.0,
+    "vehicle_extents_applied_once": true,
+    "captured_cloud_changed": false,
+    "optimization_targets_changed": false,
+    "motion_acceptance_changed": false,
+    "scope": "Frozen-scene ground rehearsal only",
+    "source_alignment_sha256": "c7df1b948cf2852c7b9b37af996015161721c0616a335afcc1ef755936a5e646",
+    "source_planner_sha256": "fa2ccb5e5deb3b7e6448104a6f4fc4b37e32bcf571b64fc5fe5baf3436a319ec",
+    "mission_sha256": "41407723648788a79642acd309f653dbf53acf9318669c50fbf9c292975ede09",
+    "search_policy": {
+      "elapsed_time_limit_s": null,
+      "termination": "Goal/horizon reached or finite admissible grid exhausted; operator can interrupt",
+      "obstacle_checks_retained": true,
+      "venue_checks_retained": true,
+      "from_rest_elapsed_rejection": false,
+      "from_rest_epoch": "Complete primary/backup pair commit time",
+      "moving_replan_splice_checks_retained": true
+    },
+    "planner_profile": "/evidence/full-super/src/SUPER/super_planner/config/mid360_demo_rehearsal_1a70a5417b07.yaml",
+    "planner_profile_sha256": "1bf817eee1b458780f58f3227ca718836b8683e07ea0ccb489de5ff3a83e0a0d"
+  },
+  "planner_wait_elapsed_s": 0.570675870993,
+  "stage": "DONE",
+  "max_tracking_error_forward_left_up_m": [
+    0.00015791011540031093,
+    2.691438721778734e-05,
+    0.00031398114070113614
+  ],
+  "planner_goals_sent": 10,
+  "superseded_command_samples": 5464,
+  "goal_arrivals": {
+    "round_01_outbound": {
+      "round_trip": 1,
+      "leg": "outbound",
+      "measured_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009189,
+        0.41413820261878126
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "error_to_request_forward_left_up_m": [
+        -0.0022738114443880686,
+        -0.06357164184282846,
+        -0.011486602842598781
+      ],
+      "nominal_position_reached": true
+    },
+    "round_01_return": {
+      "round_trip": 1,
+      "leg": "return",
+      "measured_aligned_xyz": [
+        -0.026592525414836032,
+        0.01948647319639385,
+        0.4061123741576574
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "error_to_request_forward_left_up_m": [
+        0.03294057168147672,
+        0.011428234366449661,
+        -0.019512431303722655
+      ],
+      "nominal_position_reached": true
+    },
+    "round_02_outbound": {
+      "round_trip": 2,
+      "leg": "outbound",
+      "measured_aligned_xyz": [
+        -1.6244537875687675,
+        4.189231666009189,
+        0.4141382026187866
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "error_to_request_forward_left_up_m": [
+        -0.002273811444387406,
+        -0.0635716418428268,
+        -0.011486602842593452
+      ],
+      "nominal_position_reached": true
+    },
+    "round_02_return": {
+      "round_trip": 2,
+      "leg": "return",
+      "measured_aligned_xyz": [
+        -0.026592525414836032,
+        0.01948647319639485,
+        0.40611237415765555
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "error_to_request_forward_left_up_m": [
+        0.03294057168147765,
+        0.011428234366449288,
+        -0.019512431303724487
+      ],
+      "nominal_position_reached": true
+    },
+    "round_03_outbound": {
+      "round_trip": 3,
+      "leg": "outbound",
+      "measured_aligned_xyz": [
+        -1.6244537875687701,
+        4.189231666009187,
+        0.41413820261879203
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "error_to_request_forward_left_up_m": [
+        -0.002273811444388058,
+        -0.06357164184282367,
+        -0.011486602842588012
+      ],
+      "nominal_position_reached": true
+    },
+    "round_03_return": {
+      "round_trip": 3,
+      "leg": "return",
+      "measured_aligned_xyz": [
+        -0.02659252541483559,
+        0.01948647319639696,
+        0.4061123741576465
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "error_to_request_forward_left_up_m": [
+        0.03294057168147944,
+        0.011428234366448088,
+        -0.019512431303733535
+      ],
+      "nominal_position_reached": true
+    },
+    "round_04_outbound": {
+      "round_trip": 4,
+      "leg": "outbound",
+      "measured_aligned_xyz": [
+        -1.6244537875687666,
+        4.1892316660091895,
+        0.4141382026187883
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "error_to_request_forward_left_up_m": [
+        -0.0022738114443869133,
+        -0.06357164184282796,
+        -0.011486602842591731
+      ],
+      "nominal_position_reached": true
+    },
+    "round_04_return": {
+      "round_trip": 4,
+      "leg": "return",
+      "measured_aligned_xyz": [
+        -0.0265925254148347,
+        0.0194864731963984,
+        0.40611237415764817
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "error_to_request_forward_left_up_m": [
+        0.03294057168148044,
+        0.011428234366446723,
+        -0.01951243130373187
+      ],
+      "nominal_position_reached": true
+    },
+    "round_05_outbound": {
+      "round_trip": 5,
+      "leg": "outbound",
+      "measured_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009191,
+        0.41413820261878465
+      ],
+      "requested_aligned_xyz": [
+        -1.6842748806438685,
+        4.167599266965685,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -1.6244537875687657,
+        4.189231666009188,
+        0.4141382026187888
+      ],
+      "error_to_request_forward_left_up_m": [
+        -0.0022738114443855983,
+        -0.06357164184282946,
+        -0.011486602842595395
+      ],
+      "nominal_position_reached": true
+    },
+    "round_05_return": {
+      "round_trip": 5,
+      "leg": "return",
+      "measured_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397736,
+        0.4061123741576518
+      ],
+      "requested_aligned_xyz": [
+        -0.0036890808685323684,
+        -0.006802650626042683,
+        0.42562480546138004
+      ],
+      "accepted_aligned_xyz": [
+        -0.026592525414835144,
+        0.019486473196397514,
+        0.40611237415765467
+      ],
+      "error_to_request_forward_left_up_m": [
+        0.03294057168147999,
+        0.011428234366447384,
+        -0.01951243130372826
+      ],
+      "nominal_position_reached": true
+    }
+  },
+  "nominal_waypoints_reached": true,
+  "return_hold_target_aligned_xyz": [
+    -0.026592525414835144,
+    0.019486473196397514,
+    0.40611237415765467
+  ],
+  "return_home_offset_forward_left_up_m": [
+    0.032940571681479784,
+    0.011428234366447467,
+    -0.019512431303725375
+  ],
+  "return_hover_duration_s": 6.050017160996504,
+  "landing_max_horizontal_error_m": 0.032940571681479784,
+  "demonstration_completed": true,
+  "finished_at": "2026-10-18T09:57:07.829649+00:00",
+  "simulation_backend": {
+    "kind": "real SUPER / ideal virtual vehicle",
+    "actual_SUPER_used": true,
+    "actual_PX4_used": false,
+    "hardware_used": false,
+    "ledger": {
+      "goals": [
+        [
+          6.2961094412202305,
+          -1.2060227875793492,
+          0.3608807227704797
+        ],
+        [
+          3.11791424019705,
+          1.966196510957426,
+          0.06745273129034834
+        ],
+        [
+          6.2961094412202305,
+          -1.2060227875793492,
+          0.3608807227704797
+        ],
+        [
+          3.11791424019705,
+          1.966196510957426,
+          0.06745273129034834
+        ],
+        [
+          6.2961094412202305,
+          -1.2060227875793492,
+          0.3608807227704797
+        ],
+        [
+          3.11791424019705,
+          1.966196510957426,
+          0.06745273129034834
+        ],
+        [
+          6.2961094412202305,
+          -1.2060227875793492,
+          0.3608807227704797
+        ],
+        [
+          3.11791424019705,
+          1.966196510957426,
+          0.06745273129034834
+        ],
+        [
+          6.2961094412202305,
+          -1.2060227875793492,
+          0.3608807227704797
+        ],
+        [
+          3.11791424019705,
+          1.966196510957426,
+          0.06745273129034834
+        ]
+      ],
+      "commands": [
+        "OFFBOARD",
+        "ARM",
+        "AUTO.LAND"
+      ],
+      "peak_native_speed": 1.5846020112571184,
+      "max_lateral_displacement_m": 0.3290998771200021,
+      "armed": false,
+      "landed": true,
+      "rest_waits": 0,
+      "future_replans": 0,
+      "accepted_goals": []
+    },
+    "scene_file": "/evidence/live_venue_ground_regression/scene.json",
+    "execution_timeout_s": null,
+    "static_snapshot_adaptation": [
+      "rog_map.ros_callback.cloud_topic",
+      "rog_map.raycasting.enable"
+    ]
+  },
+  "rehearsal_viewer": {
+    "requested": false,
+    "status": "disabled",
+    "domain_id": 197,
+    "localhost_only": true,
+    "rendering_verified": false,
+    "arrow_direction": "vehicle body +X in raw planner world; not velocity",
+    "arrow_anchor": "raw FAST_LIO localization reference point"
+  }
+}

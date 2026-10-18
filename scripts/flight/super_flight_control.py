@@ -29,7 +29,7 @@ from control_bridge_preview import Mapping, arrays, load_converter, quaternion_r
 from bounded_reference_preview import Reference, Plan, TakeoffFrame
 
 
-def inverse_goal(mapping, raw_pose, target):
+def inverse_goal(mapping, raw_pose, target,goal_quaternion=None):
     """Retain planner yaw; invert the same terminal FC-centre lever conversion."""
     if mapping.failed or mapping.origin is None or mapping.pairs<10:
         raise ValueError('Need ten fixed-geometry localization pairs')
@@ -37,6 +37,12 @@ def inverse_goal(mapping, raw_pose, target):
     x,y,z,w=q
     yaw=math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))
     goal_q=quaternion_rpy(0.,0.,yaw)
+    if goal_quaternion is not None:
+        goal_q=np.array(goal_quaternion,dtype=float,copy=True)
+        if (goal_q.shape!=(4,) or not np.all(np.isfinite(goal_q))
+                or abs(np.linalg.norm(goal_q)-1)>.02 or np.max(np.abs(goal_q[:2]))>1e-8):
+            raise ValueError('Expected a finite fixed planner yaw quaternion')
+        goal_q/=np.linalg.norm(goal_q)
     target=np.asarray(target,dtype=float)
     zero=mapping.converter(np.zeros(3),goal_q,np.eye(6))[0]
     basis=np.column_stack([mapping.converter(axis,goal_q,np.eye(6))[0]-zero for axis in np.eye(3)])

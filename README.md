@@ -1,5 +1,7 @@
 # Demo_HKU_open-day_SUPER
 
+**Live preparation update — October 18, 2026:** the physical mission entrypoint now gives SUPER and the controller the same captured FC ground/yaw and measured vehicle-inclusive venue. It verifies the running planner configuration before READY. This is separate from the successful virtual rehearsals and does not establish physical flight completion. See [physical preparation](docs/REBOOT_QUICK_START.md#prepare-physical-execution-separately) and the [site measurement checklist](docs/FLIGHT_SITE_MEASUREMENTS.md).
+
 An indoor autonomous flight project for the HKU Open Day demonstration, integrating Livox MID360, FAST_LIO, SUPER, MAVROS, and PX4.
 
 **Status — October 18, 2026:** the operator has rebuilt and verified the separate 4 m/s / 2 m/s² acceptance profile, retaining 2/1 optimization targets. A further ground-rehearsal correction passes the existing vehicle-inclusive venue to SUPER search and all corridor-generation branches, closing the previous planner/controller boundary mismatch. It has a separate reversible source patch and requires one additional rebuild. A new complete onboard rehearsal remains pending. See [planner venue bounds and validation](docs/PLANNER_VENUE_BOUNDS.md).

@@ -7,7 +7,7 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "8c156b6b1010c46761412dc87732cb01488ea168990005e127da2b12abb1e3d7"
+      "sha256": "b43e135b7b2f3bc193e3d94467547302766a76a9434e5facdd64fe108528a908"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
@@ -15,7 +15,7 @@
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "55a8a68e64c0d1fbcff730895ded83410ffb8ce1f851271f1eb860d5a9eb7e56"
+      "sha256": "0412bca094be2ed5230de0c60aed975c25e830a98254f0c144342b5cab563874"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
@@ -31,7 +31,7 @@
     },
     "super_flight_control.py": {
       "path": "scripts/flight/super_flight_control.py",
-      "sha256": "19a05db2f57876d99fa43750131020fba5ee417ed0c08a85d06bc0a4b73829cf"
+      "sha256": "f26079a59db007c8b5104439466e26c459aef048e65433fa566868a943cee8fe"
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",
@@ -47,7 +47,7 @@
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
-      "sha256": "538eda792b8dcf3b885b2312d0840396391d8bef783b05b9fc1171c7afcec091"
+      "sha256": "618e44f2eb45c7809850ddbe454e7eca5a5089820a6270213593109f23bf6cc9"
     },
     "create_super_speed_ground_profile.py": {
       "path": "scripts/maintenance/create_super_speed_ground_profile.py",
@@ -100,7 +100,19 @@
     },
     "demo_venue.py": {
       "path": "scripts/simulation/demo_venue.py",
-      "sha256": "8b5fc95c38421df978a692ba790971e3f08ac685ee26fce955c4ecd070ffc673"
+      "sha256": "abd2e3c06eb896f347e0c5edf7a5e817ca36b58758f2cadcc168cf07b7a32468"
+    },
+    "venue_geometry.py": {
+      "path": "scripts/planning/venue_geometry.py",
+      "sha256": "c3d1342c14228f9540e3f3b07b249cdf3aec483957b562c0be53819e8ad52f30"
+    },
+    "live_venue.py": {
+      "path": "scripts/planning/live_venue.py",
+      "sha256": "72ce57602d763fb2947e380d9c9f76b41eb7972571d8f7a762691b32128c1a98"
+    },
+    "create_live_venue_profile.py": {
+      "path": "scripts/maintenance/create_live_venue_profile.py",
+      "sha256": "104e87e160b036673a8c75b7482c5b80454c1f3dee5dc91df0992027ab44b543"
     }
   }
 }
