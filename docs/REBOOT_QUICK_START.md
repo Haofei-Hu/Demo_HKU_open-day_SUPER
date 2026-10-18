@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='4b025e9f6819c9f82dea11f59e434983828b2f36'
+demo_revision='c189b42ec6b81de11b13540036af2d3775d78128'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
@@ -23,7 +23,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 
 Always install the complete matching 28-file release. Updating only a controller or reference helper can mix incompatible interfaces: an observed two-file update called a four-argument `inverse_goal()` against an older three-argument implementation. After installation, the normal `--restart` command below clears the previous grounded session before using the new release.
 
-The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified: set their `flight.height_fc_above_floor_m` to `1.5` and first sequence entry to `TAKEOFF_TO_1_5M`, and `flight.round_trips` to `5` with the current canonical sequence before selecting them. The integration workspaces and earlier localization helpers remain prerequisites.
+The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified. Keep `flight.round_trips=5`; `--flight-height 1.8` validates the survey at the selected height and saves the matching takeoff stage in a per-run copy. The integration workspaces and earlier localization helpers remain prerequisites.
 
 This release separates the unchanged **2 m/s, 1 m/s² optimization targets** from **4 m/s, 2 m/s² trajectory acceptance bounds**, and passes the existing rehearsal venue to SUPER's search and corridor generation. It requires two independent, one-time SUPER source patches and one rebuild after installation:
 
@@ -80,7 +80,7 @@ Vision preparation uses the test runner's existing 30-second observation duratio
 
 The canonical route performs five complete round trips in one flight: ten navigation legs and 45 m nominal horizontal travel before curved-path adjustments. Endpoints stay tied to the original takeoff frame. There is one takeoff, one final six-second hover and one landing; intermediate returns continue to the next outbound leg. Logs print `Round trip n/5 complete`. Reports preserve all ten accepted goals/arrival records and require all twenty ordered stages plus `round_trips_completed=5` for success.
 
-Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which remains **1.5 m** with `TAKEOFF_TO_1_5M`. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
+Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which retains its stored height. Physical preparation can explicitly select **1.8 m** with `--flight-height 1.8` and a separate per-run mission copy. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 
 During complete-demo map initialization, `Map capture WAIT` means the runner is still waiting for a fresh three-second raw-odometry window whose range is at most 2.5 cm per axis. There is no capture deadline: passing 12 seconds does not fail the rehearsal. Progress and observed ranges appear in the planner-stage log. Lost ground state, stale odometry or changed sources still stop initialization; a stable window is required before a map profile is written. Ctrl+C cancels the run.
 
@@ -225,7 +225,7 @@ delayed replies. A successful readback does not conceal a dead MAVROS process.
 
 ## Prepare physical execution separately
 
-The physical route uses 1.5 m height and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
+The current physical command selects 1.8 m FC-centre height above the floor and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
 Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Survey that box, takeoff distances from its rear and left boundaries, and all six propeller-inclusive FC-centre extents. Replace every null geometry field with an actual measurement; do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change. Use the [measurement checklist and exact JSON fields](FLIGHT_SITE_MEASUREMENTS.md).
 
@@ -237,6 +237,7 @@ With the measured configuration saved as `~/Downloads/open_day_mission_measured.
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
+  --flight-height 1.8 \
   --motion-policy observe
 ```
 
@@ -248,6 +249,7 @@ For a supervised physical trial after prerequisites and clearance have been conf
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
+  --flight-height 1.8 \
   --motion-policy observe --execute --on-site-supervised
 ```
 

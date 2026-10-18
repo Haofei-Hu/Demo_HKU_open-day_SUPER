@@ -1,6 +1,6 @@
 # 开机、重启后的快速启动
 
-当前配套发布版本：`4b025e9f6819c9f82dea11f59e434983828b2f36`。
+当前配套发布版本：`c189b42ec6b81de11b13540036af2d3775d78128`。
 本页命令用于**真实雷达地图上的地面虚拟演习**。真实飞机保持未解锁、静止；飞行动作由虚拟飞机执行。
 
 ## 第一次更新：整套安装一次
@@ -11,7 +11,7 @@
 ```bash
 (
 set -e
-demo_revision='4b025e9f6819c9f82dea11f59e434983828b2f36'
+demo_revision='c189b42ec6b81de11b13540036af2d3775d78128'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -55,7 +55,7 @@ python3 ~/Downloads/super_demo_test.py \
 | 项目 | 设置 |
 |---|---|
 | 地面虚拟起飞高度 | 飞控中心距地面 0.5 m |
-| 实飞任务高度 | 飞控中心距地面 1.5 m，使用单独的实飞入口 |
+| 实飞任务高度 | 飞控中心距地面 1.8 m，实飞显式指定 `--flight-height 1.8` |
 | 路线 | 前进 4.5 m → 返回原悬停点，共 5 次往返 |
 | 返回方式 | SUPER 重新规划返回路径，保持初始机头方向 |
 | 最后阶段 | 悬停 6 秒 → 降落 → 确认落地和未解锁 |
@@ -130,8 +130,6 @@ python3 ~/Downloads/super_session.py stop
 | 小幅停车后接续触发 `position step` | 当前版核对两条已提交轨迹的停车接续；记录在 `stationary_replan_handoffs_by_leg`，较大跳变和越界仍需调查 |
 | `WAIT_PLAN` 持续不动 | 正在等可执行轨迹；查看本次 `planner_rehearsal.log` 区分无路、走廊失败或优化失败 |
 
-当前发布已完成 57 项参考/控制回归、5 项安装器检查，以及已有实际点云上的一次完整五次虚拟往返，结果为 `SUCCESS`。
-停车接续修复另有针对性复现测试；完整回归并未触发该小幅接续分支，二者证据分别记录。
-最新机载整套更新后的完成结果仍待回传。详见[验证记录](../data/software_checks_2026-10-18/stationary_handoff_release.json)。
+验证范围和已知限制见[验证说明](VALIDATION.md)。
 
-实际飞机的五次完整任务尚未验证。实飞使用[独立准备流程](REBOOT_QUICK_START.md#prepare-physical-execution-separately)，需要填写[真实机体尺寸与场地位置](FLIGHT_SITE_MEASUREMENTS.md)。
+实际飞机的五次完整任务尚未验证。实飞使用[1.8 m 实飞操作](PHYSICAL_FLIGHT_ZH.md)，需要填写[真实机体尺寸与场地位置](FLIGHT_SITE_MEASUREMENTS.md)。
