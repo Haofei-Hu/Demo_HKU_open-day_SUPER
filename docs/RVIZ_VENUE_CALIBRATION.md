@@ -31,16 +31,23 @@ Left/right selection does not measure that distance. Keep the FC at that rear
 offset, or supply the appropriate value. Length and height remain 5.8 m and
 2.8 m; they are displayed rather than inferred from the clicks.
 
-1. The runner prepares localization and vision, then automatically opens RViz.
-2. Choose **Publish Point** and click the **left boundary**, then the **right
-   boundary**. The green and red markers are labelled LEFT and RIGHT.
+1. The runner prepares localization and vision, then automatically opens RViz
+   centred near the aircraft. It accumulates one second of fresh display points,
+   prints **FROZEN MAP READY**, and freezes the displayed cloud. Live localization
+   continues separately; the map does not refresh while selecting.
+2. **Publish Point** is selected automatically. Click a visible cloud point on the
+   **left boundary**, then the **right boundary**. The green and red markers are
+   labelled **1 LEFT** and **2 RIGHT**. Empty background does not produce a point.
+   If another tool is active, press **U** with focus on the RViz view to return to
+   Publish Point. Move Camera can be used to change the view, then press U again.
 3. Check the complete cyan box against the actual venue. The terminal shows the
    computed left/right clearances, width and rear offset. The selected width is
    capped at 2.8 m, centred between the two marked sides. A narrower selection is
    retained as a narrower box; it is never expanded past a selected boundary.
 4. Type `confirm` and Enter in the launching terminal to accept, or `reset` and
-   Enter to clear both points. Close RViz or press Ctrl+C to cancel. There is no
-   selection deadline.
+   Enter to clear both points while keeping the frozen cloud. Type `refresh` for
+   a new display snapshot; this also clears both picks. Close RViz or press Ctrl+C
+   to cancel. There is no selection deadline.
 
 For a terminal without interactive stdin, the equivalent services are:
 
@@ -48,9 +55,15 @@ For a terminal without interactive stdin, the equivalent services are:
 ros2 service call /super_venue_calibration/confirm std_srvs/srv/Trigger '{}'
 # Or discard both points:
 ros2 service call /super_venue_calibration/reset std_srvs/srv/Trigger '{}'
+# Or replace the frozen cloud and clear both points:
+ros2 service call /super_venue_calibration/refresh std_srvs/srv/Trigger '{}'
 ```
 
 Confirmation queues the final fresh-session checks; it is not a flight command.
+The display uses five-pixel squares to make sparse points easier to hit. Clicks
+must belong to the current snapshot epoch; they do not use the 250 ms live-pose
+age threshold. Sensor and controller freshness checks remain in force. A frozen
+picture improves selection usability; it does not correct localization drift.
 Successful selection prints:
 
 ```text

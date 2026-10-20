@@ -15,6 +15,7 @@ from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State,ExtendedState,EstimatorStatus
 from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
 from visualization_msgs.msg import MarkerArray
+from sensor_msgs.msg import PointCloud2
 import yaml
 
 from control_bridge_preview import quaternion_rpy
@@ -41,6 +42,7 @@ if case=='rviz':
     assert abs(calibrated['takeoff']['distance_from_left_m']-1.1)<1e-9
     assert calibrated['venue']['width_left_m']<=2.8
     assert (folder/'venue_calibration.json').exists()
+    assert calibrated['venue_calibration']['display_snapshot']['live_updates_hidden']
 gate=GroundGate()
 try:
     profile=create(folder/'planner.yaml',folder/'mission.json',folder/'alignment.py',folder/'venue_reference.json',gate)
@@ -97,11 +99,21 @@ def run(case):
     if case=='native':publishers['native']=node.create_publisher(PoseStamped,'/mavros/setpoint_position/local',10)
     with tempfile.TemporaryDirectory() as directory:
         folder=Path(directory)
-        clicked={'sent':0,'ack':0,'preview':None,'future':None}
+        clicked={'sent':0,'ack':0,'preview':None,'future':None,'frozen':False}
         if case=='rviz':
             from std_srvs.srv import Trigger
             import math
             click_pub=node.create_publisher(PointStamped,'/super_venue/clicked_point',10)
+            cloud_pub=node.create_publisher(PointCloud2,'/cloud_registered',10)
+            def frozen(msg):
+                if msg.width:clicked['frozen']=True
+            node.create_subscription(PointCloud2,'/super_debug/venue_calibration_cloud',frozen,10)
+            def scan():
+                from sensor_msgs_py import point_cloud2
+                from std_msgs.msg import Header
+                header=Header();header.frame_id='camera_init';header.stamp=node.get_clock().now().to_msg()
+                cloud_pub.publish(point_cloud2.create_cloud_xyz32(header,[[.2,1.,.8],[.2,-1.,.8]]))
+            node.create_timer(.02,scan)
             confirm=node.create_client(Trigger,'/super_venue_calibration/confirm')
             def markers(msg):
                 clicked['ack']=sum(m.type==2 and m.action==0 for m in msg.markers)
@@ -109,7 +121,8 @@ def run(case):
                     clicked['preview']=time.monotonic()
             node.create_subscription(MarkerArray,'/super_debug/venue_calibration',markers,10)
             def choose():
-                if not (folder/'calibrating').exists() or not node.count_subscribers('/super_venue/clicked_point'):return
+                if (not (folder/'calibrating').exists() or not clicked['frozen']
+                        or not node.count_subscribers('/super_venue/clicked_point')):return
                 index=clicked['sent']
                 if index<2 and clicked['ack']==index:
                     lateral=(1.1,-1.7)[index]

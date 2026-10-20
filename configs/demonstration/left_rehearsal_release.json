@@ -136,7 +136,7 @@
     },
     "calibrate_venue_rviz.py": {
       "path": "scripts/maintenance/calibrate_venue_rviz.py",
-      "sha256": "f295dc87f3e6f4fc9d60509c83ecd7c7415002b026ecf666c3d8ed244f1d2258"
+      "sha256": "8e7416aa43717802ef4ecf164abf6b97e2fea86c173efc79522efb502d6b1dcf"
     }
   },
   "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"

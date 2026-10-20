@@ -5,7 +5,7 @@ No aircraft, PX4 flight, or physical boundary survey was exercised.
 
 ## Automated checks
 
-The following unittest invocation passed **67 tests**:
+The initial calibration release passed **67 tests** with:
 
 ```bash
 python3 -m unittest \
@@ -37,3 +37,15 @@ The RViz case programmatically sends clicks. It verifies the message and
 preparation integration, not a human operator's ability to identify a particular
 physical wall or the accuracy of a live cloud. Those remain onsite checks.
 The source patch/mission regressions do not establish physical flight performance.
+
+The frozen-display correction adds a regression for immutable cloud data until
+explicit refresh, ignoring old sensor samples during a new capture, and the
+default point-selection tool. The same unittest command now passes **68 tests**.
+The live RViz integration now supplies a real
+PointCloud2 stream and waits for the frozen display topic before selecting.
+
+`tests/test_rviz_point_picker_ros.py` runs RViz under Xvfb and uses `xdotool` to
+perform an actual mouse click on a rendered frozen cloud. It checks that the
+default tool publishes a `camera_init` point on the rendered surface. This test
+passed, along with all four live integration cases. This
+requires `xdotool` in the cloud test container; the aircraft does not need it.

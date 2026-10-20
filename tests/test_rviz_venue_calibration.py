@@ -17,9 +17,35 @@ from live_venue import SOURCE_TOPICS,digest,LiveVenue
 from create_live_venue_profile import create
 from super_demo import arguments,DemoPreparation
 from super_ground_test import GroundTest
+from calibrate_venue_rviz import FrozenCloud,rviz_config
 
 
 class Tests(unittest.TestCase):
+    def test_display_freezes_until_refresh_and_opens_with_point_tool(self):
+        from std_msgs.msg import Header
+        from sensor_msgs_py import point_cloud2
+        cloud=FrozenCloud()
+        def message(ns,x):
+            header=Header();header.frame_id='camera_init'
+            header.stamp.sec=ns//1_000_000_000;header.stamp.nanosec=ns%1_000_000_000
+            return point_cloud2.create_cloud_xyz32(header,[[x,1.,2.]])
+        cloud.feed(message(1_000_000_000,1.),1_010_000_000,0.)
+        cloud.feed(message(2_100_000_000,2.),2_110_000_000,1.1)
+        original=bytes(cloud.message.data);self.assertEqual(cloud.message.width,2)
+        cloud.feed(message(3_200_000_000,100.),3_210_000_000,2.2)
+        self.assertEqual(bytes(cloud.message.data),original)
+        cloud.reset();self.assertIsNone(cloud.message)
+        cloud.feed(message(4_000_000_000,4.),5_000_000_000,3.)
+        self.assertEqual(cloud.parts,[])  # Old sensor samples cannot populate a new snapshot.
+        cloud.feed(message(5_000_000_000,5.),5_010_000_000,4.)
+        cloud.feed(message(6_100_000_000,6.),6_110_000_000,5.1)
+        self.assertNotEqual(bytes(cloud.message.data),original)
+        view=rviz_config([3.,-2.,-8.])['Visualization Manager']
+        self.assertEqual(view['Tools'][0]['Class'],'rviz_default_plugins/PublishPoint')
+        self.assertFalse(view['Tools'][0]['Single click'])
+        self.assertEqual(view['Views']['Current']['Focal Point'],dict(X=3.,Y=-2.,Z=-8.))
+        self.assertNotIn('/cloud_registered',str(view))
+
     def scene(self):
         from control_bridge_preview import quaternion_rpy
         from aligned_pose_preview import rotation
