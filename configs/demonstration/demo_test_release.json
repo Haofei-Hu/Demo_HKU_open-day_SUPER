@@ -96,7 +96,7 @@
     },
     "apply_super_venue_bounds.py": {
       "path": "scripts/maintenance/apply_super_venue_bounds.py",
-      "sha256": "7ad7a5de4a244a8d4e8463cfdf676eff3921161cb2b9efdc800bfd14e87df526"
+      "sha256": "a3342c957980b895f602b5e529b193d76990190a4807890713d6ef5fdff85f5a"
     },
     "demo_venue.py": {
       "path": "scripts/simulation/demo_venue.py",

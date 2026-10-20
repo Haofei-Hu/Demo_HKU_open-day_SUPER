@@ -22,6 +22,7 @@ HEIGHT_VERSION='VIRTUAL_HEIGHT_CORRIDOR_V1'
 GRID_VERSION='VENUE_GRID_ANCHOR_V1'
 START_VERSION='VENUE_REST_START_V1'
 MAP_DOMAIN_VERSION='VENUE_MAP_HEIGHT_V1'
+BACKUP_VERSION='VENUE_BACKUP_WAYPOINTS_V1'
 INF_MAP='rog_map/src/rog_map/inf_map.cpp'
 HEADER='super_planner/include/super_core/demo_venue.hpp'
 ASTAR_H='super_planner/include/path_search/astar.h'
@@ -439,9 +440,34 @@ MAP_DOMAIN_EDITS={PLANNER:[(
     '        // VENUE_MAP_HEIGHT_V1: effective map height is part of the admissible domain.\n'
     '        demo_venue.intersectMapHeight(rog_map_cfg.virtual_ground_height, rog_map_cfg.virtual_ceil_height);',1)]}
 
+# The unconstrained Cartesian backup variables can settle millimetres outside
+# a corridor under finite soft penalties. Repeating that same solve cannot
+# satisfy the continuous publication certificate. Use SUPER's existing convex
+# vertex parameterization for its backup knots and terminal stop, only when an
+# explicit venue is enabled. This is not an inset or a relaxed boundary: the
+# same obstacle/venue corridor and complete polynomial certificate still apply.
+BACKUP_INITIALIZATION='''        auto backup_config = cfg_.back_traj_cfg;
+        if (demo_venue.enabled()) {
+            backup_config.pos_constraint_type = 2;
+            ros_ptr_->info("VENUE_BACKUP_WAYPOINTS_V1: use corridor vertex coordinates for backup waypoints and stop position; full polynomial check retained");
+        }
+        back_traj_opt_ = std::make_shared<traj_opt::BackupTrajOpt>(backup_config, ros_ptr_);
+'''
+BACKUP_EDITS={PLANNER:[
+    ('        back_traj_opt_ = std::make_shared<traj_opt::BackupTrajOpt>(cfg_.back_traj_cfg, ros_ptr_);',
+     '        // Backup optimizer is initialized after the venue geometry below.',1),
+    ('        cg_ptr_->setDemoVenue(demo_venue);',
+     '        cg_ptr_->setDemoVenue(demo_venue);\n'+BACKUP_INITIALIZATION.rstrip(),1),
+]}
+
 
 def patched(relative,text):
     # Unwrap the latest layer before validating earlier exact source edits.
+    backup_edits=BACKUP_EDITS.get(relative,[])
+    if backup_edits and all(text.count(new)==count for _,new,count in backup_edits):
+        for old,new,_ in reversed(backup_edits):text=text.replace(new,old)
+    elif BACKUP_VERSION in text or 'Backup optimizer is initialized after the venue geometry below.' in text:
+        raise ValueError('Partial bounded-backup waypoint upgrade; no files written: '+relative)
     domain_edits=MAP_DOMAIN_EDITS.get(relative,[])
     if domain_edits and all(text.count(new)==count for _,new,count in domain_edits):
         for old,new,_ in reversed(domain_edits):text=text.replace(new,old)
@@ -475,6 +501,9 @@ def patched(relative,text):
         text=text.replace(old,new)
     for old,new,count in domain_edits:
         if text.count(old)!=count:raise ValueError('Unsupported map-height domain context: '+relative)
+        text=text.replace(old,new)
+    for old,new,count in backup_edits:
+        if text.count(old)!=count:raise ValueError('Unsupported backup waypoint context: '+relative)
         text=text.replace(old,new)
     return text
 
@@ -543,11 +572,11 @@ def require_support(root):
                 if handle.read(4)!=b'\x7fELF':continue
                 handle.seek(0);previous=b'';found=set()
                 while chunk:=handle.read(1024*1024):
-                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION,START_VERSION,MAP_DOMAIN_VERSION):
+                    for marker in (VERSION,SEARCH_VERSION,REST_VERSION,MAP_VERSION,COMMIT_VERSION,HEIGHT_VERSION,GRID_VERSION,START_VERSION,MAP_DOMAIN_VERSION,BACKUP_VERSION):
                         if marker.encode() in previous+chunk:found.add(marker)
-                    if len(found)==9:return path
-                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION),len(START_VERSION),len(MAP_DOMAIN_VERSION)):]
-    raise ValueError('Installed fsm_node needs complete bounded-search, height-query, continuous rest-start and map-height domain support; rebuild rog_map and super_planner before the rehearsal')
+                    if len(found)==10:return path
+                    previous=chunk[-max(len(VERSION),len(SEARCH_VERSION),len(REST_VERSION),len(MAP_VERSION),len(COMMIT_VERSION),len(HEIGHT_VERSION),len(GRID_VERSION),len(START_VERSION),len(MAP_DOMAIN_VERSION),len(BACKUP_VERSION)):]
+    raise ValueError('Installed fsm_node needs complete bounded-search, height-query, continuous rest-start, map-height domain and bounded backup waypoint support; rebuild rog_map and super_planner before the rehearsal')
 
 
 def main():

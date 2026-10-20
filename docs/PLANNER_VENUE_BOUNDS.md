@@ -177,6 +177,27 @@ configured map heights, captured cloud, hull, optimization targets, motion
 acceptance and waiting policies remain unchanged. A failed candidate retains the
 previous verified command and replans through the existing mechanism.
 
-Apply the updated source patch and rebuild both packages. The executable check
-now requires nine markers, including `VENUE_MAP_HEIGHT_V1`. An eight-marker
-binary must be rebuilt even if all Python scripts are current.
+That correction introduced the ninth executable marker,
+`VENUE_MAP_HEIGHT_V1`. Updating Python alone cannot update the compiled planner.
+
+## Backup stopping points inside the corridor
+
+`VENUE_BACKUP_WAYPOINTS_V1` uses SUPER's existing convex-vertex coordinates for
+backup knots and the terminal stopping position when explicit venue planes are
+enabled. The previous Cartesian variables were constrained only by finite
+penalties. A backup could therefore optimize successfully while ending a few
+millimetres outside a side or ceiling, then fail the continuous boundary check.
+Repeatedly solving the same soft problem could leave the mission in `WAIT_PLAN`.
+
+The bounded mode represents those points inside the existing obstacle-and-venue
+corridor. It does not change the YAML, venue dimensions, hull, obstacle inflation,
+2 m/s and 1 m/s² optimization targets, or 4 m/s and 2 m/s² acceptance limits.
+The full primary and backup polynomial checks remain active: keeping knots
+inside a polytope does not guarantee that the curve between them stays inside.
+A rejected curve still leaves the previous verified command in place.
+Profiles without venue planes retain their configured optimizer coordinates.
+
+The installer supplies the source patch; apply it and rebuild `rog_map` and
+`super_planner` once. Startup now requires all ten executable markers, including
+`VENUE_BACKUP_WAYPOINTS_V1`, so it detects an old binary before running preparation.
+See the [captured-scene verification](validation/bounded_backup_waypoints.md).

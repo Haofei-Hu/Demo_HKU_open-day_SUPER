@@ -26,6 +26,14 @@ See the [reproduction and verification record](../data/software_checks_2026-10-1
 and [full mission report](../data/software_checks_2026-10-18/map_height_ground_mission_report.json).
 This validates the captured-scene regression, not physical flight or every future map.
 
+The bounded-backup correction addresses a reproduced `WAIT_PLAN` deadlock:
+finite soft penalties allowed a backup stopping point a few millimetres outside
+the venue, so the continuous publication check rejected it. The clean corrected
+build completed five round trips and virtual landing on both the failing
+2 m-wide scene and an earlier 2.8 m-wide scene; 67 related tests passed.
+See [bounded backup waypoint verification](validation/bounded_backup_waypoints.md).
+This does not establish physical flight readiness.
+
 ## Known issues
 
 - MAVROS has exited during startup with `std::future_error: Promise already satisfied`; no permanent root-cause fix has been confirmed. See [restricted core-only recovery](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session).

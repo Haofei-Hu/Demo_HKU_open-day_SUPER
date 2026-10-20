@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "scope": "Cloud real-SUPER frozen-map software rehearsal; ideal virtual vehicle; no hardware or PX4 flight",
+  "source_run": "20261020_133636_673543",
+  "patch_sha256": "a3342c957980b895f602b5e529b193d76990190a4807890713d6ef5fdff85f5a",
+  "captured_source_config_sha256": "72b9f0497e573b612d1e37dbc369f9821fea790b204224e9be6700de595f5044",
+  "original_scene_payload_preserved": true,
+  "mission_preserved_byte_for_byte": true,
+  "max_regenerated_plane_coefficient_difference": 1.1102230246251565e-16,
+  "baseline": {
+    "result": "WAIT_PLAN reproduced",
+    "primary_polynomial_inside": true,
+    "backup_ceiling_violation_m": 0.0032354913450767867,
+    "backup_side_violation_m": 0.0028544057783729537,
+    "source": "Diagnostic build polynomial endpoint projections; final release removes diagnostic instrumentation"
+  },
+  "tests": {
+    "passed": 67,
+    "suites": [
+      "test_demo_venue",
+      "test_demo_rest_commit",
+      "test_demo_test_release",
+      "test_demo_mission",
+      "test_demo_tracking_ros",
+      "test_live_venue",
+      "test_live_venue_ros"
+    ]
+  },
+  "clean_release_replays": [
+    {
+      "case": "Uploaded 2 m width / 2 m ceiling scene",
+      "result": "SUCCESS",
+      "completed_stages": [
+        "TAKEOFF_TO_1_5M",
+        "STABILIZE_AT_HOME",
+        "ROUND_01_SUPER_OUTBOUND_4_5M",
+        "ROUND_01_STABILIZE_AT_FAR_POINT",
+        "ROUND_01_SUPER_RETURN_HOME",
+        "ROUND_02_SUPER_OUTBOUND_4_5M",
+        "ROUND_02_STABILIZE_AT_FAR_POINT",
+        "ROUND_02_SUPER_RETURN_HOME",
+        "ROUND_03_SUPER_OUTBOUND_4_5M",
+        "ROUND_03_STABILIZE_AT_FAR_POINT",
+        "ROUND_03_SUPER_RETURN_HOME",
+        "ROUND_04_SUPER_OUTBOUND_4_5M",
+        "ROUND_04_STABILIZE_AT_FAR_POINT",
+        "ROUND_04_SUPER_RETURN_HOME",
+        "ROUND_05_SUPER_OUTBOUND_4_5M",
+        "ROUND_05_STABILIZE_AT_FAR_POINT",
+        "ROUND_05_SUPER_RETURN_HOME",
+        "HOLD_HOME_6S",
+        "AUTO_LAND",
+        "CONFIRM_LANDED_AND_DISARMED"
+      ],
+      "accepted_goals": 10,
+      "round_trips": 5,
+      "final_hold_s": 6.050958566978807,
+      "peak_reference_speed_mps": 1.7792540473938925,
+      "peak_reference_acceleration_mps2": 1.030396446686566,
+      "confirmed_virtual_landed": true,
+      "confirmed_virtual_disarmed": true,
+      "report_sha256": "44cfcb308b782c687ae1642c55c74226f7a95ab6fabbaea3b792fce5ee8bebd9"
+    },
+    {
+      "case": "Earlier 2.8 m width / 2.8 m ceiling regression scene",
+      "result": "SUCCESS",
+      "completed_stages": [
+        "TAKEOFF_TO_0_5M",
+        "STABILIZE_AT_HOME",
+        "ROUND_01_SUPER_OUTBOUND_4_5M",
+        "ROUND_01_STABILIZE_AT_FAR_POINT",
+        "ROUND_01_SUPER_RETURN_HOME",
+        "ROUND_02_SUPER_OUTBOUND_4_5M",
+        "ROUND_02_STABILIZE_AT_FAR_POINT",
+        "ROUND_02_SUPER_RETURN_HOME",
+        "ROUND_03_SUPER_OUTBOUND_4_5M",
+        "ROUND_03_STABILIZE_AT_FAR_POINT",
+        "ROUND_03_SUPER_RETURN_HOME",
+        "ROUND_04_SUPER_OUTBOUND_4_5M",
+        "ROUND_04_STABILIZE_AT_FAR_POINT",
+        "ROUND_04_SUPER_RETURN_HOME",
+        "ROUND_05_SUPER_OUTBOUND_4_5M",
+        "ROUND_05_STABILIZE_AT_FAR_POINT",
+        "ROUND_05_SUPER_RETURN_HOME",
+        "HOLD_HOME_6S",
+        "AUTO_LAND",
+        "CONFIRM_LANDED_AND_DISARMED"
+      ],
+      "accepted_goals": 10,
+      "round_trips": 5,
+      "final_hold_s": 6.000027444999432,
+      "peak_reference_speed_mps": 1.5681030124294113,
+      "peak_reference_acceleration_mps2": 1.0110220675237598,
+      "confirmed_virtual_landed": true,
+      "confirmed_virtual_disarmed": true,
+      "report_sha256": "71ad6272536d9ca95366ce8fda72d0962a00ca04f59d6a5ad92276af9b64ab17"
+    }
+  ],
+  "physical_flight_verified": false
+}

@@ -141,6 +141,51 @@ class Tests(unittest.TestCase):
             path=root/source_patch.PLANNER;path.write_text(path.read_text()+'\n// later edit\n')
             with self.assertRaisesRegex(ValueError,'Source changed'):source_patch.restore(backup)
 
+    def test_nine_marker_release_upgrades_backup_variables_and_restores_exactly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source_tree(root);source_patch.apply(root)
+            path=root/source_patch.PLANNER
+            old=path.read_text()
+            for before,after,_ in reversed(source_patch.BACKUP_EDITS[source_patch.PLANNER]):
+                old=old.replace(after,before)
+            path.write_text(old)
+            backup=source_patch.apply(root)
+            self.assertEqual(set(json.loads((backup/'record.json').read_text())['files']),
+                             {source_patch.PLANNER})
+            self.assertIn(source_patch.BACKUP_VERSION,path.read_text())
+            self.assertIsNone(source_patch.apply(root))
+            source_patch.restore(backup)
+            self.assertEqual(path.read_text(),old)
+            path.write_text(old+'\n// VENUE_BACKUP_WAYPOINTS_V1 partial\n')
+            with self.assertRaisesRegex(ValueError,'Partial bounded-backup'):
+                source_patch.apply(root)
+
+    def test_backup_vertex_coordinates_are_venue_only_and_preserve_motion_configuration(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            code='''#include <cassert>
+#include <memory>
+struct Config {int pos_constraint_type=1;double max_vel=2,max_acc=1,accept_vel=4,accept_acc=2;};
+struct Logger {void info(const char*){};};
+namespace traj_opt {struct BackupTrajOpt {Config used;BackupTrajOpt(Config c,Logger*):used(c){};};}
+void check(bool enabled,int original) {
+ struct {Config back_traj_cfg;}cfg_;cfg_.back_traj_cfg.pos_constraint_type=original;
+ struct {bool value;bool enabled()const{return value;}}demo_venue{enabled};
+ Logger logger;auto ros_ptr_=&logger;
+ std::shared_ptr<traj_opt::BackupTrajOpt>back_traj_opt_;
+'''+source_patch.BACKUP_INITIALIZATION+'''
+ const auto &used=back_traj_opt_->used;
+ assert(used.pos_constraint_type==(enabled?2:original));
+ assert(used.max_vel==2 && used.max_acc==1 && used.accept_vel==4 && used.accept_acc==2);
+ assert(cfg_.back_traj_cfg.pos_constraint_type==original);
+}
+int main(){check(false,1);check(false,2);check(true,1);check(true,2);}
+'''
+            (root/'test.cpp').write_text(code)
+            result=subprocess.run(['g++','-std=c++17',str(root/'test.cpp'),'-o',str(root/'test')],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(subprocess.run([str(root/'test')]).returncode,0)
+
     def test_patched_source_and_installed_binary_are_required(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)/'src/SUPER';source_tree(root)
@@ -150,13 +195,16 @@ class Tests(unittest.TestCase):
             binary=Path(folder)/'install/super_planner/lib/super_planner/fsm_node'
             binary.parent.mkdir(parents=True);binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode())
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):source_patch.require_support(root)
-            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode()+source_patch.START_VERSION.encode()+source_patch.MAP_DOMAIN_VERSION.encode())
+            binary.write_bytes(b'\x7fELF'+source_patch.VERSION.encode()+source_patch.SEARCH_VERSION.encode()+source_patch.REST_VERSION.encode()+source_patch.MAP_VERSION.encode()+source_patch.COMMIT_VERSION.encode()+source_patch.HEIGHT_VERSION.encode()+source_patch.GRID_VERSION.encode()+source_patch.START_VERSION.encode()+source_patch.MAP_DOMAIN_VERSION.encode()+source_patch.BACKUP_VERSION.encode())
             self.assertEqual(source_patch.require_support(root),binary)
             complete=binary.read_bytes()
             binary.write_bytes(complete.replace(source_patch.MAP_DOMAIN_VERSION.encode(),b''))
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):
                 source_patch.require_support(root)
             binary.write_bytes(complete.replace(source_patch.START_VERSION.encode(),b''))
+            with self.assertRaisesRegex(ValueError,'complete bounded-search'):
+                source_patch.require_support(root)
+            binary.write_bytes(complete.replace(source_patch.BACKUP_VERSION.encode(),b''))
             with self.assertRaisesRegex(ValueError,'complete bounded-search'):
                 source_patch.require_support(root)
 
