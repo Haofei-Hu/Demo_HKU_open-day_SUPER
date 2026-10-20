@@ -36,7 +36,27 @@ in the separate simulation ROS domain. Rehearsal RViz opens automatically when
 preparation finishes; the terminal reports progress between the two windows.
 No second launch or start service is needed for the virtual mission.
 
-The virtual route remains a 0.5 m takeoff target, five 4.5 m out-and-back rounds,
+To rehearse at **1.5 m height inside a maximum 2 m total lateral width**, use:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics \
+  --fixture-geometry --motion-policy observe --fast-start \
+  --calibrate-venue --rear-offset 0.5 \
+  --rehearsal-width 2 --rehearsal-height 1.5
+```
+
+Select the actual side boundaries as usual. The width option intersects those
+boundaries with a strip extending 1 m left and 1 m right of the takeoff centre.
+A nearer selected side remains nearer; the box never expands beyond the survey.
+The cyan preview shows the resulting box before confirmation, and SUPER search,
+corridors and controller use that same box, including vehicle extents. The report
+retains both the original picks and the requested width cap. These optional
+rehearsal settings do not change the physical mission or the default rehearsal.
+Narrowing the box can remove an obstacle-avoidance route; it does not guarantee
+that a route exists inside it.
+
+By default, the virtual route uses a 0.5 m takeoff target, five 4.5 m out-and-back rounds,
 six seconds at home, then landing. `--fixture-geometry` supplies labelled virtual
 aircraft dimensions; the final left/right placement comes from the picks, not the
 fixture's default centre. The exact selected width and fixed heading/origin are

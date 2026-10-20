@@ -60,6 +60,18 @@ def apply_geometry(config,geometry,observation,alignment_sha256):
     return result
 
 
+def cap_rehearsal_width(geometry,width):
+    """Intersect the surveyed sides with an explicitly requested centred rehearsal box."""
+    if isinstance(width,bool) or not isinstance(width,(int,float)) or not math.isfinite(width) or width<=0:
+        raise ValueError('Rehearsal width must be finite and positive')
+    result=deepcopy(geometry)
+    right,left=result['selected_lateral_limits_m']
+    right=max(right,-width/2);left=min(left,width/2)
+    result.update(lateral_limits_m=[right,left],width_m=left-right,left_offset_m=left,
+                  width_policy='rehearsal_centered_width_cap',requested_rehearsal_width_m=width)
+    return result
+
+
 def validate_geometry(config):
     """Require saved mission sides to match the operator-confirmed selection."""
     data=config.get('venue_calibration',{});geometry=data.get('geometry',{})
@@ -69,7 +81,14 @@ def validate_geometry(config):
     limits=np.asarray(geometry.get('lateral_limits_m'),dtype=float)
     selected=np.asarray(geometry.get('selected_lateral_limits_m'),dtype=float)
     if (limits.shape!=(2,) or selected.shape!=(2,) or not np.all(np.isfinite([*limits,*selected]))
-            or not limits[0]<0<limits[1] or not np.allclose(limits,selected,atol=1e-10,rtol=0)):
+            or not limits[0]<0<limits[1] or not selected[0]<0<selected[1]):
+        raise ValueError('Invalid calibrated lateral interval')
+    expected_limits=selected
+    if geometry.get('width_policy')=='rehearsal_centered_width_cap':
+        if config.get('execution_context')!='ground_rehearsal':
+            raise ValueError('Rehearsal width cap is not a physical venue calibration')
+        expected_limits=cap_rehearsal_width(geometry,geometry.get('requested_rehearsal_width_m'))['lateral_limits_m']
+    if not np.allclose(limits,expected_limits,atol=1e-10,rtol=0):
         raise ValueError('Invalid calibrated lateral interval')
     expected=((config['venue']['width_left_m'],limits[1]-limits[0]),
               (config['takeoff']['distance_from_left_m'],limits[1]),

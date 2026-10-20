@@ -33,14 +33,18 @@ from super_session import GroundGate,NATIVE_CONTROL_TOPICS
 from create_live_venue_profile import create
 from super_demo_control import DemoMissionControl
 folder=Path(sys.argv[1]);case=sys.argv[2]
-if case=='rviz':
+if case in ('rviz','rviz_cap'):
     from calibrate_venue_rviz import calibrate
+    from demo_mission import DemoMission
     (folder/'calibrating').touch()
-    calibrated=calibrate(json.loads((folder/'mission.json').read_text()),folder/'alignment.py',folder,.5)
+    config=json.loads((folder/'mission.json').read_text())
+    width=2. if case=='rviz_cap' else None
+    if width is not None:config=DemoMission.ground_rehearsal(config,1.5)
+    calibrated=calibrate(config,folder/'alignment.py',folder,.5,width)
     (folder/'mission.json').write_text(json.dumps(calibrated))
     assert calibrated['venue_calibration']['confirmed_by_operator']
-    assert abs(calibrated['takeoff']['distance_from_left_m']-1.1)<1e-9
-    assert abs(calibrated['venue']['width_left_m']-4.2)<1e-9
+    assert abs(calibrated['takeoff']['distance_from_left_m']-(1. if width else 1.1))<1e-9
+    assert abs(calibrated['venue']['width_left_m']-(2. if width else 4.2))<1e-9
     assert (folder/'venue_calibration.json').exists()
     assert calibrated['venue_calibration']['display_snapshot']['live_updates_hidden']
     from demo_mission import DemoMission
@@ -57,6 +61,16 @@ if case=='rviz':
     assert scene['aligned_position']==calibrated['venue_calibration']['anchor']['ground_fc_xyz']
     assert scene['cloud_points']>0
     print('PASS confirmed RViz selection continues into fresh DDS scene capture with immutable rehearsal frame',flush=True)
+    if width is not None:
+        assert DemoMission(rehearsal).hover_height==1.5
+        from demo_venue import halfspaces
+        planes,record=halfspaces(scene,DemoMission(rehearsal),lambda p,q,c:(p,q,c))
+        matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
+        for lateral,inside in ((0.,True),(.79,True),(1.01,False),(-1.01,False)):
+            raw=np.linalg.solve(matrix,np.array([1.,lateral,1.5])-offset)
+            assert bool(np.all(planes[:,:3]@raw+planes[:,3]<=1e-8))==inside
+        print('PASS 2 m cap reaches planner halfspaces and 1.5 m height survives scene capture',flush=True)
+        sys.exit(0)
 gate=GroundGate()
 try:
     profile=create(folder/'planner.yaml',folder/'mission.json',folder/'alignment.py',folder/'venue_reference.json',gate)
@@ -114,7 +128,7 @@ def run(case):
     with tempfile.TemporaryDirectory() as directory:
         folder=Path(directory)
         clicked={'sent':0,'ack':0,'preview':None,'future':None,'frozen':False}
-        if case=='rviz':
+        if case in ('rviz','rviz_cap'):
             from std_srvs.srv import Trigger
             import math
             click_pub=node.create_publisher(PointStamped,'/super_venue/clicked_point',10)
@@ -187,4 +201,4 @@ def run(case):
 
 
 if __name__=='__main__':
-    for case in ('healthy','wrong_config','native','rviz'):run(case)
+    for case in ('healthy','wrong_config','native','rviz','rviz_cap'):run(case)

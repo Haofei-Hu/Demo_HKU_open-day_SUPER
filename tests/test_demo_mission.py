@@ -98,8 +98,19 @@ class Tests(unittest.TestCase):
         config=fixture();config['flight']['height_fc_above_floor_m']=.5
         with self.assertRaisesRegex(ValueError,'settings differ'):DemoMission(config)
         config=DemoMission.ground_rehearsal(fixture())
-        config['flight']['height_fc_above_floor_m']=1.5
+        config['flight']['height_fc_above_floor_m']=1.2
         with self.assertRaisesRegex(ValueError,'settings differ'):DemoMission(config)
+
+    def test_explicit_one_point_five_rehearsal_survives_repeated_conversion(self):
+        source=fixture();before=deepcopy(source)
+        config=DemoMission.ground_rehearsal(source,1.5)
+        self.assertEqual(source,before)
+        self.assertEqual(DemoMission.ground_rehearsal(config),config)
+        mission=DemoMission(config)
+        self.assertEqual(mission.hover_height,1.5)
+        self.assertEqual(mission.PHASES[0],'TAKEOFF_TO_1_5M')
+        self.assertEqual(mission.waypoints()['far_hover'],[4.5,0.,1.5])
+        with self.assertRaises(ValueError):DemoMission.physical_height(config,1.5)
 
     def test_unmeasured_template_cannot_become_a_flight_profile(self):
         template=json.loads((ROOT/'configs/demonstration/open_day_mission.json').read_text())

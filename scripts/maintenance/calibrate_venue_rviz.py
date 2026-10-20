@@ -16,7 +16,7 @@ import yaml
 from control_bridge_preview import load_converter
 from create_live_venue_profile import capture
 from live_venue import digest,source_ids
-from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session
+from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session,cap_rehearsal_width
 
 
 class FrozenCloud:
@@ -68,7 +68,9 @@ def rviz_config(focal_point=(0.,0.,0.)):
                 'Focal Point':dict(zip(('X','Y','Z'),map(float,focal_point)))}}}}
 
 
-def calibrate(config,alignment_path,folder,rear_offset):
+def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None):
+    if rehearsal_width is not None and config.get('execution_context')!='ground_rehearsal':
+        raise ValueError('Width cap is available only for ground rehearsal')
     from super_session import GroundGate,NATIVE_CONTROL_TOPICS
     from geometry_msgs.msg import PointStamped,Point
     from sensor_msgs.msg import PointCloud2
@@ -135,12 +137,16 @@ def calibrate(config,alignment_path,folder,rear_offset):
             if not np.all(np.isfinite(p)):return
             state['points'].append(p)
             if len(state['points'])==2:
-                try:state['geometry']=selected_geometry(*state['points'],observation,rotation,rear_offset)
+                try:
+                    state['geometry']=selected_geometry(*state['points'],observation,rotation,rear_offset)
+                    if rehearsal_width is not None:
+                        state['geometry']=cap_rehearsal_width(state['geometry'],rehearsal_width)
                 except ValueError as exc:
                     print('Selection rejected:',exc,flush=True);draw();return
                 g=state['geometry']
+                policy='exactly selected sides' if rehearsal_width is None else f'centred rehearsal cap {rehearsal_width:g} m; clipped to selected sides'
                 print(f'PREVIEW: left={g["left_offset_m"]:.3f} m, right={g["width_m"]-g["left_offset_m"]:.3f} m, '
-                      f'width={g["width_m"]:.3f} m (exactly selected sides), rear={rear_offset:.3f} m. '
+                      f'width={g["width_m"]:.3f} m ({policy}), rear={rear_offset:.3f} m. '
                       'Check the complete cyan box against the actual venue. Type confirm to accept, or reset to select again.',flush=True)
             else:print('LEFT selected. Select RIGHT boundary next.',flush=True)
             draw()

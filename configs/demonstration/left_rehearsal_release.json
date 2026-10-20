@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "14bd8000a4c970baf8de5f109212a0e38977e1db74ed2e5b0485231f37849ae5"
+      "sha256": "e6fed81a6961e51242f8f5d38f518ec845911a02cdce4b2afcad7b421507e3c6"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -11,7 +11,7 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "b626a4e03a7146c2eb1ab669c50138bf53a86b88c0bc7d7d20f1b142b7ae39fd"
+      "sha256": "4f7df618ed0fd7d8b0cd600d2aaf92915a59b2d4b85ad26b5eb1a283a04cec75"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
@@ -132,11 +132,11 @@
     },
     "rviz_venue_calibration.py": {
       "path": "scripts/planning/rviz_venue_calibration.py",
-      "sha256": "6c769f4e8dd76a5276ccfcfa8d2ce443dbc59f688b5d5e1bfbb9e9fceff5f1e2"
+      "sha256": "dbe991e9e5d4d01c9f1f2ef4867b5c56fb61dca5f2336846b3aa9a231a97b49c"
     },
     "calibrate_venue_rviz.py": {
       "path": "scripts/maintenance/calibrate_venue_rviz.py",
-      "sha256": "0d6ea8f5077263988fb0b053149064ac4b01d87ebf0589ce6e22e959dd9ef00d"
+      "sha256": "5d72f7d4aeb92724ba5ce9e5446784f5184f43a5c03e244d4bbdc2bc655e0ead"
     }
   },
   "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"

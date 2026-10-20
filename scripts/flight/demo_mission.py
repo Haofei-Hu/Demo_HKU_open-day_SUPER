@@ -31,7 +31,7 @@ class DemoMission:
             raise ValueError('Round trips must be a positive integer')
         self.outbound_stage=outbound
         height=f.get('height_fc_above_floor_m')
-        allowed_heights=(.5,) if self.rehearsal_only else (1.5,1.8)
+        allowed_heights=(.5,1.5) if self.rehearsal_only else (1.5,1.8)
         if isinstance(height,bool) or height not in allowed_heights:
             raise ValueError('Final demonstration settings differ: unsupported height')
         takeoff_stage='TAKEOFF_TO_'+str(height).replace('.','_')+'M'
@@ -94,12 +94,16 @@ class DemoMission:
         return result
 
     @staticmethod
-    def ground_rehearsal(config):
-        """Use a per-run 0.5 m virtual route; never edit the 1.5 m flight file."""
+    def ground_rehearsal(config,height=None):
+        """Use a per-run virtual height; preserve it through later preparation stages."""
         result=deepcopy(config)
+        if height is None:
+            height=config['flight']['height_fc_above_floor_m'] if config.get('execution_context')=='ground_rehearsal' else .5
+        if isinstance(height,bool) or height not in (.5,1.5):
+            raise ValueError('Unsupported rehearsal height')
         result['execution_context']='ground_rehearsal'
-        result['flight']['height_fc_above_floor_m']=.5
-        result['sequence'][0]='TAKEOFF_TO_0_5M'
+        result['flight']['height_fc_above_floor_m']=height
+        result['sequence'][0]='TAKEOFF_TO_'+str(height).replace('.','_')+'M'
         if 'venue_calibration' in result:
             from rviz_venue_calibration import REHEARSAL_SCOPE
             result['venue_calibration']['scope']=REHEARSAL_SCOPE

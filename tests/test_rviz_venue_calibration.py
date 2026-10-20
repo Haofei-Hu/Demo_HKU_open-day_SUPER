@@ -21,6 +21,29 @@ from calibrate_venue_rviz import FrozenCloud,rviz_config
 
 
 class Tests(unittest.TestCase):
+    def test_rehearsal_cap_shrinks_preview_and_planner_geometry_without_expanding_survey(self):
+        from rviz_venue_calibration import cap_rehearsal_width
+        _,obs,r,p=self.scene()
+        for left,right,expected in ((1.69,-1.317,[-1.,1.]),(.7,-1.6,[-1.,.7])):
+            selected=selected_geometry(p(0,left,1),p(0,right,1),obs,r,.5)
+            capped=cap_rehearsal_width(selected,2.)
+            np.testing.assert_allclose(capped['lateral_limits_m'],expected)
+            np.testing.assert_allclose(selected['lateral_limits_m'],[right,left])
+            config=DemoMission.ground_rehearsal(apply_geometry(fixture(),capped,obs,'hash'))
+            mission=DemoMission(config)
+            self.assertAlmostEqual(mission.width,expected[1]-expected[0])
+            vertices,_=wireframe(capped,obs,r)
+            local=(axes(obs['ground_fc_yaw_rad'])@(r@vertices.T-np.array(obs['origin'])[:,None]-
+                    np.array(obs['ground_fc_xyz'])[:,None])).T
+            np.testing.assert_allclose([local[:,1].min(),local[:,1].max()],expected)
+            with self.assertRaises(ValueError):mission.check([1.,expected[1],.5])
+            physical=apply_geometry(fixture(),capped,obs,'hash')
+            with self.assertRaisesRegex(ValueError,'not a physical'):validate_geometry(physical)
+            changed=deepcopy(config);changed['venue_calibration']['geometry']['lateral_limits_m'][1]+=.1
+            with self.assertRaisesRegex(ValueError,'Invalid calibrated'):validate_geometry(changed)
+        for width in (0,-2,float('nan'),float('inf'),True,None):
+            with self.assertRaises(ValueError):cap_rehearsal_width(selected,width)
+
     def test_frozen_scene_preserves_selected_frame_and_raw_aligned_rotation_pair(self):
         from aligned_pose_preview import rotation,multiply
         from control_bridge_preview import quaternion_rpy

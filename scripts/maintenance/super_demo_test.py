@@ -105,7 +105,7 @@ class DemoTest(GroundTest):
             from calibrate_venue_rviz import calibrate
             self.report['stage']='venue_selection';write_report(self.path,self.report)
             config=calibrate(self.selection_config,self.args.scripts_dir/'aligned_pose_preview.py',
-                             self.folder,self.args.rear_offset)
+                             self.folder,self.args.rear_offset,getattr(self.args,'rehearsal_width',None))
             self.selection_config=DemoMission.ground_rehearsal(config)
             self.save_mission(self.selection_config)
             self.report['venue_calibration_report']=str(self.folder/'venue_calibration.json')
@@ -202,6 +202,11 @@ class DemoTest(GroundTest):
                 if not (self.args.scripts_dir/name).is_file():raise RuntimeError('Missing dependency: '+name)
             config=json.loads(self.args.mission_file.read_text())
             selection=getattr(self.args,'calibrate_venue',False)
+            width=getattr(self.args,'rehearsal_width',None)
+            if width is not None:
+                if not selection:raise ValueError('--rehearsal-width requires --calibrate-venue')
+                DemoMission.measure(width,'positive rehearsal width')
+                if width<=0:raise ValueError('Rehearsal width must be positive')
             if selection:
                 if self.args.logic_only or getattr(self.args,'route_profile','demonstration')!='demonstration':
                     raise ValueError('RViz selection needs the real-map demonstration rehearsal')
@@ -212,7 +217,7 @@ class DemoTest(GroundTest):
                 self.args.rear_offset=DemoMission.measure(rear,'rear offset for RViz selection')
             elif 'venue_calibration' in config:
                 raise ValueError('Use --calibrate-venue to select fresh boundaries for this rehearsal')
-            config=DemoMission.ground_rehearsal(config)
+            config=DemoMission.ground_rehearsal(config,getattr(self.args,'rehearsal_height',.5))
             if getattr(self.args,'route_profile','demonstration')=='short-1m':
                 if not self.args.fixture_geometry:raise ValueError('Short-site rehearsal needs explicitly labelled --fixture-geometry')
                 config=DemoMission.short_site_fixture(config)
@@ -327,6 +332,8 @@ def main():
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
     p.add_argument('--calibrate-venue',action='store_true',help='Select left/right in RViz, then automatically rehearse inside that fixed box')
     p.add_argument('--rear-offset',type=float,help='FC-to-rear distance; left/right clicks do not measure the rear side')
+    p.add_argument('--rehearsal-width',type=float,help='Cap total lateral width around takeoff, intersected with selected sides; ground rehearsal only')
+    p.add_argument('--rehearsal-height',type=float,choices=(.5,1.5),default=.5,help='Virtual FC height above floor in metres (default: 0.5)')
     p.add_argument('--route-profile',choices=('demonstration','short-1m'),default='demonstration',
                    help='full 4.5 m demonstration or separate 1 m short-site rehearsal')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict',
