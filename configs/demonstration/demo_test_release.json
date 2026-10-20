@@ -7,7 +7,7 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "abac05083ae4c330239ca18c191577482ce7627fa2bd4ae495f1772e4e375c38"
+      "sha256": "4998993e9f6b2eeb8aa5e1eec96aa1a22e224e3d9ad4a8df1813e0a96fbc66a7"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
@@ -15,7 +15,7 @@
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "e2f27589f10e7c838377d6e0fb32d90c12738f067ee7a41b6d67eb39c3ff335a"
+      "sha256": "a7d036423131ffd25b0f9b5d203d6759ee8f9284f0f13ad58dcd4c2306609e32"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
@@ -27,11 +27,11 @@
     },
     "first_hover_terminal.py": {
       "path": "first_hover_terminal.py",
-      "sha256": "16dc31d795619c261bb76d2edd39680bf7325a3ea11bccb7642313489b9fda42"
+      "sha256": "1ed259c37ade196f0a60bbddd138e41e4b7af82fa7020dcb7c73107f016da427"
     },
     "super_flight_control.py": {
       "path": "scripts/flight/super_flight_control.py",
-      "sha256": "dbcbeef687f05f5ae7f71edaef1fa467eca1b4b60b48a0bf24204051ec7e12a5"
+      "sha256": "9b245f34f6ee62f6b34dc7f18a8b0757e39d10f6519bdf7047e510e3372b1b98"
     },
     "bounded_reference_preview.py": {
       "path": "scripts/planning/bounded_reference_preview.py",

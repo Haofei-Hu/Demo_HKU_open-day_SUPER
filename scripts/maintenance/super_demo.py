@@ -10,6 +10,7 @@ from copy import deepcopy
 from datetime import datetime
 import fcntl
 import json
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -65,10 +66,16 @@ def arguments(argv=None):
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
+    p.add_argument('--hover-only',action='store_true',help='Take off, hold fixed XY/yaw and land; no outbound or return flight')
+    p.add_argument('--hover-seconds',type=float,default=20.,help='Planned hover duration for --hover-only (default: 20 s)')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='observe')
     p.add_argument('--qgc-path',type=Path,help='installed QGroundControl executable; defaults to the Downloads AppImage')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args(argv)
+    if not math.isfinite(args.hover_seconds) or args.hover_seconds<=0:
+        p.error('--hover-seconds must be finite and positive')
+    if args.hover_only and args.calibration_only:
+        p.error('--hover-only cannot be combined with --calibration-only')
     if args.calibration_only and (not args.calibrate_venue or args.execute):
         p.error('--calibration-only requires --calibrate-venue and cannot execute flight')
     if args.venue_width is not None or args.venue_ceiling is not None:
@@ -146,6 +153,7 @@ def main():
                 '--venue-reference',runner.session.config['venue_reference_path'],
                 '--preparation-report',str(runner.path),'--report-json',str(runner.folder/'report.json'),
                 '--motion-policy',args.motion_policy]
+            if args.hover_only:command+=['--hover-only','--hover-seconds',str(args.hover_seconds)]
             if args.execute:command+=['--execute','--on-site-supervised']
             return subprocess.run(command).returncode
         except (Exception,KeyboardInterrupt) as exc:

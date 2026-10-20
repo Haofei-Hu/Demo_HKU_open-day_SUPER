@@ -171,10 +171,18 @@ class DemoMissionControl(SuperFlightControl):
     EXPECTED_PARAMETERS=dict(PARAMETERS,MPC_XY_VEL_MAX=2.)
     ADVISORY_SPEED=2.4
     ADVISORY_ACCELERATION=1.5
+    hover_only=False
+    hover_seconds=20.
+    hover_stage='HOLD_HOME_20S'
 
     def __init__(self,mission_file,report_path,execute=False,on_site_supervised=False,
                  alignment_path=None,planner_config=None,simulation=False,motion_policy='strict',
-                 mission_class=DemoMission,venue_reference=None):
+                 mission_class=DemoMission,venue_reference=None,hover_only=False,hover_seconds=20.):
+        if not math.isfinite(hover_seconds) or hover_seconds<=0:
+            raise ValueError('Fixed-hover duration must be finite and positive')
+        self.hover_only=bool(hover_only)
+        self.hover_seconds=float(hover_seconds)
+        self.hover_stage=f'HOLD_HOME_{self.hover_seconds:g}S'
         if motion_policy not in ('strict','observe'):raise ValueError('Unknown motion policy')
         self.motion_policy=motion_policy;self.motion_warned_legs=set()
         if execute and not on_site_supervised:
@@ -186,6 +194,12 @@ class DemoMissionControl(SuperFlightControl):
         if execute and not simulation and str(config.get('status','')).startswith('SYNTHETIC'):
             raise ValueError('Synthetic test geometry cannot enable a physical flight')
         self.mission=mission_class(config)
+        if self.hover_only:
+            # Per-run execution plan only: retain the measured mission file.
+            self.mission.PHASES=(self.mission.PHASES[0],'STABILIZE_AT_HOME',
+                self.hover_stage,'AUTO_LAND','CONFIRM_LANDED_AND_DISARMED')
+            self.mission.round_trips=0
+            self.mission.demonstration=False
         if self.mission.rehearsal_only and not simulation:
             raise ValueError('Ground rehearsal height is for virtual execution only; use a measured physical mission')
         self.live_venue=None
@@ -197,6 +211,14 @@ class DemoMissionControl(SuperFlightControl):
         self.FRAME_FORWARD_LIMIT=self.mission.distance+.1
         self.mission_report=MissionReport(report_path,self.mission,'simulation' if simulation else
                                          ('flight' if execute else 'check-only'))
+        if self.hover_only:
+            data=self.mission_report.data
+            data['source_demonstration_mission']=data.pop('mission')
+            data['mission']=dict(mission_id='fixed_hover',height_fc_above_floor_m=self.mission.hover_height,
+                hold_seconds=self.hover_seconds,navigation_goals=0)
+            data['waypoints']={key:value for key,value in data['waypoints'].items()
+                               if key in ('ground','home_hover')}
+            data.update(flight_mode='fixed_hover',fixed_hover_completed=False,planner_goals_sent=0)
         self.velocity=None;self.leg=None;self.home=self.far=None
         self.accepted_raw=self.accepted_target=self.previous_accepted_raw=None
         self.leg_start_target=self.return_hold_target=None
@@ -250,8 +272,15 @@ class DemoMissionControl(SuperFlightControl):
         self.create_subscription(TwistStamped,'/mavros/local_position/velocity_local',
                                  lambda msg:self.store('velocity',msg),qos_profile_sensor_data)
         self.create_subscription(MarkerArray,'/visualization/goal',self.planner_goal_received,qos_profile_sensor_data)
-        self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, '
-            f'{self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND; no parameter writes.')
+        if self.hover_only:
+            self.mission_report.data['navigation_goal_policy']=dict(source=None,
+                policy='Fixed XY and yaw; no outbound or return goals')
+            self.mission_report.save()
+            self.get_logger().info(f'FIXED HOVER: FC centre {self.mission.hover_height:g} m above floor, '
+                f'{self.hover_seconds:g} s hold, LAND; fixed XY/yaw; no navigation goals or execution deadline.')
+        else:
+            self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, '
+                f'{self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND; no parameter writes.')
 
     def leg_key(self):
         return self.leg if self.mission.round_trips==1 else f'round_{self.round_index:02d}_{self.leg}'
@@ -301,13 +330,23 @@ class DemoMissionControl(SuperFlightControl):
         except ValueError as exc:self.abort(str(exc))
 
     def startup_message(self):
+        if self.hover_only:
+            return ('FIXED HOVER EXECUTE ENABLED; explicit /super_demo/start and current RC/POSCTL required; no navigation goals'
+                    if self.execute else 'FIXED HOVER CHECK ONLY; READY does not execute a flight')
         return ('DEMONSTRATION EXECUTE ENABLED; explicit /super_demo/start and current RC/POSCTL required'
                 if self.execute else 'DEMONSTRATION CHECK ONLY; READY does not execute or validate a flight')
+
+    def hold_description(self):
+        return f'hold={self.hover_seconds:g} s' if self.hover_only else super().hold_description()
+
+    def route_description(self):
+        return 'fixed XY/yaw' if self.hover_only else super().route_description()
 
     def position_policy_message(self):
         return 'post-takeoff position uses vehicle-inclusive venue bounds; 0.10 m arrival detection only'
 
     def goal_policy_message(self):
+        if self.hover_only:return 'fixed-position hover only; no navigation goals'
         return f'{self.mission.round_trips} round trips, {2*self.mission.round_trips} ordered goals; no automatic goal replay'
 
     def poll_live_config(self):
@@ -377,6 +416,7 @@ class DemoMissionControl(SuperFlightControl):
         elif phase=='DONE' and self.stages_started:
             self.mission_report.completed('CONFIRM_LANDED_AND_DISARMED')
             self.mission_report.data['max_tracking_error_forward_left_up_m']=self.max_tracking_error.tolist()
+            if self.hover_only:self.mission_report.data['fixed_hover_completed']=True
             self.mission_report.finish()
         elif phase=='STOPPED':self.mission_report.finish(self.fault or 'Mission stopped')
 
@@ -567,6 +607,7 @@ class DemoMissionControl(SuperFlightControl):
                 'position, polynomial agreement, continuity and freshness checks remain active')
 
     def request_leg(self,leg,target):
+        if self.hover_only:raise ValueError('Fixed-hover mode cannot issue navigation goals')
         if self.goal_count>=2*self.mission.round_trips:raise ValueError('All configured round-trip goals have already been sent')
         if leg!=('outbound' if self.goal_count%2==0 else 'return'):
             raise ValueError('Navigation goals must alternate outbound and return')
@@ -600,7 +641,10 @@ class DemoMissionControl(SuperFlightControl):
 
     def start(self,request,response):
         response=super().start(request,response)
-        if response.success:response.message=f'Accepted one mission: {self.mission.hover_height:g} m rise, {self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND'
+        if response.success:
+            response.message=(f'Accepted fixed hover: {self.mission.hover_height:g} m, '
+                f'{self.hover_seconds:g} s hold, LAND; no navigation goals' if self.hover_only else
+                f'Accepted one mission: {self.mission.hover_height:g} m rise, {self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND')
         return response
 
     def arrived(self,xyz,target):
@@ -638,7 +682,12 @@ class DemoMissionControl(SuperFlightControl):
             if self.arrived(xyz,self.home):
                 if self.arrived_since is None:self.arrived_since=now
                 if now-self.arrived_since>=2.:
-                    self.mission_report.completed('STABILIZE_AT_HOME');self.request_leg('outbound',self.far)
+                    self.mission_report.completed('STABILIZE_AT_HOME')
+                    if self.hover_only:
+                        self.return_hold_target=self.home.copy()
+                        self.final_hold_since=now
+                        self.change('FINAL_HOLD')
+                    else:self.request_leg('outbound',self.far)
             else:self.arrived_since=None
             return True
         if self.phase in ('WAIT_PLAN','TRACK','END_HOLD'):
@@ -687,11 +736,13 @@ class DemoMissionControl(SuperFlightControl):
             target=self.return_hold_target if self.return_hold_target is not None else self.home
             self.native_velocity=np.zeros(3);self.tracking_ok(xyz,target)
             self.publish(target,self.reference.yaw,native=self.execute)
-            if not self.arrived(xyz,target):self.final_hold_since=now
-            if now-self.final_hold_since>=6.:
+            if not self.hover_only and not self.arrived(xyz,target):self.final_hold_since=now
+            duration=self.hover_seconds if self.hover_only else 6.
+            if now-self.final_hold_since>=duration:
                 self.mission_report.data['return_hover_duration_s']=now-self.final_hold_since
                 self.mission_report.data['planner_goals_sent']=self.goal_count
-                self.mission_report.completed('HOLD_HOME_6S');self.land('Demonstration return hover complete')
+                self.mission_report.completed(self.hover_stage if self.hover_only else 'HOLD_HOME_6S')
+                self.land('Fixed hover complete' if self.hover_only else 'Demonstration return hover complete')
             return True
         return False
 
@@ -721,10 +772,15 @@ def arguments(argv=None):
     p.add_argument('--report-json',type=Path,default=None)
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
+    p.add_argument('--hover-only',action='store_true',help='Fixed XY/yaw takeoff, timed hover and landing; no navigation goals')
+    p.add_argument('--hover-seconds',type=float,default=20.,help='Planned hover duration for --hover-only (default: 20 s)')
     p.add_argument('--preparation-report',type=Path)
     p.add_argument('--motion-policy',choices=('strict','observe'),default='observe',
                    help='observe records derivative exceedances; strict rejects above 4 m/s or 2 m/s^2; planning targets remain 2/1')
-    return p.parse_args(argv)
+    args=p.parse_args(argv)
+    if not math.isfinite(args.hover_seconds) or args.hover_seconds<=0:
+        p.error('--hover-seconds must be finite and positive')
+    return args
 
 
 def main():
@@ -734,7 +790,8 @@ def main():
     try:
         node=DemoMissionControl(args.mission_file,report,args.execute,args.on_site_supervised,
                                args.alignment_path,args.planner_config,motion_policy=args.motion_policy,
-                               venue_reference=args.venue_reference)
+                               venue_reference=args.venue_reference,hover_only=args.hover_only,
+                               hover_seconds=args.hover_seconds)
         if args.preparation_report:
             node.mission_report.data['preparation']=json.loads(args.preparation_report.read_text())
             node.mission_report.save()

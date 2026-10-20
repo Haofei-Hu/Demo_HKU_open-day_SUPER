@@ -97,8 +97,11 @@ class FirstHoverControl(Node):
             (f'EXECUTE ENABLED; awaiting explicit {self.START_SERVICE}. ' if self.execute else
              'CHECK ONLY; no native setpoints, mode or arming requests. ') +
             f'Floor FC=0.085 m, hover FC={self.hover_fc_height:g} m, '
-            f'hold={self.hold_seconds:g} s, fixed XY/yaw, then AUTO.LAND; '
+            f'{self.hold_description()}, fixed XY/yaw, then AUTO.LAND; '
             f'OFFBOARD budget={self.offboard_budget:g} s; one flight only.')
+
+    def hold_description(self):
+        return f'hold={self.hold_seconds:g} s'
 
     def make_native_publisher(self):
         return self.create_publisher(PoseStamped,self.NATIVE_TOPIC,10)
@@ -367,7 +370,7 @@ class FirstHoverControl(Node):
                         f'fixed hover z={self.reference.ground[2]+self.reference.lift:.3f}; '
                         f'current measured xyz={xyz}; '
                         f'FC height above floor={self.hover_fc_height:.3f} m; '
-                        f'hold={self.hold_seconds:g} s. Awaiting explicit start; no motion yet.')
+                        f'{self.hold_description()}. Awaiting explicit start; no motion yet.')
                 return
             if self.mission_tick(now, xyz, yaw):
                 return
