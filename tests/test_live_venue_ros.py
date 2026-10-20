@@ -10,7 +10,7 @@ import time
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped,PoseWithCovarianceStamped,TwistStamped
+from geometry_msgs.msg import PoseStamped,PoseWithCovarianceStamped,TwistStamped,PointStamped
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State,ExtendedState,EstimatorStatus
 from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
@@ -32,6 +32,15 @@ from super_session import GroundGate,NATIVE_CONTROL_TOPICS
 from create_live_venue_profile import create
 from super_demo_control import DemoMissionControl
 folder=Path(sys.argv[1]);case=sys.argv[2]
+if case=='rviz':
+    from calibrate_venue_rviz import calibrate
+    (folder/'calibrating').touch()
+    calibrated=calibrate(json.loads((folder/'mission.json').read_text()),folder/'alignment.py',folder,.5)
+    (folder/'mission.json').write_text(json.dumps(calibrated))
+    assert calibrated['venue_calibration']['confirmed_by_operator']
+    assert abs(calibrated['takeoff']['distance_from_left_m']-1.1)<1e-9
+    assert calibrated['venue']['width_left_m']<=2.8
+    assert (folder/'venue_calibration.json').exists()
 gate=GroundGate()
 try:
     profile=create(folder/'planner.yaml',folder/'mission.json',folder/'alignment.py',folder/'venue_reference.json',gate)
@@ -88,6 +97,29 @@ def run(case):
     if case=='native':publishers['native']=node.create_publisher(PoseStamped,'/mavros/setpoint_position/local',10)
     with tempfile.TemporaryDirectory() as directory:
         folder=Path(directory)
+        clicked={'sent':0,'ack':0,'preview':None,'future':None}
+        if case=='rviz':
+            from std_srvs.srv import Trigger
+            import math
+            click_pub=node.create_publisher(PointStamped,'/super_venue/clicked_point',10)
+            confirm=node.create_client(Trigger,'/super_venue_calibration/confirm')
+            def markers(msg):
+                clicked['ack']=sum(m.type==2 and m.action==0 for m in msg.markers)
+                if any(m.id==20 and m.action==0 for m in msg.markers) and clicked['preview'] is None:
+                    clicked['preview']=time.monotonic()
+            node.create_subscription(MarkerArray,'/super_debug/venue_calibration',markers,10)
+            def choose():
+                if not (folder/'calibrating').exists() or not node.count_subscribers('/super_venue/clicked_point'):return
+                index=clicked['sent']
+                if index<2 and clicked['ack']==index:
+                    lateral=(1.1,-1.7)[index]
+                    msg=PointStamped();msg.header.frame_id='camera_init';msg.header.stamp=node.get_clock().now().to_msg()
+                    msg.point.x=.2-math.sin(.7)*lateral;msg.point.y=-.3+math.cos(.7)*lateral;msg.point.z=.8
+                    click_pub.publish(msg);clicked['sent']+=1
+                if (clicked['preview'] is not None and time.monotonic()-clicked['preview']>3
+                        and clicked['future'] is None and confirm.service_is_ready()):
+                    clicked['future']=confirm.call_async(Trigger.Request())
+            node.create_timer(.1,choose)
         def telemetry():
             stamp=node.get_clock().now().to_msg();moved=(folder/'captured').exists()
             for topic,kind in kinds.items():
@@ -126,4 +158,4 @@ def run(case):
 
 
 if __name__=='__main__':
-    for case in ('healthy','wrong_config','native'):run(case)
+    for case in ('healthy','wrong_config','native','rviz'):run(case)

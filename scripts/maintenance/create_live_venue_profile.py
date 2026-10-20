@@ -79,6 +79,13 @@ def create(source,mission_file,alignment_path,record,gate):
     observation=capture(gate,alignment_path)
     if (digest(mission_file)!=mission_sha or digest(alignment_path)!=alignment_sha or source.read_bytes()!=original):
         raise ValueError('Live venue inputs changed during capture')
+    if 'venue_calibration' in mission.config:
+        from rviz_venue_calibration import validate_geometry,validate_session
+        calibrated=validate_geometry(mission.config)
+        anchor=validate_session(calibrated,observation,alignment_sha)
+        # Pin walls to the operator-confirmed frame, not a later ground sample.
+        observation.update(ground_fc_xyz=anchor['ground_fc_xyz'],ground_fc_yaw_rad=anchor['ground_fc_yaw_rad'],
+                           raw_quaternion=anchor['raw_quaternion'])
     planes,data=planes_for_frame(mission,load_converter(alignment_path),observation['raw_quaternion'],
                                 observation['origin'],observation['ground_fc_xyz'],observation['ground_fc_yaw_rad'])
     config=yaml.safe_load(original);config['super_planner']['venue_halfspaces']=planes.reshape(-1).tolist()

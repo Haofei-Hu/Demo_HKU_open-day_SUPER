@@ -60,6 +60,13 @@ class LiveVenue:
                 for v in ids.values()):
             raise ValueError('Invalid live venue source identities')
         self.source_ids=ids
+        if 'venue_calibration' in mission.config:
+            from rviz_venue_calibration import validate_geometry,validate_session
+            calibrated=validate_geometry(mission.config)
+            anchor=validate_session(calibrated,data,digest(alignment_path))
+            if (not np.allclose(self.ground,anchor['ground_fc_xyz'],atol=1e-10,rtol=0)
+                    or abs(self.yaw-anchor['ground_fc_yaw_rad'])>1e-10):
+                raise ValueError('Live venue moved relative to the confirmed RViz frame')
         self.geometry=geometry
 
     def validate(self,node,mapping):

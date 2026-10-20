@@ -316,7 +316,7 @@ class GroundTest:
     def after_vision_ready(self):
         """Optional independent observation started before planner preparation."""
 
-    def prepare(self,planner_profile=None):
+    def prepare(self,planner_profile=None,prepare_planner=True):
         """Reusable preparation; any future flight entry must add fresh flight gates."""
         required = (*manager.SCRIPTS, 'super_session.py', 'control_chain_age_check.py',
                     'super_flight_control.py', 'ground_setpoint_transport.py')
@@ -344,7 +344,7 @@ class GroundTest:
         self.action('vision', *q)
         self.after_vision_ready()
         profile=planner_profile or ('forward-5m-2mps' if self.args.test_profile=='forward-5m-2mps' else 'low-speed-3d')
-        self.action('planner','--planner-profile',profile)
+        if prepare_planner:self.action('planner','--planner-profile',profile)
         self.session.load()
         self.report['session'] = self.session.config
 

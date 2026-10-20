@@ -7,11 +7,11 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "b5df98d3fe5c31d3ce88c471b1d7cf66ebf81215caefaec3aaea5fb3666f7629"
+      "sha256": "9a91372b61361e41b9a7cef1cfb8b40b16ab505c9d6371d7865ef906d8fa1ff4"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "efb4d01cafb9a18fd182f0083b858c89ee9a5fc3f623444862e9a9f523ceaa10"
+      "sha256": "f6ae4852761f110b3c637ab81edee30b252fcfb20d18afe7419b9680932e795a"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
@@ -43,7 +43,7 @@
     },
     "super_ground_test.py": {
       "path": "scripts/maintenance/super_ground_test.py",
-      "sha256": "b0ee1d28476f0fc600bced3872afcc7fbdc0dbd15695c4b64f1b47ab346e95ca"
+      "sha256": "b2e0c53bae8b69c9c805d0ab998bc35875ca3f367a2fbf601faf9dcebc823800"
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
@@ -108,11 +108,19 @@
     },
     "live_venue.py": {
       "path": "scripts/planning/live_venue.py",
-      "sha256": "72ce57602d763fb2947e380d9c9f76b41eb7972571d8f7a762691b32128c1a98"
+      "sha256": "34b0a5ced265d14bcbbf727d576eeed6aa12f3aecc3777d6e692f6716fe041fb"
     },
     "create_live_venue_profile.py": {
       "path": "scripts/maintenance/create_live_venue_profile.py",
-      "sha256": "104e87e160b036673a8c75b7482c5b80454c1f3dee5dc91df0992027ab44b543"
+      "sha256": "c3e9cee7854a633e2644ce992a650cade406b4838aabb56a4b6d64080870b84b"
+    },
+    "rviz_venue_calibration.py": {
+      "path": "scripts/planning/rviz_venue_calibration.py",
+      "sha256": "95f7158b742962e69234d94d8d9c98cfe522773a5f11283157a61ddfba94d090"
+    },
+    "calibrate_venue_rviz.py": {
+      "path": "scripts/maintenance/calibrate_venue_rviz.py",
+      "sha256": "f295dc87f3e6f4fc9d60509c83ecd7c7415002b026ecf666c3d8ed244f1d2258"
     }
   }
 }
