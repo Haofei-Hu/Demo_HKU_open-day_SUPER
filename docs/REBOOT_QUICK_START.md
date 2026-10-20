@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='560633172b32a12e95c96ee0d5c7b4613aac2e41'
+demo_revision='24aa618ac4ebacbc8ec26a2c754f8973961e30dd'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
@@ -44,7 +44,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS=-j2 \
 )
 ```
 
-The current patch preserves the measured continuous initial position in venue-enabled `PlanFromRest` (`VENUE_REST_START_V1`), eliminating grid-centre relocation at a stationary restart. It rejects occupied, invalid, or out-of-map/venue starts and retains downstream obstacle and trajectory checks. It also intersects all planner checks with the initialized map-height interval (`VENUE_MAP_HEIGHT_V1`). Apply the patch and rebuild once even when the previous eight venue markers are already installed.
+The current patch preserves the measured continuous initial position in venue-enabled `PlanFromRest` (`VENUE_REST_START_V1`), eliminating grid-centre relocation at a stationary restart. It rejects occupied, invalid, or out-of-map/venue starts and retains downstream obstacle and trajectory checks. It also intersects all planner checks with the initialized map-height interval (`VENUE_MAP_HEIGHT_V1`). The backup optimizer now parameterizes its knots and stopping point inside the existing corridor (`VENUE_BACKUP_WAYPOINTS_V1`), while retaining the full polynomial boundary check. Apply the patch and rebuild once even when the previous nine venue markers are already installed; this release requires all ten markers.
 
 The patch also joins valid continuous endpoints to admissible neighbouring search cells (`VENUE_GRID_ANCHOR_V1`). This prevents a near-boundary rest point from being rejected solely because its nearest grid centre lies outside the rotated venue. The short connector must pass the existing map/unknown checks. A failed search initialization retains an unfinished in-venue goal instead of silently returning to `WAIT_GOAL`. No boundary tolerance, inset or mission deadline is added. The patch retains the duplicate virtual floor/ceiling inflation fixes (`VIRTUAL_HEIGHT_QUERY_V1` / `VIRTUAL_HEIGHT_CORRIDOR_V1`), candidate polynomial checks (`VENUE_CANDIDATE_CHECK_V1`) and from-rest commit fix. Rebuild both packages when upgrading an older release; map code is statically linked into the planner.
 

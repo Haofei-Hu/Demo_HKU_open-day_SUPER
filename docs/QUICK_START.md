@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `560633172b32a12e95c96ee0d5c7b4613aac2e41`.
+Matching release: `24aa618ac4ebacbc8ec26a2c754f8973961e30dd`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='560633172b32a12e95c96ee0d5c7b4613aac2e41'
+demo_revision='24aa618ac4ebacbc8ec26a2c754f8973961e30dd'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -23,7 +23,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-This release includes C++ corrections for continuous stationary starts and consistent map-height bounds. **Apply the venue patch and rebuild once after updating**, even if an earlier venue patch is already installed:
+This release includes the bounded backup-waypoint correction, continuous stationary starts, and consistent map-height bounds. **Apply the venue patch and rebuild once after updating**, even if an earlier venue patch is already installed:
 
 ```bash
 (

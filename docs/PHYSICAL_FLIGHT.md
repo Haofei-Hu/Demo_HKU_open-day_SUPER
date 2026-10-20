@@ -22,13 +22,15 @@ outbound path; the initial heading is retained.
 ## 1. Install the matching release once
 
 Finish any running task and keep the aircraft landed and disarmed before updating.
-This release needs no new C++ rebuild if the existing nine venue markers are
-installed. Older setups need the [one-time patches and build](QUICK_START.md#install-or-update-once).
+This release adds bounded backup-waypoint support and requires ten venue markers.
+After updating, apply the venue patch and rebuild once using the
+[one-time patch and build commands](QUICK_START.md#install-or-update-once), even
+if the previous nine-marker release is installed.
 
 ```bash
 (
 set -e
-revision='560633172b32a12e95c96ee0d5c7b4613aac2e41'
+revision='24aa618ac4ebacbc8ec26a2c754f8973961e30dd'
 update_dir=$(mktemp -d)
 
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
