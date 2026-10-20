@@ -101,6 +101,18 @@ class DemoTest(GroundTest):
         return command
 
     def after_vision_ready(self):
+        if getattr(self.args,'calibrate_venue',False):
+            from calibrate_venue_rviz import calibrate
+            self.report['stage']='venue_selection';write_report(self.path,self.report)
+            config=calibrate(self.selection_config,self.args.scripts_dir/'aligned_pose_preview.py',
+                             self.folder,self.args.rear_offset)
+            self.selection_config=DemoMission.ground_rehearsal(config)
+            self.save_mission(self.selection_config)
+            self.report['venue_calibration_report']=str(self.folder/'venue_calibration.json')
+            self.report['venue_selection_confirmed']=True
+            write_report(self.path,self.report)
+            print('VENUE CONFIRMED: continuing automatically to map capture and the complete virtual mission. '
+                  'The selection viewer closes; rehearsal RViz opens after preparation. No physical flight.',flush=True)
         if not getattr(self.args,'fast_start',False):return
         log=self.folder/(str(len(self.report['stages']))+'_vision_chain.log')
         stage=dict(action='vision_chain',log=str(log),started_at=datetime.now().astimezone().isoformat(),
@@ -174,6 +186,13 @@ class DemoTest(GroundTest):
         command.extend(map(str,extra))
         self.step(action,command)
 
+    def save_mission(self,config):
+        mission=DemoMission(config)
+        frozen=self.folder/'mission.json';frozen.write_text(json.dumps(config,indent=2)+'\n')
+        self.report.update(mission=config,waypoints=mission.waypoints(),execution_context='ground_rehearsal',
+            requested_fc_floor_height_m=mission.hover_height,round_trips_requested=mission.round_trips)
+        return mission,frozen
+
     def run_complete(self):
         write_report(self.path,self.report);print('REPORT:',self.path,flush=True)
         try:
@@ -182,6 +201,17 @@ class DemoTest(GroundTest):
             for name in required:
                 if not (self.args.scripts_dir/name).is_file():raise RuntimeError('Missing dependency: '+name)
             config=json.loads(self.args.mission_file.read_text())
+            selection=getattr(self.args,'calibrate_venue',False)
+            if selection:
+                if self.args.logic_only or getattr(self.args,'route_profile','demonstration')!='demonstration':
+                    raise ValueError('RViz selection needs the real-map demonstration rehearsal')
+                config['venue'].pop('calibration_method',None);config.pop('venue_calibration',None)
+                config['venue']['width_left_m']=2.8
+                rear=getattr(self.args,'rear_offset',None)
+                if rear is None:rear=config['takeoff'].get('forward_from_rear_m')
+                self.args.rear_offset=DemoMission.measure(rear,'rear offset for RViz selection')
+            elif 'venue_calibration' in config:
+                raise ValueError('Use --calibrate-venue to select fresh boundaries for this rehearsal')
             config=DemoMission.ground_rehearsal(config)
             if getattr(self.args,'route_profile','demonstration')=='short-1m':
                 if not self.args.fixture_geometry:raise ValueError('Short-site rehearsal needs explicitly labelled --fixture-geometry')
@@ -191,12 +221,12 @@ class DemoTest(GroundTest):
                 for side in ('front','rear','left','right'):config['vehicle']['centre_to_'+side+'_m']=.2
                 config['vehicle'].update(centre_to_top_m=.1,centre_to_bottom_m=.085)
                 config['status']='SYNTHETIC_TEST_GEOMETRY_NOT_AIRCRAFT_MEASUREMENTS'
-            mission=DemoMission(config)
-            frozen=self.folder/'mission.json';frozen.write_text(json.dumps(config,indent=2)+'\n')
-            self.report['mission']=config;self.report['waypoints']=mission.waypoints()
-            self.report['execution_context']='ground_rehearsal'
-            self.report['requested_fc_floor_height_m']=mission.hover_height
-            self.report['round_trips_requested']=mission.round_trips
+            if selection:
+                # Temporary placement only validates the remaining route/body fields.
+                # The planner never runs with it; confirmation replaces it first.
+                config['takeoff'].update(forward_from_rear_m=self.args.rear_offset,distance_from_left_m=1.4)
+                self.selection_config=config
+            mission,frozen=self.save_mission(config)
             print(f'ROUTE: {config["mission_id"]}; {mission.hover_height:g} m height, '
                   f'{mission.round_trips} round trips of {mission.distance:g} m each way, final 6 s hover, LAND',flush=True)
             scene=None
@@ -204,6 +234,10 @@ class DemoTest(GroundTest):
                 require_venue_support(Path.home()/'super_ws/src/SUPER')
                 self.open_qgc()
                 self.prepare(planner_profile='demo')
+                if selection:
+                    if not self.report.get('venue_selection_confirmed'):
+                        raise RuntimeError('Rehearsal cannot continue without confirmed RViz selection')
+                    mission=DemoMission.load(frozen)
                 self.report['vision_preparation_policy']=dict(continuous_window_s=30.,
                     total_wait_deadline_s=None,header_age_band_s=[-.05,.25],receive_gap_limit_s=.25,
                     temporal_interruptions='Record lifetime evidence and restart observation only',
@@ -215,9 +249,11 @@ class DemoTest(GroundTest):
                 else:self.step('vision_chain',self.vision_command())
                 self.report['actual_localization_tested']=True
                 self.session.load();scene=self.folder/'scene.json'
-                self.step('capture_scene',[sys.executable,self.args.scripts_dir/'capture_demo_scene.py',
+                capture_command=[sys.executable,self.args.scripts_dir/'capture_demo_scene.py',
                     '--output',scene,'--alignment-path',self.args.scripts_dir/'aligned_pose_preview.py',
-                    '--planner-config',self.session.config['planner_config_path']])
+                    '--planner-config',self.session.config['planner_config_path']]
+                if selection:capture_command+=['--venue-mission',frozen]
+                self.step('capture_scene',capture_command)
             command=[sys.executable,self.args.scripts_dir/'demo_mission_simulation.py',
                      '--isolated','--mission-file',frozen,'--report-json',self.folder/'mission_report.json',
                      '--motion-policy',getattr(self.args,'motion_policy','strict')]
@@ -289,6 +325,8 @@ def main():
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
     p.add_argument('--fast-start',action='store_true',help='cold start with fresh alignment collectors in parallel and the unchanged 30 s vision window overlapping map/planner preparation')
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
+    p.add_argument('--calibrate-venue',action='store_true',help='Select left/right in RViz, then automatically rehearse inside that fixed box')
+    p.add_argument('--rear-offset',type=float,help='FC-to-rear distance; left/right clicks do not measure the rear side')
     p.add_argument('--route-profile',choices=('demonstration','short-1m'),default='demonstration',
                    help='full 4.5 m demonstration or separate 1 m short-site rehearsal')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict',

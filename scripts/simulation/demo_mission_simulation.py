@@ -213,13 +213,14 @@ def backend(connection,fault,scene_file=None):
         from control_bridge_preview import load_converter
         scene=json.loads(Path(scene_file).read_text());convert=load_converter(Path(scene['alignment_path']))
         ground=scene['aligned_position'];pose=list(ground);raw_q=scene['raw_quaternion'];aligned_q=scene['aligned_quaternion']
-        x,y,z,w=aligned_q;yaw=math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))
+        local_q=scene.get('local_quaternion',aligned_q)
+        x,y,z,w=local_q;yaw=math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))
         raw_zero=convert(np.zeros(3),np.array(raw_q),np.eye(6))[0]
         raw_rotation=np.column_stack([convert(v,np.array(raw_q),np.eye(6))[0]-raw_zero for v in np.eye(3)])
         if not np.allclose(raw_rotation.T@raw_rotation,np.eye(3),atol=1e-8,rtol=0):
             raise ValueError('Scene conversion must be rigid')
         origin=np.array(scene['origin'])
-        viewer_q=viewer_body_orientation(raw_rotation,aligned_q)
+        viewer_q=viewer_body_orientation(raw_rotation,local_q)
     state=dict(mode='POSCTL',armed=False,landed=True,plan=None,goals=[],commands=[],peak_native_speed=0.,
                max_lateral_displacement_m=0.,rest_waits=0,resume_goal=None,
                future_plan=None,future_replans=0,future_replanned_goal=None,accepted_goals=[])
@@ -328,6 +329,7 @@ def backend(connection,fault,scene_file=None):
                 if kind is Odometry:msg.child_frame_id='body'
                 p=msg.pose if kind is PoseStamped else msg.pose.pose
                 values=pose;quaternion=aligned_q
+                if kind is PoseStamped and scene_file is not None:quaternion=local_q
                 if kind is Odometry and raw_rotation is not None:
                     values=raw_rotation.T@(np.array(pose)+origin-raw_zero);quaternion=raw_q
                     for a,v in zip(('x','y','z'),raw_rotation.T@np.array(velocity)):
@@ -428,6 +430,8 @@ def run(mission_file,report,fault=None,scene_file=None,motion_policy='strict',rv
     from super_demo_control import DemoMissionControl
     controller_class=controller_class or DemoMissionControl
     bounded_venue=scene_file is not None and domain_id==197 and controller_class is DemoMissionControl
+    if 'venue_calibration' in json.loads(Path(mission_file).read_text()) and not bounded_venue:
+        raise ValueError('Selected venue requires the real-SUPER isolated scene rehearsal')
     if bounded_venue:
         from apply_super_venue_bounds import require_support
         scene=json.loads(Path(scene_file).read_text())

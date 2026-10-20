@@ -29,6 +29,11 @@ python3 ~/Downloads/super_demo_test.py \
 
 The runner opens QGC, starts localization and external vision, captures the session alignment quaternion and map, and opens RViz to display real SUPER planning with a virtual vehicle. Point clouds use a 5-pixel display size. Normal reboots require no download or rebuild.
 
+To select the venue's lateral boundaries before each rehearsal, add
+`--calibrate-venue --rear-offset 0.5` when the rear offset is 0.5 m. After LEFT,
+RIGHT and `confirm`, the runner automatically continues through the full virtual
+mission. See [point selection and automatic continuation](docs/RVIZ_VENUE_CALIBRATION.md#select-points-then-automatically-run-the-complete-rehearsal).
+
 The final output is `RESULT: SUCCESS` or `RESULT: FAIL`, with reports under `~/Downloads/super_demo_tests/<timestamp>/`. This rehearsal uses a real map and planner with virtual vehicle feedback. It is not a PX4 dynamics simulation and does not fly the physical aircraft.
 
 ## Demonstration mission

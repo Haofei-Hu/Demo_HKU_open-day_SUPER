@@ -227,6 +227,21 @@ delayed replies. A successful readback does not conceal a dead MAVROS process.
 
 ## Prepare physical execution separately
 
+For a complete **virtual** run with manual RViz boundary selection first:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics \
+  --fixture-geometry --motion-policy observe --fast-start \
+  --calibrate-venue --rear-offset 0.5
+```
+
+Once the two picks are confirmed, the runner automatically captures the scene and
+opens the rehearsal viewer for the complete mission. The selection window
+closing is a viewer handoff, not the end of the test. Reports remain under
+`super_demo_tests`. Use `--calibration-only` only when selection itself is the
+intended endpoint. See the [RViz workflow](RVIZ_VENUE_CALIBRATION.md).
+
 The current physical command selects 1.5 m FC-centre height above the floor and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
 Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The default box is 5.8 m along the heading, 2.8 m wide and 2.8 m high. RViz calibration uses the selected lateral boundaries exactly, without a 2.8 m width cap; length and height retain their configured demonstration values. Supply the rear offset and all six propeller-inclusive FC-centre extents. For a variable lateral takeoff position, use [RViz left/right calibration](RVIZ_VENUE_CALIBRATION.md) instead of measuring the left offset: add `--calibrate-venue --rear-offset 0.5` to either physical command below when the rear offset is still 0.5 m. Each new preparation opens RViz after alignment, waits for two boundary clicks and confirmation, then prepares the planner with that session's fixed box. Which side has a wall does not matter. Do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change. Use the [measurement checklist and exact JSON fields](FLIGHT_SITE_MEASUREMENTS.md) for the aircraft envelope.

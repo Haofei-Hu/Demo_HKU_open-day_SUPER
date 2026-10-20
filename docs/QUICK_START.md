@@ -66,6 +66,22 @@ A normal reboot requires no download, rebuild, manual `source`, or quaternion co
 
 `--fast-start` runs independent preparation steps concurrently; each run still performs fresh measurements and mapping. The 30-second observation belongs to preparation, not to each route segment. Closing the terminal does not stop background tmux nodes. Running the command again checks grounded state before clearing the previous session.
 
+For **point selection followed automatically by the complete rehearsal**, use:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics \
+  --fixture-geometry --motion-policy observe --fast-start \
+  --calibrate-venue --rear-offset 0.5
+```
+
+Select LEFT and RIGHT in the frozen RViz view, then type `confirm` in the launching
+terminal. The runner automatically continues through scene capture, the complete
+virtual mission and reporting. Rehearsal RViz replaces the selection viewer after
+preparation. The selected width is preserved exactly. `--calibration-only` is for
+the separate selection check and should not be used for this full workflow.
+See [RViz boundary selection](RVIZ_VENUE_CALIBRATION.md).
+
 ## Mission settings
 
 | Setting | Value |

@@ -15,6 +15,46 @@ import super_demo as physical_entry
 
 
 class Tests(unittest.TestCase):
+    def test_confirmed_selection_automatically_continues_to_complete_private_rehearsal(self):
+        import numpy as np
+        from rviz_venue_calibration import selected_geometry,apply_geometry,REHEARSAL_SCOPE
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder);runner.args.calibrate_venue=True;runner.args.rear_offset=.5
+            before=runner.args.mission_file.read_bytes()
+            def calibrate(config,*args):
+                actions.append(('select_and_confirm',))
+                observation=dict(ground_fc_xyz=[0.,0.,0.],ground_fc_yaw_rad=0.,origin=[0.,0.,0.])
+                geometry=selected_geometry([0,1.69,.5],[0,-1.317,.5],observation,np.eye(3),.5)
+                return apply_geometry(config,geometry,observation,'hash')
+            def prepare(planner_profile):
+                actions.append(('prepare',planner_profile));runner.after_vision_ready()
+                actions.append(('planner',planner_profile))
+            runner.prepare=prepare
+            with patch('calibrate_venue_rviz.calibrate',side_effect=calibrate):
+                self.assertEqual(runner.run_complete(),0)
+            self.assertEqual([a[0] for a in actions],
+                ['prepare','select_and_confirm','planner','vision_chain','capture_scene','complete_mission'])
+            self.assertEqual(runner.args.mission_file.read_bytes(),before)
+            self.assertTrue(runner.report['venue_selection_confirmed'])
+            self.assertAlmostEqual(runner.report['mission']['venue']['width_left_m'],3.007)
+            self.assertEqual(runner.report['mission']['venue_calibration']['scope'],REHEARSAL_SCOPE)
+            capture=next(a[1] for a in actions if a[0]=='capture_scene')
+            self.assertEqual(capture[capture.index('--venue-mission')+1],str(runner.folder/'mission.json'))
+            self.assertEqual(actions[-1][2]['ROS_DOMAIN_ID'],'197')
+            self.assertEqual(runner.report['round_trips_completed'],5)
+            self.assertFalse(runner.report['real_aircraft_mode_or_arming_requests'])
+
+    def test_cancelled_selection_never_starts_planner_or_simulation(self):
+        with tempfile.TemporaryDirectory() as folder,self.gate():
+            runner,actions=self.runner(folder);runner.args.calibrate_venue=True;runner.args.rear_offset=.5
+            def prepare(planner_profile):
+                runner.after_vision_ready();actions.append(('planner',))
+            runner.prepare=prepare
+            with patch('calibrate_venue_rviz.calibrate',side_effect=KeyboardInterrupt):
+                self.assertEqual(runner.run_complete(),130)
+            self.assertEqual(actions,[]);self.assertEqual(runner.report['failed_stage'],'venue_selection')
+            self.assertTrue(runner.report['cancelled_by_operator'])
+
     def test_preparation_actions_use_completion_driven_stream_and_protect_negative_quaternion(self):
         with tempfile.TemporaryDirectory() as folder:
             runner,actions=self.runner(folder)

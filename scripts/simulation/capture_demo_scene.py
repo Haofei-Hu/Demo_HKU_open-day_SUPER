@@ -12,6 +12,7 @@ def main():
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--alignment-path',type=Path,required=True)
     p.add_argument('--planner-config',type=Path,required=True)
+    p.add_argument('--venue-mission',type=Path,help='Bind the captured rehearsal to this session RViz selection')
     args=p.parse_args()
     if args.output.exists():raise ValueError('Scene output already exists')
     from super_session import GroundGate,NATIVE_CONTROL_TOPICS
@@ -73,6 +74,14 @@ def main():
             cloud_original_stamp_ns=latest['cloud'].header.stamp.sec*1_000_000_000+latest['cloud'].header.stamp.nanosec,
             cloud_serialized_base64=base64.b64encode(binary).decode('ascii'),
             native_control_or_flight_requests=False)
+        if args.venue_mission:
+            from create_live_venue_profile import capture
+            from rviz_venue_calibration import freeze_scene
+            config=json.loads(args.venue_mission.read_text())
+            observation=capture(gate,args.alignment_path)
+            if hashlib.sha256(args.alignment_path.read_bytes()).hexdigest()!=digest:
+                raise ValueError('Alignment changed before frozen venue binding')
+            data=freeze_scene(config,data,observation,load_converter(args.alignment_path))
         with args.output.open('x') as handle:json.dump(data,handle,indent=2);handle.write('\n')
         print('Captured scene:',args.output,'points:',data['cloud_points'],flush=True)
     finally:

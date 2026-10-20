@@ -3,7 +3,7 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "7316a1653aea44ea2515f31695d5aec4b4715edd0ce1e41afa6b939e668bfc1d"
+      "sha256": "14bd8000a4c970baf8de5f109212a0e38977e1db74ed2e5b0485231f37849ae5"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
@@ -11,7 +11,7 @@
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "f6ae4852761f110b3c637ab81edee30b252fcfb20d18afe7419b9680932e795a"
+      "sha256": "b626a4e03a7146c2eb1ab669c50138bf53a86b88c0bc7d7d20f1b142b7ae39fd"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
@@ -19,11 +19,11 @@
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
-      "sha256": "5f37c40c9133e3aad0ba3bbdd8a497e2a6affeb7d5a5a6cc751644bcbf9e71c4"
+      "sha256": "177eff920ef1830da0254b1cac7f0f9c797725257feff84d88497c82d60ba29e"
     },
     "capture_demo_scene.py": {
       "path": "scripts/simulation/capture_demo_scene.py",
-      "sha256": "7847dd8373a67f07ba987fb9151818d314de11a613de1902db2a4ce2cb9b67c1"
+      "sha256": "6e46a8ed83aece46cffc69d0d097c803834def82832c1f62764a87aebf12dbb6"
     },
     "first_hover_terminal.py": {
       "path": "first_hover_terminal.py",
@@ -100,7 +100,7 @@
     },
     "demo_venue.py": {
       "path": "scripts/simulation/demo_venue.py",
-      "sha256": "abd2e3c06eb896f347e0c5edf7a5e817ca36b58758f2cadcc168cf07b7a32468"
+      "sha256": "b8e25507ecd61c24fdf554f5ec4aff991bddf03303dbf309cff8b50f9c35a599"
     },
     "venue_geometry.py": {
       "path": "scripts/planning/venue_geometry.py",
@@ -116,7 +116,7 @@
     },
     "rviz_venue_calibration.py": {
       "path": "scripts/planning/rviz_venue_calibration.py",
-      "sha256": "e4925c6af3face2d586852929c0844f10c7e1489cfa1e9896bac89f53106502e"
+      "sha256": "6c769f4e8dd76a5276ccfcfa8d2ce443dbc59f688b5d5e1bfbb9e9fceff5f1e2"
     },
     "calibrate_venue_rviz.py": {
       "path": "scripts/maintenance/calibrate_venue_rviz.py",

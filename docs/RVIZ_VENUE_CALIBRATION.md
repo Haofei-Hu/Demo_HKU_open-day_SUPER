@@ -1,6 +1,7 @@
 # Select lateral venue boundaries in RViz before preparation
 
-Use `super_demo.py --calibrate-venue` to select the left and right boundaries in
+Use `super_demo_test.py --calibrate-venue` for an automatic rehearsal, or
+`super_demo.py --calibrate-venue` for physical preparation. Select the left and right boundaries in
 RViz after fresh localization and alignment, before SUPER or the mission
 controller starts. This avoids entering a new left-wall distance for each takeoff
 position. It does not detect a net or relocalize against a saved map.
@@ -12,6 +13,42 @@ they do not estimate the heading of a wall. Select the actual boundary surfaces,
 not objects inside the venue. The two points can be at different heights and
 forward positions. Environmental points are rotated into the aligned frame
 without applying the vehicle's IMU-to-FC lever arm.
+
+## Select points, then automatically run the complete rehearsal
+
+After installation, use one command:
+
+```bash
+python3 ~/Downloads/super_demo_test.py \
+  --restart --fixed-lio-extrinsics \
+  --fixture-geometry --motion-policy observe --fast-start \
+  --calibrate-venue --rear-offset 0.5
+```
+
+The runner opens QGC, starts fresh localization and alignment, opens the frozen
+RViz selection view, and waits for the two boundary picks and `confirm` in the
+launching terminal. Confirmation automatically continues to planner preparation,
+the existing fresh vision observation, map capture and the complete real-SUPER
+virtual rehearsal. **Do not add `--calibration-only` for this workflow.**
+
+The selection window closes after confirmation because the rehearsal viewer runs
+in the separate simulation ROS domain. Rehearsal RViz opens automatically when
+preparation finishes; the terminal reports progress between the two windows.
+No second launch or start service is needed for the virtual mission.
+
+The virtual route remains a 0.5 m takeoff target, five 4.5 m out-and-back rounds,
+six seconds at home, then landing. `--fixture-geometry` supplies labelled virtual
+aircraft dimensions; the final left/right placement comes from the picks, not the
+fixture's default centre. The exact selected width and fixed heading/origin are
+carried into the captured scene. Later pose samples cannot shift that box.
+The original cloud and mission template are not edited.
+
+The final result and combined report are saved under
+`~/Downloads/super_demo_tests/<timestamp>/report.json`. That directory also holds
+the calibration, frozen mission, scene and mission report. A successful
+rehearsal does not establish physical flight readiness. Each `--restart` uses a
+new localization session and requires new picks; do not feed a previous session's
+calibration-only file into a new session.
 
 ## Try selection with the existing template
 

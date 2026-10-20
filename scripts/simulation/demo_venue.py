@@ -11,9 +11,12 @@ from demo_mission import DemoMission
 def halfspaces(scene,mission,converter=None):
     """Use the exact fixed goal attitude/lever arm and floor convention of control."""
     if not mission.rehearsal_only:raise ValueError('Frozen-scene bounds are for ground rehearsal only')
+    if 'venue_calibration' in mission.config:
+        from rviz_venue_calibration import validate_frozen_scene
+        validate_frozen_scene(mission.config,scene)
     converter=converter or load_converter(Path(scene['alignment_path']))
     planes,record=planes_for_frame(mission,converter,scene['raw_quaternion'],scene['origin'],
-                                  scene['aligned_position'],yaw(scene['aligned_quaternion']))
+                                  scene['aligned_position'],yaw(scene.get('local_quaternion',scene['aligned_quaternion'])))
     record.update(scope='Frozen-scene ground rehearsal only',
         source_alignment_sha256=scene.get('alignment_sha256'),source_planner_sha256=scene.get('planner_sha256'))
     return planes,record

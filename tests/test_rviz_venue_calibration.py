@@ -10,7 +10,7 @@ import numpy as np
 import yaml
 
 from rviz_venue_calibration import (axes,world_rotation,selected_geometry,apply_geometry,
-                                   validate_geometry,validate_session,wireframe,METHOD)
+                                   validate_geometry,validate_session,wireframe,METHOD,freeze_scene,validate_frozen_scene)
 from demo_mission import DemoMission
 from test_demo_mission import fixture
 from live_venue import SOURCE_TOPICS,digest,LiveVenue
@@ -21,6 +21,48 @@ from calibrate_venue_rviz import FrozenCloud,rviz_config
 
 
 class Tests(unittest.TestCase):
+    def test_frozen_scene_preserves_selected_frame_and_raw_aligned_rotation_pair(self):
+        from aligned_pose_preview import rotation,multiply
+        from control_bridge_preview import quaternion_rpy
+        from venue_geometry import yaw
+        from demo_venue import halfspaces
+        from super_demo_control import VenueFrame
+        world=quaternion_rpy(.2,-.15,.8);r=rotation(world)
+        raw_q=quaternion_rpy(.1,.2,-.3);lever=np.array([.04,-.03,.11])
+        def convert(p,q,c):return r@(p+rotation(q)@lever),multiply(world,q),c
+        raw_p=np.array([1.,2.,-3.]);origin=np.array([.5,-.2,1.])
+        ground,aligned_q,_=convert(raw_p,raw_q,np.eye(6));ground-=origin
+        heading=yaw(aligned_q)+.03  # FC yaw differs slightly from external vision.
+        obs=dict(ground_fc_xyz=ground.tolist(),ground_fc_yaw_rad=heading,origin=origin.tolist(),
+                 raw_position=raw_p.tolist(),raw_quaternion=raw_q.tolist(),source_ids={'raw':'one'})
+        def point(lateral):return r.T@(origin+ground+axes(heading).T@np.array([0,lateral,.5]))
+        g=selected_geometry(point(1.69),point(-1.317),obs,r,.5)
+        config=DemoMission.ground_rehearsal(apply_geometry(fixture(),g,obs,'hash'))
+        scene=dict(raw_position=raw_p.tolist(),raw_quaternion=raw_q.tolist(),
+                   aligned_position=(ground+[.02,0,0]).tolist(),aligned_quaternion=aligned_q.tolist(),
+                   origin=origin.tolist(),alignment_sha256='hash')
+        current=deepcopy(obs);current['ground_fc_xyz'][0]+=.02
+        frozen=freeze_scene(config,scene,current,convert);validate_frozen_scene(config,frozen)
+        np.testing.assert_allclose(frozen['aligned_position'],ground,atol=1e-12)
+        p,q,_=convert(np.array(frozen['raw_position']),np.array(frozen['raw_quaternion']),np.eye(6))
+        np.testing.assert_allclose(p-origin,ground,atol=1e-12)
+        np.testing.assert_allclose(q,frozen['aligned_quaternion'],atol=1e-12)
+        self.assertAlmostEqual(yaw(frozen['local_quaternion']),heading)
+        mission=DemoMission(config);self.assertAlmostEqual(mission.width,3.007)
+        planes,record=halfspaces(frozen,mission,convert)
+        frame=VenueFrame(ground,frozen['local_quaternion'],mission,lambda:False)
+        matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
+        for lateral in (-1.317+mission.hull['right'],1.69-mission.hull['left']):
+            raw=np.linalg.solve(matrix,np.array([1.,lateral,.5])-offset)
+            fc=convert(raw,np.array(record['fixed_raw_goal_quaternion_xyzw']),np.eye(6))[0]-origin
+            self.assertTrue(np.all(planes[:,:3]@raw+planes[:,3]<=1e-8))
+            frame.check(fc)
+        changed=deepcopy(frozen);changed['aligned_position'][0]+=.02
+        with self.assertRaisesRegex(ValueError,'moved'):validate_frozen_scene(config,changed)
+        with self.assertRaisesRegex(ValueError,'physical mission'):DemoMission.physical_height(config,1.5)
+        current['source_ids']={}
+        with self.assertRaisesRegex(ValueError,'another localization'):freeze_scene(config,scene,current,convert)
+
     def test_display_freezes_until_refresh_and_opens_with_point_tool(self):
         from std_msgs.msg import Header
         from sensor_msgs_py import point_cloud2

@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 METHOD='rviz_lateral_points_v1'
+REHEARSAL_SCOPE='Frozen-scene ground rehearsal only'
 
 
 def axes(yaw):
@@ -101,3 +102,42 @@ def wireframe(geometry,observation,rotation):
     raw=(rotation.T@(aligned+observation['ground_fc_xyz']+np.asarray(observation['origin'])).T).T
     edges=[(i,j) for i in range(8) for j in range(i+1,8) if (i^j) in (1,2,4)]
     return raw,edges
+
+
+def freeze_scene(config,scene,observation,converter):
+    """Keep the clicked world box fixed when transferring into a private simulation."""
+    data=validate_geometry(config)
+    if config.get('execution_context')!='ground_rehearsal' or data.get('scope')!=REHEARSAL_SCOPE:
+        raise ValueError('Frozen calibration requires a ground-rehearsal mission')
+    anchor=validate_session(data,observation,scene['alignment_sha256'])
+    result=deepcopy(scene)
+    result['captured_vehicle_pose']={k:deepcopy(scene[k]) for k in
+        ('raw_position','raw_quaternion','aligned_position','aligned_quaternion','origin')}
+    q=np.asarray(anchor['raw_quaternion'])
+    rotation=world_rotation(converter,q)
+    zero,aligned_q,_=converter(np.zeros(3),q,np.eye(6))
+    yaw=anchor['ground_fc_yaw_rad']
+    result.update(aligned_position=anchor['ground_fc_xyz'],
+        aligned_quaternion=np.asarray(aligned_q).tolist(),
+        local_quaternion=[0.,0.,math.sin(yaw/2),math.cos(yaw/2)],
+        raw_quaternion=anchor['raw_quaternion'],origin=anchor['origin'],
+        raw_position=(rotation.T@(np.asarray(anchor['ground_fc_xyz'])+anchor['origin']-zero)).tolist(),
+        venue_calibration_scope=REHEARSAL_SCOPE)
+    return result
+
+
+def validate_frozen_scene(config,scene):
+    data=validate_geometry(config);anchor=data['anchor']
+    if (config.get('execution_context')!='ground_rehearsal' or data.get('scope')!=REHEARSAL_SCOPE
+            or scene.get('venue_calibration_scope')!=REHEARSAL_SCOPE
+            or data['alignment_sha256']!=scene['alignment_sha256']):
+        raise ValueError('Missing matching frozen venue calibration')
+    for actual,expected in ((scene['aligned_position'],anchor['ground_fc_xyz']),
+                            (scene['origin'],anchor['origin']),
+                            (scene['raw_quaternion'],anchor['raw_quaternion'])):
+        if not np.allclose(actual,expected,atol=1e-10,rtol=0):
+            raise ValueError('Frozen scene moved relative to the selected venue')
+    x,y,z,w=scene['local_quaternion']
+    yaw=math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))
+    angle=(yaw-anchor['ground_fc_yaw_rad']+math.pi)%(2*math.pi)-math.pi
+    if abs(angle)>1e-10:raise ValueError('Frozen heading changed after venue selection')

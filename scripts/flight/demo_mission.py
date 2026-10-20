@@ -43,9 +43,10 @@ class DemoMission:
         if v.get('boundary_type')!='outer':raise ValueError('Mission requires surveyed outer boundaries')
         calibrated=v.get('calibration_method') is not None or 'venue_calibration' in config
         if calibrated:
-            if self.rehearsal_only:raise ValueError('Live RViz calibration is not a rehearsal fixture')
-            from rviz_venue_calibration import validate_geometry
-            validate_geometry(config)
+            from rviz_venue_calibration import validate_geometry,REHEARSAL_SCOPE
+            calibration=validate_geometry(config)
+            if self.rehearsal_only != (calibration.get('scope')==REHEARSAL_SCOPE):
+                raise ValueError('Venue calibration execution scope does not match the mission')
         fixed={'length_forward_m':venue_length,'height_m':2.8}
         if not calibrated:fixed['width_left_m']=2.8
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
@@ -99,6 +100,9 @@ class DemoMission:
         result['execution_context']='ground_rehearsal'
         result['flight']['height_fc_above_floor_m']=.5
         result['sequence'][0]='TAKEOFF_TO_0_5M'
+        if 'venue_calibration' in result:
+            from rviz_venue_calibration import REHEARSAL_SCOPE
+            result['venue_calibration']['scope']=REHEARSAL_SCOPE
         return result
 
     @staticmethod
