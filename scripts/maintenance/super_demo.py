@@ -37,7 +37,8 @@ class DemoPreparation(GroundTest):
         if not self.args.calibrate_venue:return
         from calibrate_venue_rviz import calibrate
         config=calibrate(self.calibration_source,self.args.scripts_dir/'aligned_pose_preview.py',
-                         self.folder,self.args.rear_offset)
+                         self.folder,self.args.rear_offset,venue_width=self.args.venue_width,
+                         venue_ceiling=self.args.venue_ceiling)
         if not self.args.calibration_only:
             config=DemoMission.physical_height(config,self.args.flight_height)
         self.args.mission_file=self.folder/'flight_mission.json'
@@ -56,6 +57,8 @@ def arguments(argv=None):
     p.add_argument('--calibrate-venue',action='store_true',help='Select left/right sides in RViz after fresh localization')
     p.add_argument('--calibration-only',action='store_true',help='Stop after selection; permits incomplete aircraft geometry, no planner/controller')
     p.add_argument('--rear-offset',type=float,help='Previously surveyed FC-to-rear offset; lateral selection does not measure the rear boundary')
+    p.add_argument('--venue-width',type=float,help='Optional total width cap centred on takeoff and intersected with RViz-selected sides')
+    p.add_argument('--venue-ceiling',type=float,help='Optional outer top boundary above floor, at most 2.8 m; includes aircraft top clearance')
     p.add_argument('--scripts-dir',type=Path,default=Path.home()/'Downloads')
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
@@ -68,6 +71,11 @@ def arguments(argv=None):
     args=p.parse_args(argv)
     if args.calibration_only and (not args.calibrate_venue or args.execute):
         p.error('--calibration-only requires --calibrate-venue and cannot execute flight')
+    if args.venue_width is not None or args.venue_ceiling is not None:
+        if not args.calibrate_venue:p.error('Venue caps require --calibrate-venue and preview confirmation')
+        from rviz_venue_calibration import cap_selected_box
+        try:cap_selected_box({'selected_lateral_limits_m':[-1.4,1.4]},args.venue_width,args.venue_ceiling)
+        except ValueError as exc:p.error(str(exc))
     return args
 
 

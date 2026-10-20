@@ -21,6 +21,24 @@ from calibrate_venue_rviz import FrozenCloud,rviz_config
 
 
 class Tests(unittest.TestCase):
+    def test_explicit_operation_box_retains_physical_clearances_and_readiness_gates(self):
+        from rviz_venue_calibration import cap_selected_box
+        _,obs,r,p=self.scene()
+        geometry=cap_selected_box(selected_geometry(p(0,1.69,1),p(0,-1.317,1),obs,r,.5),2.,2.)
+        config=apply_geometry(fixture(),geometry,obs,'hash')
+        mission=DemoMission(config)
+        self.assertFalse(mission.rehearsal_only)
+        self.assertEqual((mission.width,mission.height,mission.hover_height),(2.,2.,1.5))
+        mission.check([1.,.79,1.89])
+        for point in ([1.,.81,1.5],[1.,-.81,1.5],[1.,0.,1.91]):
+            with self.assertRaises(ValueError):mission.check(point)
+        config['vehicle']['centre_to_top_m']=None
+        with self.assertRaisesRegex(ValueError,'Missing/invalid'):DemoMission(config)
+        args=arguments(['--mission-file','mission.json','--calibrate-venue','--venue-width','2','--venue-ceiling','2'])
+        self.assertFalse(args.execute)
+        self.assertEqual((args.venue_width,args.venue_ceiling),(2.,2.))
+        with self.assertRaises(SystemExit):arguments(['--mission-file','mission.json','--venue-width','2'])
+
     def test_ceiling_cap_preserves_body_clearance_and_rejects_physical_reuse(self):
         from rviz_venue_calibration import cap_rehearsal_ceiling
         _,obs,r,p=self.scene()
@@ -227,6 +245,25 @@ class Tests(unittest.TestCase):
             self.assertEqual(runner.calibration_source,original)
             saved=json.loads(args.mission_file.read_text());self.assertAlmostEqual(saved['takeoff']['distance_from_left_m'],1.)
             self.assertEqual(saved['flight']['height_fc_above_floor_m'],1.5)
+
+    def test_physical_hook_passes_box_options_before_confirmation_and_keeps_source(self):
+        from rviz_venue_calibration import cap_selected_box
+        args=arguments(['--mission-file','mission.json','--calibrate-venue','--rear-offset','.5',
+                        '--venue-width','2','--venue-ceiling','2','--execute','--on-site-supervised'])
+        _,obs,r,p=self.scene()
+        with tempfile.TemporaryDirectory() as d:
+            runner=object.__new__(DemoPreparation);runner.args=args;args.scripts_dir=Path(d)
+            runner.folder=Path(d);runner.path=Path(d)/'prep.json';runner.report={}
+            runner.calibration_source=fixture();original=deepcopy(runner.calibration_source)
+            def calibrate(config,alignment,folder,rear,*,venue_width,venue_ceiling):
+                self.assertEqual((venue_width,venue_ceiling),(2.,2.))
+                geometry=selected_geometry(p(0,1.69,1),p(0,-1.317,1),obs,r,rear)
+                return apply_geometry(config,cap_selected_box(geometry,venue_width,venue_ceiling),obs,'hash')
+            with patch('calibrate_venue_rviz.calibrate',side_effect=calibrate):runner.after_vision_ready()
+            self.assertEqual(runner.calibration_source,original)
+            mission=DemoMission.load(args.mission_file)
+            self.assertEqual((mission.width,mission.height,mission.hover_height),(2.,2.,1.5))
+            self.assertFalse(mission.rehearsal_only)
 
     def test_selection_precedes_planner_and_calibration_only_never_launches_it(self):
         with tempfile.TemporaryDirectory() as d:

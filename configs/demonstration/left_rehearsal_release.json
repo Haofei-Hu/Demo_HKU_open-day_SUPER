@@ -7,7 +7,7 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "9a91372b61361e41b9a7cef1cfb8b40b16ab505c9d6371d7865ef906d8fa1ff4"
+      "sha256": "1df867d08725c5881af7d820eed966ba7912c2696a57c8932129a746afe63b28"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
@@ -132,11 +132,11 @@
     },
     "rviz_venue_calibration.py": {
       "path": "scripts/planning/rviz_venue_calibration.py",
-      "sha256": "7187052baf72025c9e356aa3c0d1b4565902a830776e6bff49fe1ba2f6232215"
+      "sha256": "31fd83f71554e98053438f3f0878b0f167cc1f930f681013053a598b5ab1636a"
     },
     "calibrate_venue_rviz.py": {
       "path": "scripts/maintenance/calibrate_venue_rviz.py",
-      "sha256": "de6ea156fe67ab10ea039df95b0e60e712172acba0ea1403517de846231fd65a"
+      "sha256": "e93faca2b8294f6ea483905eb7e8885eed2aa3af7f2393d014549614fd2160d5"
     }
   },
   "scope": "Separate immutable left-facing ground rehearsal; original workflow is not installed or restarted"

@@ -82,6 +82,20 @@ def cap_rehearsal_ceiling(geometry,ceiling):
     return result
 
 
+def cap_selected_box(geometry,width=None,ceiling=None):
+    """Apply explicit operator limits inside the selected venue, including physical preparation."""
+    result=deepcopy(geometry)
+    if width is not None:
+        result=cap_rehearsal_width(result,width)
+        result.pop('requested_rehearsal_width_m')
+        result.update(width_policy='operator_centered_width_cap',requested_venue_width_m=width)
+    if ceiling is not None:
+        result=cap_rehearsal_ceiling(result,ceiling)
+        result.pop('requested_rehearsal_ceiling_m')
+        result['requested_venue_ceiling_m']=ceiling
+    return result
+
+
 def validate_geometry(config):
     """Require saved mission sides to match the operator-confirmed selection."""
     data=config.get('venue_calibration',{});geometry=data.get('geometry',{})
@@ -98,6 +112,8 @@ def validate_geometry(config):
         if config.get('execution_context')!='ground_rehearsal':
             raise ValueError('Rehearsal width cap is not a physical venue calibration')
         expected_limits=cap_rehearsal_width(geometry,geometry.get('requested_rehearsal_width_m'))['lateral_limits_m']
+    elif geometry.get('width_policy')=='operator_centered_width_cap':
+        expected_limits=cap_rehearsal_width(geometry,geometry.get('requested_venue_width_m'))['lateral_limits_m']
     if not np.allclose(limits,expected_limits,atol=1e-10,rtol=0):
         raise ValueError('Invalid calibrated lateral interval')
     ceiling=2.8
@@ -105,6 +121,10 @@ def validate_geometry(config):
         if config.get('execution_context')!='ground_rehearsal':
             raise ValueError('Rehearsal ceiling is not a physical venue calibration')
         ceiling=cap_rehearsal_ceiling(geometry,geometry['requested_rehearsal_ceiling_m'])['floor_height_limits_m'][1]
+    if 'requested_venue_ceiling_m' in geometry:
+        if 'requested_rehearsal_ceiling_m' in geometry:
+            raise ValueError('Conflicting ceiling policies')
+        ceiling=cap_rehearsal_ceiling(geometry,geometry['requested_venue_ceiling_m'])['floor_height_limits_m'][1]
     if geometry.get('floor_height_limits_m')!=[0.,ceiling]:
         raise ValueError('Calibrated floor/ceiling changed after confirmation')
     expected=((config['venue']['width_left_m'],limits[1]-limits[0]),

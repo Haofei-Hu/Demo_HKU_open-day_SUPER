@@ -37,6 +37,9 @@ If the file is missing, copy `open_day_mission.json` to the separate measured fi
 If takeoff placement changes, use [RViz lateral calibration](RVIZ_VENUE_CALIBRATION.md)
 to select left/right sides before each preparation instead of measuring and
 entering the lateral offset. The aircraft-envelope measurements are still needed.
+For that workflow the left-offset field may remain unset in the source file;
+the full-file validation above applies only after placement has been supplied.
+Do not fill it with an assumed centred placement to make validation pass.
 
 ## 2. Prepare physical execution after startup
 
@@ -49,12 +52,23 @@ python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
   --flight-height 1.5 \
+  --calibrate-venue --rear-offset 0.5 \
+  --venue-width 2 --venue-ceiling 2 \
   --motion-policy observe --execute --on-site-supervised
 ```
 
-The script opens or reuses QGC, starts localization, measures the alignment quaternion, prepares external vision and SUPER, and captures the measured venue frame shared by the planner and controller. It then waits for `Phase: READY`. Keep terminal A running.
+The script opens or reuses QGC, starts localization, measures the alignment quaternion,
+and prepares external vision. Select the actual left/right boundaries in the frozen
+RViz view and inspect the cyan box before typing `confirm`. The explicit width
+option intersects the selected sides with a strip extending 1 m either side of
+the takeoff centre. The ceiling is 2 m above the floor, with the aircraft's top
+extent subtracted for FC-centre checks. The same box goes to SUPER search,
+corridors and the controller. It then waits for `Phase: READY`. Keep terminal A
+running. These options narrow the selected venue; they do not alter or substitute
+the measured aircraft envelope. Omitting them uses the selected sides and the
+original 2.8 m ceiling.
 
-The physical entrypoint defaults to 1.5 m, including when the stored survey contains a different height. `--flight-height 1.5` explicitly selects that default and saves the effective mission as `flight_mission.json` in the run's report directory without overwriting the measured source file. The height is **1.5 m from the takeoff floor to the FC centre**. With the existing grounded FC-height calibration of 0.085 m, the requested rise is approximately 1.415 m. Ground rehearsal remains at 0.5 m.
+The physical entrypoint defaults to 1.5 m, including when the stored survey contains a different height. `--flight-height 1.5` explicitly selects that default and saves the effective mission as `flight_mission.json` in the run's report directory without overwriting the measured source file. The height is **1.5 m from the takeoff floor to the FC centre**. With the existing grounded FC-height calibration of 0.085 m, the requested rise is approximately 1.415 m. Ground rehearsal defaults to 0.5 m and accepts an explicit `--rehearsal-height 1.5`.
 
 For preparation checks only, omit `--execute --on-site-supervised`; that mode does not execute flight.
 

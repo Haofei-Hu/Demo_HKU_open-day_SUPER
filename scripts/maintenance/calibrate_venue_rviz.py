@@ -16,7 +16,7 @@ import yaml
 from control_bridge_preview import load_converter
 from create_live_venue_profile import capture
 from live_venue import digest,source_ids
-from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session,cap_rehearsal_width,cap_rehearsal_ceiling
+from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session,cap_rehearsal_width,cap_rehearsal_ceiling,cap_selected_box
 
 
 class FrozenCloud:
@@ -68,9 +68,12 @@ def rviz_config(focal_point=(0.,0.,0.)):
                 'Focal Point':dict(zip(('X','Y','Z'),map(float,focal_point)))}}}}
 
 
-def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehearsal_ceiling=None):
+def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehearsal_ceiling=None,
+              *,venue_width=None,venue_ceiling=None):
     if (rehearsal_width is not None or rehearsal_ceiling is not None) and config.get('execution_context')!='ground_rehearsal':
         raise ValueError('Width/ceiling caps are available only for ground rehearsal')
+    if (rehearsal_width is not None or rehearsal_ceiling is not None) and (venue_width is not None or venue_ceiling is not None):
+        raise ValueError('Use one explicit box policy per calibration')
     from super_session import GroundGate,NATIVE_CONTROL_TOPICS
     from geometry_msgs.msg import PointStamped,Point
     from sensor_msgs.msg import PointCloud2
@@ -143,10 +146,12 @@ def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehe
                         state['geometry']=cap_rehearsal_width(state['geometry'],rehearsal_width)
                     if rehearsal_ceiling is not None:
                         state['geometry']=cap_rehearsal_ceiling(state['geometry'],rehearsal_ceiling)
+                    state['geometry']=cap_selected_box(state['geometry'],venue_width,venue_ceiling)
                 except ValueError as exc:
                     print('Selection rejected:',exc,flush=True);draw();return
                 g=state['geometry']
-                policy='exactly selected sides' if rehearsal_width is None else f'centred rehearsal cap {rehearsal_width:g} m; clipped to selected sides'
+                width=rehearsal_width if rehearsal_width is not None else venue_width
+                policy='exactly selected sides' if width is None else f'centred width cap {width:g} m; clipped to selected sides'
                 print(f'PREVIEW: left={g["left_offset_m"]:.3f} m, right={g["width_m"]-g["left_offset_m"]:.3f} m, '
                       f'width={g["width_m"]:.3f} m ({policy}), rear={rear_offset:.3f} m. '
                       f'Outer ceiling={g["floor_height_limits_m"][1]:.3f} m above floor. '

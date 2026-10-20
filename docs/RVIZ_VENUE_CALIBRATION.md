@@ -150,13 +150,19 @@ python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
   --flight-height 1.5 --motion-policy observe \
-  --calibrate-venue --rear-offset 0.5
+  --calibrate-venue --rear-offset 0.5 \
+  --venue-width 2 --venue-ceiling 2
 ```
 
 After confirmation the runner creates a per-run physical mission, validates the
 aircraft envelope and route against the marked box, and continues to the existing
 check-only planner/controller preparation. The calibrated anchor is shared by
 planner and controller and is not shifted to a newer FC sample.
+The explicit `--venue-width 2 --venue-ceiling 2` options apply the same centred
+2 m width and 2 m outer ceiling as the narrowed rehearsal. They require fresh
+RViz selection and confirmation. Omit them to use the selected sides and default
+ceiling. Physical preparation still requires the measured aircraft envelope;
+the rehearsal fixture cannot be used as the physical mission.
 
 The supervised execution entrypoint accepts the same calibration options in
 addition to its existing `--execute --on-site-supervised` flags. Selection is
