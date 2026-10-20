@@ -121,6 +121,10 @@
     "calibrate_venue_rviz.py": {
       "path": "scripts/maintenance/calibrate_venue_rviz.py",
       "sha256": "e93faca2b8294f6ea483905eb7e8885eed2aa3af7f2393d014549614fd2160d5"
+    },
+    "ground_localization_check.py": {
+      "path": "scripts/analysis/ground_localization_check.py",
+      "sha256": "3db847042065bf32e91dfc61f184df6570f87b056a5f209fe79dad27369c915b"
     }
   }
 }

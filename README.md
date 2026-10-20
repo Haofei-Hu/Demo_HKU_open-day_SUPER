@@ -102,6 +102,10 @@ Keep the complete directory. READY or a successful rehearsal does not establish
 physical flight completion. See [flight details](docs/PHYSICAL_FLIGHT.md) and
 [startup recovery](docs/REBOOT_QUICK_START.md) if preparation is rejected.
 
+For takeoff drift or suspected localization/QoS problems, use the
+[disarmed manual localization check](docs/GROUND_LOCALIZATION_CHECK.md) to
+record direction, scale, rotation and message timing before changing parameters.
+
 ## Demonstration mission
 
 | Setting | Value |
