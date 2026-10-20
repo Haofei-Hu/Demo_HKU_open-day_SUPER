@@ -51,6 +51,7 @@ def selected_geometry(left,right,observation,rotation,rear):
 def apply_geometry(config,geometry,observation,alignment_sha256):
     result=deepcopy(config)
     result['venue']['width_left_m']=geometry['width_m']
+    result['venue']['height_m']=geometry['floor_height_limits_m'][1]
     result['venue']['calibration_method']=METHOD
     result['takeoff']['distance_from_left_m']=geometry['left_offset_m']
     result['takeoff']['forward_from_rear_m']=geometry['rear_offset_m']
@@ -72,6 +73,15 @@ def cap_rehearsal_width(geometry,width):
     return result
 
 
+def cap_rehearsal_ceiling(geometry,ceiling):
+    if (isinstance(ceiling,bool) or not isinstance(ceiling,(int,float))
+            or not math.isfinite(ceiling) or not 0<ceiling<=2.8):
+        raise ValueError('Rehearsal ceiling must be positive and no higher than the 2.8 m venue')
+    result=deepcopy(geometry)
+    result.update(floor_height_limits_m=[0.,ceiling],requested_rehearsal_ceiling_m=ceiling)
+    return result
+
+
 def validate_geometry(config):
     """Require saved mission sides to match the operator-confirmed selection."""
     data=config.get('venue_calibration',{});geometry=data.get('geometry',{})
@@ -90,7 +100,15 @@ def validate_geometry(config):
         expected_limits=cap_rehearsal_width(geometry,geometry.get('requested_rehearsal_width_m'))['lateral_limits_m']
     if not np.allclose(limits,expected_limits,atol=1e-10,rtol=0):
         raise ValueError('Invalid calibrated lateral interval')
+    ceiling=2.8
+    if 'requested_rehearsal_ceiling_m' in geometry:
+        if config.get('execution_context')!='ground_rehearsal':
+            raise ValueError('Rehearsal ceiling is not a physical venue calibration')
+        ceiling=cap_rehearsal_ceiling(geometry,geometry['requested_rehearsal_ceiling_m'])['floor_height_limits_m'][1]
+    if geometry.get('floor_height_limits_m')!=[0.,ceiling]:
+        raise ValueError('Calibrated floor/ceiling changed after confirmation')
     expected=((config['venue']['width_left_m'],limits[1]-limits[0]),
+              (config['venue']['height_m'],ceiling),
               (config['takeoff']['distance_from_left_m'],limits[1]),
               (config['takeoff']['forward_from_rear_m'],geometry.get('rear_offset_m')))
     if any(not isinstance(x,(int,float)) or isinstance(x,bool) or not math.isfinite(x)

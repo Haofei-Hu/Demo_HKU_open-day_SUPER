@@ -48,6 +48,7 @@ class DemoMission:
             if self.rehearsal_only != (calibration.get('scope')==REHEARSAL_SCOPE):
                 raise ValueError('Venue calibration execution scope does not match the mission')
         fixed={'length_forward_m':venue_length,'height_m':2.8}
+        if calibrated:fixed['height_m']=calibration['geometry']['floor_height_limits_m'][1]
         if not calibrated:fixed['width_left_m']=2.8
         if any(v.get(k)!=n for k,n in fixed.items()):raise ValueError('Venue differs from the selected mission profile')
         expected={'height_fc_above_floor_m':height,'outbound_forward_m':self.distance,
@@ -61,7 +62,7 @@ class DemoMission:
                    for name in ('front','rear','left','right','top','bottom')}
         self.rear=self.measure(s.get('forward_from_rear_m'),'takeoff distance from rear boundary')
         self.left=self.measure(s.get('distance_from_left_m'),'takeoff distance from left boundary')
-        self.width=float(v['width_left_m']);self.length=fixed['length_forward_m'];self.height=2.8;self.tolerance=.1
+        self.width=float(v['width_left_m']);self.length=fixed['length_forward_m'];self.height=float(fixed['height_m']);self.tolerance=.1
         if not 0<self.hull['bottom']<=.085:
             raise ValueError('Measured FC-to-bottom clearance must fit the existing 0.085 m floor calibration')
         # Validate the requested route's hull against the outer venue directly.

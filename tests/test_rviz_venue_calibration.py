@@ -21,6 +21,29 @@ from calibrate_venue_rviz import FrozenCloud,rviz_config
 
 
 class Tests(unittest.TestCase):
+    def test_ceiling_cap_preserves_body_clearance_and_rejects_physical_reuse(self):
+        from rviz_venue_calibration import cap_rehearsal_ceiling
+        _,obs,r,p=self.scene()
+        selected=selected_geometry(p(0,1.4,1),p(0,-1.4,1),obs,r,.5)
+        capped=cap_rehearsal_ceiling(selected,2.)
+        config=DemoMission.ground_rehearsal(apply_geometry(fixture(),capped,obs,'hash'),1.5)
+        mission=DemoMission(config)
+        self.assertEqual(mission.height,2.)
+        self.assertEqual(selected['floor_height_limits_m'],[0.,2.8])
+        top=mission.height-mission.hull['top']
+        mission.check([1.,0.,top])
+        with self.assertRaises(ValueError):mission.check([1.,0.,top+.01])
+        vertices,_=wireframe(capped,obs,r)
+        local=(axes(obs['ground_fc_yaw_rad'])@(r@vertices.T-np.array(obs['origin'])[:,None]-
+                np.array(obs['ground_fc_xyz'])[:,None])).T
+        self.assertAlmostEqual(local[:,2].max()+.085,2.)
+        with self.assertRaisesRegex(ValueError,'not a physical'):
+            validate_geometry(apply_geometry(fixture(),capped,obs,'hash'))
+        config['venue']['height_m']=2.8
+        with self.assertRaisesRegex(ValueError,'changed'):validate_geometry(config)
+        for height in (0,-1,3.,float('nan'),True,None):
+            with self.assertRaises(ValueError):cap_rehearsal_ceiling(selected,height)
+
     def test_rehearsal_cap_shrinks_preview_and_planner_geometry_without_expanding_survey(self):
         from rviz_venue_calibration import cap_rehearsal_width
         _,obs,r,p=self.scene()

@@ -40,7 +40,7 @@ if case in ('rviz','rviz_cap'):
     config=json.loads((folder/'mission.json').read_text())
     width=2. if case=='rviz_cap' else None
     if width is not None:config=DemoMission.ground_rehearsal(config,1.5)
-    calibrated=calibrate(config,folder/'alignment.py',folder,.5,width)
+    calibrated=calibrate(config,folder/'alignment.py',folder,.5,width,2. if width else None)
     (folder/'mission.json').write_text(json.dumps(calibrated))
     assert calibrated['venue_calibration']['confirmed_by_operator']
     assert abs(calibrated['takeoff']['distance_from_left_m']-(1. if width else 1.1))<1e-9
@@ -63,13 +63,18 @@ if case in ('rviz','rviz_cap'):
     print('PASS confirmed RViz selection continues into fresh DDS scene capture with immutable rehearsal frame',flush=True)
     if width is not None:
         assert DemoMission(rehearsal).hover_height==1.5
+        assert DemoMission(rehearsal).height==2.
         from demo_venue import halfspaces
         planes,record=halfspaces(scene,DemoMission(rehearsal),lambda p,q,c:(p,q,c))
         matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
         for lateral,inside in ((0.,True),(.79,True),(1.01,False),(-1.01,False)):
             raw=np.linalg.solve(matrix,np.array([1.,lateral,1.5])-offset)
             assert bool(np.all(planes[:,:3]@raw+planes[:,3]<=1e-8))==inside
-        print('PASS 2 m cap reaches planner halfspaces and 1.5 m height survives scene capture',flush=True)
+        top=2.-DemoMission(rehearsal).hull['top']
+        for height,inside in ((top-.01,True),(top+.01,False),(2.1,False)):
+            raw=np.linalg.solve(matrix,np.array([1.,0.,height])-offset)
+            assert bool(np.all(planes[:,:3]@raw+planes[:,3]<=1e-8))==inside
+        print('PASS 2 m width/ceiling caps reach planner halfspaces and 1.5 m height survives scene capture',flush=True)
         sys.exit(0)
 gate=GroundGate()
 try:

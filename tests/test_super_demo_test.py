@@ -17,21 +17,24 @@ import super_demo as physical_entry
 class Tests(unittest.TestCase):
     def test_requested_width_passes_through_selection_to_frozen_mission(self):
         import numpy as np
-        from rviz_venue_calibration import selected_geometry,apply_geometry,cap_rehearsal_width
+        from rviz_venue_calibration import selected_geometry,apply_geometry,cap_rehearsal_width,cap_rehearsal_ceiling
         with tempfile.TemporaryDirectory() as folder,self.gate():
             runner,actions=self.runner(folder)
             runner.args.calibrate_venue=True;runner.args.rear_offset=.5;runner.args.rehearsal_width=2.
             runner.args.rehearsal_height=1.5
-            def calibrate(config,alignment,folder,rear,width):
+            runner.args.rehearsal_ceiling=2.
+            def calibrate(config,alignment,folder,rear,width,ceiling):
                 self.assertEqual(width,2.)
+                self.assertEqual(ceiling,2.)
                 obs=dict(ground_fc_xyz=[0.,0.,0.],ground_fc_yaw_rad=0.,origin=[0.,0.,0.])
                 geometry=selected_geometry([0,1.69,.5],[0,-1.317,.5],obs,np.eye(3),rear)
-                return apply_geometry(config,cap_rehearsal_width(geometry,width),obs,'hash')
+                return apply_geometry(config,cap_rehearsal_ceiling(cap_rehearsal_width(geometry,width),ceiling),obs,'hash')
             runner.prepare=lambda planner_profile:runner.after_vision_ready()
             with patch('calibrate_venue_rviz.calibrate',side_effect=calibrate):
                 self.assertEqual(runner.run_complete(),0)
             saved=json.loads((runner.folder/'mission.json').read_text())
             self.assertEqual(saved['venue']['width_left_m'],2.)
+            self.assertEqual(saved['venue']['height_m'],2.)
             self.assertEqual(saved['takeoff']['distance_from_left_m'],1.)
             self.assertEqual(saved['flight']['height_fc_above_floor_m'],1.5)
             self.assertEqual(saved['sequence'][0],'TAKEOFF_TO_1_5M')

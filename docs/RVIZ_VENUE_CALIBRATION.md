@@ -36,14 +36,14 @@ in the separate simulation ROS domain. Rehearsal RViz opens automatically when
 preparation finishes; the terminal reports progress between the two windows.
 No second launch or start service is needed for the virtual mission.
 
-To rehearse at **1.5 m height inside a maximum 2 m total lateral width**, use:
+To rehearse at **1.5 m height inside a maximum 2 m total lateral width and 2 m ceiling**, use:
 
 ```bash
 python3 ~/Downloads/super_demo_test.py \
   --restart --fixed-lio-extrinsics \
   --fixture-geometry --motion-policy observe --fast-start \
   --calibrate-venue --rear-offset 0.5 \
-  --rehearsal-width 2 --rehearsal-height 1.5
+  --rehearsal-width 2 --rehearsal-height 1.5 --rehearsal-ceiling 2
 ```
 
 Select the actual side boundaries as usual. The width option intersects those
@@ -51,7 +51,10 @@ boundaries with a strip extending 1 m left and 1 m right of the takeoff centre.
 A nearer selected side remains nearer; the box never expands beyond the survey.
 The cyan preview shows the resulting box before confirmation, and SUPER search,
 corridors and controller use that same box, including vehicle extents. The report
-retains both the original picks and the requested width cap. These optional
+retains both the original picks and the requested width cap. The 2 m ceiling
+is the outer top boundary above the floor; planner and controller subtract the
+vehicle's FC-to-top extent when checking the FC centre. The cyan preview shows
+this ceiling before confirmation. It is distinct from the 1.5 m takeoff target. These optional
 rehearsal settings do not change the physical mission or the default rehearsal.
 Narrowing the box can remove an obstacle-avoidance route; it does not guarantee
 that a route exists inside it.

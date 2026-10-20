@@ -105,7 +105,8 @@ class DemoTest(GroundTest):
             from calibrate_venue_rviz import calibrate
             self.report['stage']='venue_selection';write_report(self.path,self.report)
             config=calibrate(self.selection_config,self.args.scripts_dir/'aligned_pose_preview.py',
-                             self.folder,self.args.rear_offset,getattr(self.args,'rehearsal_width',None))
+                             self.folder,self.args.rear_offset,getattr(self.args,'rehearsal_width',None),
+                             getattr(self.args,'rehearsal_ceiling',None))
             self.selection_config=DemoMission.ground_rehearsal(config)
             self.save_mission(self.selection_config)
             self.report['venue_calibration_report']=str(self.folder/'venue_calibration.json')
@@ -207,11 +208,17 @@ class DemoTest(GroundTest):
                 if not selection:raise ValueError('--rehearsal-width requires --calibrate-venue')
                 DemoMission.measure(width,'positive rehearsal width')
                 if width<=0:raise ValueError('Rehearsal width must be positive')
+            ceiling=getattr(self.args,'rehearsal_ceiling',None)
+            if ceiling is not None:
+                if not selection:raise ValueError('--rehearsal-ceiling requires --calibrate-venue')
+                from rviz_venue_calibration import cap_rehearsal_ceiling
+                cap_rehearsal_ceiling({},ceiling)
             if selection:
                 if self.args.logic_only or getattr(self.args,'route_profile','demonstration')!='demonstration':
                     raise ValueError('RViz selection needs the real-map demonstration rehearsal')
                 config['venue'].pop('calibration_method',None);config.pop('venue_calibration',None)
                 config['venue']['width_left_m']=2.8
+                config['venue']['height_m']=2.8
                 rear=getattr(self.args,'rear_offset',None)
                 if rear is None:rear=config['takeoff'].get('forward_from_rear_m')
                 self.args.rear_offset=DemoMission.measure(rear,'rear offset for RViz selection')
@@ -334,6 +341,7 @@ def main():
     p.add_argument('--rear-offset',type=float,help='FC-to-rear distance; left/right clicks do not measure the rear side')
     p.add_argument('--rehearsal-width',type=float,help='Cap total lateral width around takeoff, intersected with selected sides; ground rehearsal only')
     p.add_argument('--rehearsal-height',type=float,choices=(.5,1.5),default=.5,help='Virtual FC height above floor in metres (default: 0.5)')
+    p.add_argument('--rehearsal-ceiling',type=float,help='Outer top boundary above floor, no higher than 2.8 m; ground rehearsal only')
     p.add_argument('--route-profile',choices=('demonstration','short-1m'),default='demonstration',
                    help='full 4.5 m demonstration or separate 1 m short-site rehearsal')
     p.add_argument('--motion-policy',choices=('strict','observe'),default='strict',
