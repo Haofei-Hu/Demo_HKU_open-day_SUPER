@@ -11,10 +11,11 @@ An indoor localization, planning, and obstacle-avoidance demonstration built on 
 | Install or update the matching scripts | [Complete installer and one-time build](docs/QUICK_START.md#install-or-update-once) |
 | Run an automatic ground rehearsal after reboot | Use the command below; alignment is captured automatically |
 | Run the physical demonstration in a laboratory | [Measured configuration, preparation, start, and landing](docs/PHYSICAL_FLIGHT.md) |
+| Choose left/right boundaries after placing the aircraft | [Per-session RViz boundary calibration](docs/RVIZ_VENUE_CALIBRATION.md) |
 | Inspect results or troubleshoot startup and planning | [Reports and recovery](docs/QUICK_START.md#reports-and-results) |
 | Understand the system or contribute | [Documentation index](docs/README.md) |
 
-The current release corrects grid-centre relocation when SUPER restarts from a stationary point. Existing installations need the [one-time source patch and rebuild](docs/QUICK_START.md#install-or-update-once); normal reboots then use the same command below.
+The current release adds per-session RViz left/right boundary selection to physical preparation. This Python feature requires no new C++ rebuild when the nine current venue markers are already installed. Older installations still need the [one-time source patch and rebuild](docs/QUICK_START.md#install-or-update-once); normal reboots then use the same command below.
 
 ## Ground rehearsal after every reboot
 

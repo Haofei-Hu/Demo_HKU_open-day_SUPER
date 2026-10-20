@@ -26,3 +26,5 @@
 ## Historical records
 
 Earlier daily progress, manual startup procedures, and debugging notes are listed in the [history index](HISTORY.md). They retain background and evidence; use the quick start and physical flight guides above for current operation.
+
+- [RViz lateral venue calibration before takeoff](RVIZ_VENUE_CALIBRATION.md)

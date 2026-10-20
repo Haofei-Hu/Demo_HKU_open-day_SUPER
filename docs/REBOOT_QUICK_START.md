@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='4624a0f50469fcd1351de9aaff4e9c41a7ff1638'
+demo_revision='0520afc0b94af90ea12336dcec27309372ee99e1'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
@@ -229,7 +229,7 @@ delayed replies. A successful readback does not conceal a dead MAVROS process.
 
 The current physical command selects 1.5 m FC-centre height above the floor and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
 
-Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Survey that box, takeoff distances from its rear and left boundaries, and all six propeller-inclusive FC-centre extents. Replace every null geometry field with an actual measurement; do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change. Use the [measurement checklist and exact JSON fields](FLIGHT_SITE_MEASUREMENTS.md).
+Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The canonical operating box remains 5.8 m along the heading, 2.8 m wide and 2.8 m high, even in a larger laboratory. Supply the rear offset and all six propeller-inclusive FC-centre extents. For a variable lateral takeoff position, use [RViz left/right calibration](RVIZ_VENUE_CALIBRATION.md) instead of measuring the left offset: add `--calibrate-venue --rear-offset 0.5` to either physical command below when the rear offset is still 0.5 m. Each new preparation opens RViz after alignment, waits for two boundary clicks and confirmation, then prepares the planner with that session's fixed box. Which side has a wall does not matter. Do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change. Use the [measurement checklist and exact JSON fields](FLIGHT_SITE_MEASUREMENTS.md) for the aircraft envelope.
 
 The physical entrypoint also requires current RC input/manual POSCTL, one controller, compatible PX4 parameter readbacks and on-site takeover. In particular, it expects `MPC_XY_VEL_MAX=2.0`; the last recorded aircraft setting was 0.5. It checks this setting and does not silently change it. Actual receipt of the new raw position-plus-velocity setpoints and complete physical tracking remain to be verified.
 

@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `4624a0f50469fcd1351de9aaff4e9c41a7ff1638`.
+Matching release: `0520afc0b94af90ea12336dcec27309372ee99e1`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='4624a0f50469fcd1351de9aaff4e9c41a7ff1638'
+demo_revision='0520afc0b94af90ea12336dcec27309372ee99e1'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -145,3 +145,5 @@ python3 ~/Downloads/super_session.py stop
 | Persistent `WAIT_PLAN` | No executable trajectory yet; inspect this run's `planner_rehearsal.log` for path-search, corridor, or optimization failures |
 
 See [validation scope and known limitations](VALIDATION.md). The complete physical five-round mission remains unverified. Use the separate [1.5 m physical flight guide](PHYSICAL_FLIGHT.md) with [measured aircraft geometry and takeoff placement](FLIGHT_SITE_MEASUREMENTS.md).
+
+For variable takeoff placement, [select the left/right venue boundaries in RViz](RVIZ_VENUE_CALIBRATION.md) before physical preparation. The ground rehearsal command above is unchanged.
