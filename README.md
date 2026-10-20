@@ -86,6 +86,11 @@ ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 hover target is not an altitude limit. SUPER can curve and change altitude for
 avoidance within the same vehicle-inclusive box.
 
+For a **fixed-position hover diagnostic**, add `--hover-only --hover-seconds 20`
+to terminal 1 above. Terminal 2 uses the same explicit start service. This runs
+only **1 m takeoff → 20-second fixed XY/yaw hover → land**, with no outbound or
+return goals. See the [complete two-terminal hover commands](docs/FIXED_HOVER.md).
+
 #### Terminal 3 — live point cloud and SUPER planning
 
 Open this on the onboard Ubuntu desktop or through NoMachine after terminal 1

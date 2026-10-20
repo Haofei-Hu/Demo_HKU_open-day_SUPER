@@ -3,6 +3,10 @@
 Use `super_demo.py` for the actual aircraft. This is separate from the virtual
 `super_demo_test.py` rehearsal.
 
+For a takeoff-and-hover diagnostic with no navigation goals, use the separate
+[fixed-hover command](FIXED_HOVER.md): `--hover-only --hover-seconds 20` retains
+the same preparation, explicit start and venue checks.
+
 | Setting | Laboratory trial |
 |---|---|
 | Takeoff, outbound and return hover targets | FC centre **1.0 m above the floor** |
@@ -30,7 +34,7 @@ C++ build is required if all ten venue markers are already installed, including
 ```bash
 (
 set -e
-revision='6e66f9413d3f1b619237a7c48306c3686a7181d2'
+revision='8616a5eafc6ed064f4a38c5490e1b54eecc31272'
 update_dir=$(mktemp -d)
 
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
