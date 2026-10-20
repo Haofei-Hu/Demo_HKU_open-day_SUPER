@@ -99,6 +99,19 @@ See [RViz boundary selection](RVIZ_VENUE_CALIBRATION.md).
 
 SUPER may follow curved obstacle-avoiding paths. After takeoff, position checks use the outer venue and aircraft envelope, not a narrow corridor along the takeoff axis. `--fixture-geometry` uses explicitly synthetic extents and placement; these must not be used as a physical survey. RViz closes when the rehearsal ends or fails; QGC remains open.
 
+## Terminal 3: live aircraft point clouds and planning
+
+Use the [terminal 3 command in the README](../README.md#terminal-3--live-point-cloud-and-super-planning)
+on the onboard desktop after localization/planning starts. It opens the actual
+aircraft's live registered cloud, occupied map, main/backup trajectories, path
+and goal markers in ROS domain 0, with 5-pixel points. The configuration downloads
+once and is reused after reboots. Closing the viewer also closes its private
+display-transform process.
+
+For virtual motion, use the rehearsal RViz that opens automatically in isolated
+domain 197. During manual POSCTL flight without a running SUPER planner, terminal
+3 can show live point clouds; planning overlays require the planner and a goal.
+
 ## Reports and results
 
 Each run prints its own directory:

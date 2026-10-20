@@ -41,6 +41,9 @@ No command is needed: the virtual mission starts automatically after preparation
 Watch RViz and terminal 1. Completion prints `RESULT: SUCCESS` or `RESULT: FAIL`;
 reports are under `~/Downloads/super_demo_tests/<timestamp>/`.
 Do not send the physical start service during a rehearsal.
+The automatically opened rehearsal RViz shows virtual motion on the captured
+map. The [terminal 3 viewer](#terminal-3--live-point-cloud-and-super-planning)
+below shows the actual aircraft stack.
 
 ### 2. Laboratory flight: 1 m hover target
 
@@ -82,6 +85,59 @@ ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 6-second hover → land**. The **2 m outer ceiling stays unchanged**; the 1 m
 hover target is not an altitude limit. SUPER can curve and change altitude for
 avoidance within the same vehicle-inclusive box.
+
+#### Terminal 3 — live point cloud and SUPER planning
+
+Open this on the onboard Ubuntu desktop or through NoMachine after terminal 1
+has started localization and the planner. You can open it before sending the
+start request from terminal 2 and leave it running throughout flight.
+
+```bash
+bash --noprofile --norc <<'BASH'
+set -e
+source /opt/ros/humble/setup.bash
+source "$HOME/super_ws/install/setup.bash"
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
+rviz_view_dir="$HOME/Downloads/super_live_rviz"
+rviz_config="$rviz_view_dir/super_ground_3256ff8.rviz"
+mkdir -p "$rviz_view_dir"
+if [ ! -s "$rviz_config" ]; then
+  curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
+    'https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/3256ff8f87faa8d3c124f49b4cef43fbcdc95071/configs/rviz/super_ground_ros2.rviz' \
+    -o "$rviz_config.part"
+  mv "$rviz_config.part" "$rviz_config"
+fi
+
+rviz_view_id="super_live_rviz_${BASHPID}"
+tf2_prefix=$(ros2 pkg prefix tf2_ros)
+"$tf2_prefix/lib/tf2_ros/static_transform_publisher" \
+  --x 0 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 \
+  --frame-id world --child-frame-id camera_init \
+  --ros-args -r "__node:=${rviz_view_id}_tf" \
+  -r "/tf_static:=/${rviz_view_id}/tf_static" \
+  > "$rviz_view_dir/${rviz_view_id}_tf.log" 2>&1 &
+rviz_tf_pid=$!
+trap 'kill "$rviz_tf_pid" 2>/dev/null || true; wait "$rviz_tf_pid" 2>/dev/null || true' EXIT
+
+rviz2 -d "$rviz_config" --ros-args -r "__node:=$rviz_view_id" \
+  -r "/tf_static:=/${rviz_view_id}/tf_static"
+BASH
+```
+
+The first run downloads the pinned viewer configuration; later reboots reuse it.
+It displays live registered point clouds and the occupied map as **5-pixel
+points**, SUPER's main and backup trajectories, planner path and goal markers
+when published. Trajectories can be empty before the first goal. During a manual
+POSCTL hover with only localization running, the live cloud is available but
+SUPER planning overlays are absent.
+
+This viewer uses the physical stack's **ROS domain 0**; the automatic rehearsal
+viewer uses isolated domain 197. The identity `world` → `camera_init` display
+transform is private to this viewer. Opening or closing it does not send flight
+commands; closing RViz also stops its own display-transform process. Keep
+terminal 1 running.
 
 To request early landing while the controller is running, use **terminal 2**:
 

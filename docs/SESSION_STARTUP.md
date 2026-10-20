@@ -250,38 +250,25 @@ The complete demonstration runner now [opens and closes its rehearsal viewer aut
 
 The pinned SUPER planner's `rviz/real_svc.rviz` uses ROS 1 plugin identifiers. The simulator's `rviz2/benchmark.rviz` is a ROS 2 configuration, but its camera targets `perfect_drone` and includes simulation topics. The repository provides [super_ground_ros2.rviz](../configs/rviz/super_ground_ros2.rviz), derived from that ROS 2 configuration with the real planning topics, a `world` view, visible docks, and no goal-publishing tool.
 
-Download it into a new directory in the onboard Ubuntu desktop terminal:
+Run the [terminal 3 command in the README](../README.md#terminal-3--live-point-cloud-and-super-planning)
+on the onboard Ubuntu desktop or through NoMachine. It downloads a pinned
+configuration once, reuses it after reboots, selects the physical stack's ROS
+domain 0, and starts RViz with its own display-transform process.
 
-```bash
-source /opt/ros/humble/setup.zsh
-source ~/fastlio_ws/install/setup.zsh
-source ~/super_ws/install/setup.zsh
-rviz_view_dir=$(mktemp -d "$HOME/Downloads/rviz_view_XXXXXX")
-curl -q --noproxy '*' --connect-timeout 10 --max-time 30 -fL \
-  'https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/main/configs/rviz/super_ground_ros2.rviz' \
-  -o "$rviz_view_dir/super_ground_ros2.rviz"
-```
-
-In this pinned integration, SUPER's `world` numerically aliases FAST_LIO's `camera_init`. If no existing TF already connects those frames, start the visualization-only identity alias once:
-
-```bash
-nohup ros2 run tf2_ros static_transform_publisher \
-  --x 0 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 \
-  --frame-id world --child-frame-id camera_init \
-  --ros-args -r __node:=super_rviz_world_alias \
-  > ~/Downloads/rviz_world_tf.log 2>&1 &
-```
-
-Open the viewer after a successful download:
-
-```bash
-nohup rviz2 -d "$rviz_view_dir/super_ground_ros2.rviz" \
-  > ~/Downloads/rviz_super.log 2>&1 &
-```
+In this pinned integration, SUPER's `world` numerically aliases FAST_LIO's
+`camera_init`. Terminal 3 provides that identity transform on a private
+`/tf_static` remapping shared only by this viewer and its transform publisher.
+It does not add another authority to the aircraft's global static TF topic.
 
 It shows registered clouds (`/cloud_registered`), occupied map (`/rog_map/occ`), regular/backup trajectory markers (`/visualization/exp_traj`, `/visualization/backup_traj`), planner path (`/fsm/path`), and goal markers (`/visualization/goal`) when published. All topic subscriptions use Best Effort/Volatile settings. Before a goal, an empty trajectory display is expected. A backup trajectory is only visible when one is published.
 
-The alias connects the raw planning/world display frames only. It does not align MAVROS `map` or `px4_enu_preview`, and those frames must not be given the same identity transform. Neither the viewer nor the alias sends planner goals, FC setpoints, mode requests, or arming requests. Keep the current localization session running. The optional viewer/TF process is separate from managed core shutdown; close the RViz window when finished. Inspect `~/Downloads/rviz_super.log` if the window does not open.
+The alias connects the raw planning/world display frames only. It does not align
+MAVROS `map` or `px4_enu_preview`, and those frames must not be given the same
+identity transform. Neither the viewer nor the alias sends planner goals, FC
+setpoints, mode requests, or arming requests. Keep the current localization
+session running. Closing RViz or interrupting terminal 3 stops its own
+display-transform process. Viewer errors appear in terminal 3; transform logs
+are under `~/Downloads/super_live_rviz/`.
 
 The configuration and upstream topic/plugin definitions were checked offline. Actual onboard rendering remains a desktop validation step.
 

@@ -115,7 +115,7 @@ source identities, PX4 parameter readbacks and operating geometry. For example,
 the physical profile expects `MPC_XY_VEL_MAX=2.0`; a mismatch is reported rather
 than silently changed.
 
-In **terminal A**:
+In **terminal 1**:
 
 ```bash
 python3 ~/Downloads/super_demo.py \
@@ -134,9 +134,9 @@ quaternion and prepares external vision. In the frozen RViz view:
 1. Select the actual **LEFT**, then **RIGHT** boundary, looking along the nose.
 2. Check the cyan box: up to 1 m on either side of takeoff, clipped to nearer
    selected sides, and a 2 m outer ceiling.
-3. Type `confirm` in terminal A. Use `reset` for new picks on the same snapshot,
+3. Type `confirm` in terminal 1. Use `reset` for new picks on the same snapshot,
    or `refresh` for a new snapshot.
-4. Let preparation continue to **`Phase: READY`**. Keep terminal A running.
+4. Let preparation continue to **`Phase: READY`**. Keep terminal 1 running.
 
 The selection viewer closing after confirmation does not end preparation.
 Each restarted localization session needs new picks. The source mission is
@@ -154,7 +154,7 @@ the complete preparation flow.
 ## 4. Initiate physical flight after READY
 
 After confirming the configured envelope, clear route and RC takeover, use
-**terminal B**:
+**terminal 2**:
 
 ```bash
 source /opt/ros/humble/setup.zsh
@@ -167,7 +167,15 @@ bypassing preparation with a separate mode or arming command.
 
 ## 5. Monitor, land early and save results
 
-Inspect status from terminal B:
+Open **terminal 3** on the onboard desktop and run the
+[live RViz command from the README](../README.md#terminal-3--live-point-cloud-and-super-planning).
+It can be opened before the terminal 2 start request and kept open throughout
+flight. It shows the actual live cloud and occupied map with 5-pixel points,
+plus SUPER's main/backup trajectories, path and goals when published.
+The frozen boundary-selection window is only for preparation; this viewer
+updates from the live physical stack in ROS domain 0.
+
+Inspect status from terminal 2:
 
 ```bash
 timeout 10s ros2 topic echo \
