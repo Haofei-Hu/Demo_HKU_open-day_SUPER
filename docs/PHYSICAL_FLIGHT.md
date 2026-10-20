@@ -22,7 +22,7 @@ outbound path; the initial heading is retained.
 ## 1. Install the matching release once
 
 Finish any running task and keep the aircraft landed and disarmed before updating.
-This release fixes final-reference completion in the Python supervisor. No new
+This release corrects [measured floor contact during takeoff](validation/takeoff_floor_transition.md). The existing 10 cm grounded estimate band applies only through initial rise; references and airborne venue checks retain the strict floor. No new
 C++ build is required if all ten venue markers are already installed, including
 `VENUE_BACKUP_WAYPOINTS_V1`. Older installations need the
 [one-time patch and build commands](QUICK_START.md#install-or-update-once).
@@ -30,7 +30,7 @@ C++ build is required if all ten venue markers are already installed, including
 ```bash
 (
 set -e
-revision='3256ff8f87faa8d3c124f49b4cef43fbcdc95071'
+revision='6e66f9413d3f1b619237a7c48306c3686a7181d2'
 update_dir=$(mktemp -d)
 
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \

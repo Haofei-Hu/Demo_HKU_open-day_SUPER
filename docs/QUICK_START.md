@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `3256ff8f87faa8d3c124f49b4cef43fbcdc95071`.
+Matching release: `6e66f9413d3f1b619237a7c48306c3686a7181d2`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='3256ff8f87faa8d3c124f49b4cef43fbcdc95071'
+demo_revision='6e66f9413d3f1b619237a7c48306c3686a7181d2'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -23,7 +23,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-This release fixes final-reference completion when a terminal command is missing or superseded. **No C++ rebuild is needed if all ten venue markers are already installed**, including `VENUE_BACKUP_WAYPOINTS_V1`. Otherwise, apply the venue patch and rebuild once:
+This release includes the [takeoff floor-transition correction](validation/takeoff_floor_transition.md) and final-reference completion fixes. **No C++ rebuild is needed if all ten venue markers are already installed**, including `VENUE_BACKUP_WAYPOINTS_V1`. Otherwise, apply the venue patch and rebuild once:
 
 ```bash
 (
