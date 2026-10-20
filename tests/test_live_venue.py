@@ -111,7 +111,7 @@ def convert(p,q,c):
 ''')
             paths=write_reference(folder,alignment=alignment);reference=LiveVenue(*paths)
             mission=DemoMission.load(paths[1]);convert=load_converter(alignment)
-            frame=VenueFrame(reference.ground,quaternion_rpy(0,0,reference.yaw),mission,lambda:False)
+            frame=VenueFrame(reference.ground,quaternion_rpy(0,0,reference.yaw),mission)
             geometry=reference.geometry;matrix=np.array(geometry['world_to_venue_matrix'])
             offset=np.array(geometry['world_to_venue_offset']);planes=np.array(reference.data['halfspaces'])
             lower=np.array(geometry['fc_centre_lower_forward_left_floor_m'])

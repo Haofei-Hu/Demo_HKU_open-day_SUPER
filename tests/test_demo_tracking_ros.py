@@ -18,10 +18,12 @@ from super_flight_control import SuperFlightControl
 
 class Tests(unittest.TestCase):
     def control(self):
-        return NS(stamp=SuperFlightControl.stamp,local=NS(header=NS(stamp=NS(sec=12,nanosec=100_000_000))),
+        control=NS(stamp=SuperFlightControl.stamp,local=NS(header=NS(stamp=NS(sec=12,nanosec=100_000_000))),
             sent_references=deque([(12_000_000_000,np.zeros(3),np.array([2.,0.,0.]))]),
             frame=NS(axes=np.eye(3),check=lambda xyz:np.asarray(xyz)),
             max_tracking_error=np.zeros(3),mission_report=NS(data={}))
+        control.check_measured_position=lambda xyz:control.frame.check(xyz)
+        return control
 
     def test_new_target_is_not_compared_with_an_older_measurement(self):
         control=self.control();before=control.local.header.stamp.nanosec
@@ -84,7 +86,8 @@ class Tests(unittest.TestCase):
         from test_demo_mission import fixture
         pose=PoseStamped();pose.pose.orientation.w=1.
         control=NS(fresh=lambda *a:True,local=pose,
-            frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False),mission_report=NS(data={}))
+            frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture())),mission_report=NS(data={}))
+        control.check_measured_position=lambda xyz:control.frame.check_measured(xyz,'LANDING',2)
         pose.pose.position.x=.09;pose.pose.position.z=1.
         DemoMissionControl.check_landing_feedback(control)
         self.assertEqual(control.mission_report.data['landing_max_horizontal_error_m'],.09)
@@ -211,7 +214,7 @@ class Tests(unittest.TestCase):
     def test_observed_left_excursion_and_larger_in_box_detours_are_allowed(self):
         from demo_mission import DemoMission
         from test_demo_mission import fixture
-        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()))
         control=NS(frame=frame)
         for point in ([.53255,.1007,2.05995-.085],[2.,.8,2.3]):
             DemoMissionControl.target_ok(control,point)
@@ -222,7 +225,7 @@ class Tests(unittest.TestCase):
         from demo_mission import DemoMission
         from test_demo_mission import fixture
         control=self.control()
-        control.frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        control.frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()))
         with self.assertRaisesRegex(ValueError,'outside venue'):
             DemoMissionControl.tracking_ok(control,[.2,1.201,2.],[.2,1.201,2.])
 
@@ -231,7 +234,7 @@ class Tests(unittest.TestCase):
         from test_demo_mission import fixture
         from test_bounded_reference import trajectory
         # A stationary committed polynomial 20 cm left of the measured start.
-        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()))
         follower=VenueReference(frame,lambda plan:True,lambda plan,pos:False,'observe')
         msg=trajectory(distance=0.)
         msg.coef_pos_y[-1]=.2;msg.coef_pos_z[-1]=1.915

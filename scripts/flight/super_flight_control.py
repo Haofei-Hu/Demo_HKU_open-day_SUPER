@@ -250,6 +250,9 @@ class SuperFlightControl(FirstHoverControl):
             raise ValueError('Stop native ground sender before handover audit')
         return xyz,yaw,identities
 
+    def check_measured_position(self,xyz):
+        return self.frame.check(xyz)
+
     def check_envelope(self,xyz,yaw,ground):
         if self.reference is None:return
         if ground:
@@ -257,7 +260,7 @@ class SuperFlightControl(FirstHoverControl):
             if np.any(np.abs(offset)>.10):
                 raise ValueError('Estimated ground offset exceeds 0.10 m per axis; '
                                  'forward/left/up='+str(offset.round(4).tolist()))
-        if self.frame is not None:self.frame.check(xyz)
+        if self.frame is not None:self.check_measured_position(xyz)
         if self.execute and self.phase in ('HOLD','WAIT_PLAN','TRACK','END_HOLD'):
             self.target_ok(xyz,label='Measured position')
         if abs(self.angle(yaw-self.reference.yaw))>math.radians(15):

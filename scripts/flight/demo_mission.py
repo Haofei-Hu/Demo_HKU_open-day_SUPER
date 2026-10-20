@@ -141,6 +141,47 @@ class DemoMission:
                 'far_hover':[self.distance,0.,self.hover_height],'return_hover':[0.,0.,self.hover_height]}
 
 
+class TakeoffFloorPolicy:
+    """Measured-position contact allowance; never used to validate commands.
+
+    Use the existing grounded position tolerance through spool-up/initial rise.
+    PX4 may report IN_AIR before the estimated hull clears the captured floor.
+    Once the estimate leaves that ground band, or the controller leaves takeoff,
+    the strict floor is latched until a confirmed landing. No frame is rebased.
+    """
+    INITIAL_PHASES = frozenset(('CHECKING', 'READY', 'PRESTREAM', 'MODE_REQUEST',
+                                'ARM_REQUEST', 'RISE'))
+
+    def __init__(self, ground_tolerance_m=.10):
+        self.ground_tolerance_m = ground_tolerance_m
+        self.takeoff_complete = False
+        self.last_check = {}
+
+    def check(self, mission, point, phase, landed_state):
+        self.last_check = dict(phase=phase, landed_state=landed_state,
+                               relative_fc_xyz=[float(v) for v in point])
+        # Side walls and ceiling apply even during contact with the floor.
+        clearances = mission.check(point, on_floor=True)
+        clearance = float(point[2] - mission.hull['bottom'])
+        if phase not in self.INITIAL_PHASES or clearance > self.ground_tolerance_m:
+            self.takeoff_complete = True
+        initial_contact = (not self.takeoff_complete and phase in self.INITIAL_PHASES
+            and (landed_state == 1 or
+                 (phase in ('ARM_REQUEST', 'RISE') and landed_state in (2, 3))))
+        landed_contact = phase in ('LAND_REQUEST', 'LANDING', 'DONE') and landed_state == 1
+        lower = -self.ground_tolerance_m if initial_contact or landed_contact else 0.
+        clearances['floor'] = clearance
+        self.last_check.update(clearance_m=clearances,
+            measured_floor_lower_bound_m=lower,
+            takeoff_complete=self.takeoff_complete,
+            ground_contact_allowance=bool(initial_contact or landed_contact))
+        if clearance < lower - 1e-9:
+            raise ValueError(f'Aircraft envelope outside venue: relative FC xyz={list(point)}; '
+                f'clearance m={clearances}; measured floor lower bound={lower:.6f} m; '
+                f'phase={phase}; landed_state={landed_state}')
+        return clearances
+
+
 class MissionReport:
     def __init__(self,path,mission,mode):
         if mission.rehearsal_only and mode!='simulation':

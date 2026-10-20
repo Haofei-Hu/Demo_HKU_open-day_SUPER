@@ -86,7 +86,7 @@ class Tests(unittest.TestCase):
                     alignment_path=scene['alignment_path'],planner_config=scene['planner_config'],simulation=True)
                 self.assertEqual(node.PLANNER_LIMITS,(2.,1.5))
                 self.assertEqual(node.mission.config['flight']['acceleration_limit_mps2'],1.5)
-                node.frame=VenueFrame([0,0,0],[0,0,0,1],node.mission,lambda:False)
+                node.frame=VenueFrame([0,0,0],[0,0,0,1],node.mission)
                 follower=node.make_follower()
                 self.assertEqual(follower.max_speed,2.)
                 self.assertEqual(follower.max_acceleration,1.5)
@@ -101,7 +101,7 @@ class Tests(unittest.TestCase):
         node.reference.yaw=math.pi/2
         node.goal_q=np.array([0.,0.,math.sin(math.pi/4),math.cos(math.pi/4)])
         node.raw_pose.orientation.z=float(node.goal_q[2]);node.raw_pose.orientation.w=float(node.goal_q[3])
-        node.frame=VenueFrame([0,0,0],node.goal_q,node.mission,lambda:False)
+        node.frame=VenueFrame([0,0,0],node.goal_q,node.mission)
         node.home=np.array([0.,0.,.415]);node.far=node.home+node.frame.axes.T@np.array([4.8,0.,0.])
         node.distance=4.8;node.goal_count=0
         node.request_leg('outbound',node.far)

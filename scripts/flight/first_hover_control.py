@@ -363,7 +363,9 @@ class FirstHoverControl(Node):
                     self.identities_locked = identities
                     self.change('READY')
                     self.get_logger().info(
-                        f'GROUND LOCK xyz={xyz}; fixed hover z={xyz[2]+self.reference.lift:.3f}; '
+                        f'GROUND LOCK xyz={list(self.reference.ground)}; '
+                        f'fixed hover z={self.reference.ground[2]+self.reference.lift:.3f}; '
+                        f'current measured xyz={xyz}; '
                         f'FC height above floor={self.hover_fc_height:.3f} m; '
                         f'hold={self.hold_seconds:g} s. Awaiting explicit start; no motion yet.')
                 return

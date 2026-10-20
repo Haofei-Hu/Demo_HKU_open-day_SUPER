@@ -20,7 +20,7 @@ from mavros_msgs.msg import PositionTarget
 from rclpy.qos import qos_profile_sensor_data
 from visualization_msgs.msg import MarkerArray
 
-from demo_mission import DemoMission,MissionReport,default_report_path
+from demo_mission import DemoMission,MissionReport,TakeoffFloorPolicy,default_report_path
 from first_hover_terminal import PARAMETERS,pose_values
 from super_flight_control import SuperFlightControl,inverse_goal
 from bounded_reference_preview import Plan,TakeoffFrame,RollingGoalReference
@@ -54,13 +54,20 @@ class VenuePlan(Plan):
 
 
 class VenueFrame(TakeoffFrame):
-    def __init__(self,position,quaternion,mission,on_floor):
+    def __init__(self,position,quaternion,mission):
         super().__init__(position,quaternion,max_forward=mission.distance+.1)
-        self.mission,self.on_floor=mission,on_floor
+        self.mission=mission
+        self.floor_policy=TakeoffFloorPolicy()
 
     def check(self,position):
+        """References always obey the complete venue, including the floor."""
         point=self.coordinates(position)
-        self.mission.check(point,on_floor=self.on_floor())
+        self.mission.check(point)
+        return point
+
+    def check_measured(self,position,phase,landed_state):
+        point=self.coordinates(position)
+        self.floor_policy.check(self.mission,point,phase,landed_state)
         return point
 
 
@@ -347,12 +354,20 @@ class DemoMissionControl(SuperFlightControl):
         if phase=='READY':
             from control_bridge_preview import quaternion_rpy
             self.frame=VenueFrame(self.reference.ground,quaternion_rpy(0,0,self.reference.yaw),
-                self.mission,lambda:self.extended is not None and self.extended.landed_state==1)
+                self.mission)
             self.home=np.array(self.reference.ground)+np.array([0.,0.,self.reference.lift])
             self.far=self.home+self.frame.axes.T@np.array([self.distance,0.,0.])
             if self.live_venue is not None:
                 self.get_logger().info(f'LIVE VENUE LOCK ground_fc_xyz={list(self.reference.ground)}; '
                     f'yaw_rad={self.reference.yaw:.9f}; fixed hover z={self.home[2]:.3f}; no READY rebase')
+            self.mission_report.data['takeoff_floor_policy']=dict(
+                measured_ground_tolerance_m=self.frame.floor_policy.ground_tolerance_m,
+                strict_after='Measured floor clearance exceeds ground tolerance, or takeoff phase ends',
+                reference_floor='Always strict; no ground-contact allowance',
+                venue_rebased=False)
+            self.get_logger().info('TAKEOFF_FLOOR_V1: measured ground-contact band='
+                f'{self.frame.floor_policy.ground_tolerance_m:.3f} m; strict after leaving that band '
+                'or completing rise; outgoing references always use the strict floor')
         self.mission_report.event(phase,leg=self.leg,round_trip=self.round_index)
         if phase=='RISE':self.stages_started=True
         elif phase=='HOLD' and self.stages_started:
@@ -384,6 +399,17 @@ class DemoMissionControl(SuperFlightControl):
     def target_ok(self,position,label='Reference'):
         self.frame.check(position)
 
+    def check_measured_position(self,xyz):
+        landed_state=self.extended.landed_state if self.extended is not None else None
+        try:
+            return self.frame.check_measured(xyz,self.phase,landed_state)
+        except ValueError as exc:
+            self.mission_report.data['venue_envelope_failure']=dict(
+                self.frame.floor_policy.last_check,source='measured FC position',error=str(exc))
+            raise
+        finally:
+            self.mission_report.data['measured_floor_check']=dict(self.frame.floor_policy.last_check)
+
     def check_envelope(self,xyz,yaw,ground):
         super().check_envelope(xyz,yaw,ground)
         if self.frame is not None and self.phase=='FINAL_HOLD':self.target_ok(xyz,'Measured home hover')
@@ -397,7 +423,7 @@ class DemoMissionControl(SuperFlightControl):
         ns,position,velocity=sent;dt=(stamp-ns)/1e9
         if not 0<=dt<=.25:raise ValueError('Sent reference is stale at the FC pose timestamp')
         expected=position+velocity*dt
-        self.frame.check(xyz)
+        self.check_measured_position(xyz)
         error=np.abs(self.frame.axes@(np.asarray(xyz)-expected))
         self.max_tracking_error=np.maximum(self.max_tracking_error,error)
         self.mission_report.data['max_tracking_error_forward_left_up_m']=self.max_tracking_error.tolist()
@@ -585,7 +611,7 @@ class DemoMissionControl(SuperFlightControl):
     def check_landing_feedback(self):
         if not self.fresh('local',.25):raise ValueError('Missing/stale local pose during demonstration landing')
         xyz,_=pose_values(self.local)
-        point=self.frame.check(xyz)
+        point=self.check_measured_position(xyz)
         self.mission_report.data['landing_max_horizontal_error_m']=max(
             self.mission_report.data.get('landing_max_horizontal_error_m',0.),
             abs(float(point[0])),abs(float(point[1])))
@@ -670,6 +696,7 @@ class DemoMissionControl(SuperFlightControl):
         return False
 
     def publish(self,xyz,yaw,native=False):
+        self.target_ok(xyz,'Outgoing reference')
         super().publish(xyz,yaw,native=False)
         if native:
             msg=PositionTarget();msg.header.stamp=self.get_clock().now().to_msg();msg.header.frame_id='map'

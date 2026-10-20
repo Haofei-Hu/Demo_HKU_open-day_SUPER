@@ -34,7 +34,7 @@ class Harness(DemoMissionControl):
         self.mapping=NS(converter=lambda p,q,c:(np.asarray(p),q,c),origin=self.requested_raw-self.requested_target,
                         failed=False,pairs=20)
         self.mission=DemoMission(fixture())
-        self.frame=VenueFrame([0,0,0],[0,0,0,1],self.mission,lambda:False)
+        self.frame=VenueFrame([0,0,0],[0,0,0,1],self.mission)
         self.mission_report=NS(data=dict(accepted_goals={},planner_motion_by_leg={}),save=Mock(),event=Mock(),completed=Mock())
         self.logs=[];self.errors=[];self.follower=self.make_follower();self.pending=deque();self.poly_pending=deque()
         self.endpoint_kinds=set();self.plan_evidence=[]

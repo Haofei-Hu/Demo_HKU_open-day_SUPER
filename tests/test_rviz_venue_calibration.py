@@ -114,7 +114,7 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(yaw(frozen['local_quaternion']),heading)
         mission=DemoMission(config);self.assertAlmostEqual(mission.width,3.007)
         planes,record=halfspaces(frozen,mission,convert)
-        frame=VenueFrame(ground,frozen['local_quaternion'],mission,lambda:False)
+        frame=VenueFrame(ground,frozen['local_quaternion'],mission)
         matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
         for lateral in (-1.317+mission.hull['right'],1.69-mission.hull['left']):
             raw=np.linalg.solve(matrix,np.array([1.,lateral,.5])-offset)

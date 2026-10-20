@@ -49,7 +49,7 @@ class Tests(unittest.TestCase):
 
     def test_rotated_tilted_frame_and_lever_match_controller_for_all_six_faces(self):
         scene,mission,convert=self.geometry();planes,record=halfspaces(scene,mission,convert)
-        frame=VenueFrame(scene['aligned_position'],scene['aligned_quaternion'],mission,lambda:False)
+        frame=VenueFrame(scene['aligned_position'],scene['aligned_quaternion'],mission)
         matrix=np.array(record['world_to_venue_matrix']);offset=np.array(record['world_to_venue_offset'])
         lower=np.array(record['fc_centre_lower_forward_left_floor_m'])
         upper=np.array(record['fc_centre_upper_forward_left_floor_m']);centre=(lower+upper)/2

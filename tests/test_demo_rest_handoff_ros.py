@@ -19,7 +19,7 @@ class Tests(unittest.TestCase):
     def follower(self):
         self.begin=np.array([0.,0.,1.415]);self.stop=np.array([.8,.2,1.415])
         self.goal=np.array([4.5,0.,1.415])
-        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()),lambda:False)
+        frame=VenueFrame([0,0,0],[0,0,0,1],DemoMission(fixture()))
         return VenueReference(frame,lambda plan:True,
             lambda plan,p:np.linalg.norm(p-self.goal)<.01,'observe')
 
