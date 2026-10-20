@@ -69,19 +69,22 @@ class Tests(unittest.TestCase):
         np.testing.assert_allclose(local.min(axis=0),[-.5,-1.8,-.085],atol=1e-12)
         np.testing.assert_allclose(local.max(axis=0),[5.3,1.,2.715],atol=1e-12);self.assertEqual(len(edges),12)
 
-    def test_narrower_selection_is_not_widened_and_wider_selection_caps_inside_markers(self):
+    def test_selected_sides_are_exact_including_wide_asymmetric_venues(self):
         _,obs,r,p=self.scene()
-        for left,right,width in ((1.,-1.6,2.6),(1.6,-1.6,2.8)):
+        for left,right,width in ((1.,-1.6,2.6),(1.6,-1.6,3.2),(.4,-5.,5.4)):
             g=selected_geometry(p(0,left,1),p(0,right,1),obs,r,.5)
             self.assertAlmostEqual(g['width_m'],width)
             original=fixture();c=apply_geometry(original,g,obs,'hash');m=DemoMission(c)
             self.assertEqual(m.width,g['width_m']);self.assertNotIn('venue_calibration',original)
-            self.assertGreaterEqual(g['lateral_limits_m'][0],right-1e-12)
-            self.assertLessEqual(g['lateral_limits_m'][1],left+1e-12)
+            np.testing.assert_allclose(g['lateral_limits_m'],[right,left],atol=1e-12,rtol=0)
+            self.assertAlmostEqual(m.left,left)
+            self.assertAlmostEqual(m.width-m.left,-right)
             with self.assertRaises(ValueError):m.check([0.,left,1.5])
             with self.assertRaises(ValueError):m.check([0.,right,1.5])
             tampered=deepcopy(c);tampered['venue']['width_left_m']+=.01
             with self.assertRaisesRegex(ValueError,'changed'):DemoMission(tampered)
+            tampered=deepcopy(c);tampered['venue_calibration']['geometry']['lateral_limits_m'][0]+=.01
+            with self.assertRaisesRegex(ValueError,'Invalid calibrated'):DemoMission(tampered)
 
     def test_reversed_outside_nonfinite_and_uncalibrated_width_rejected(self):
         _,obs,r,p=self.scene()

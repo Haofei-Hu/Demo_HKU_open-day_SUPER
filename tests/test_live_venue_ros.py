@@ -40,7 +40,7 @@ if case=='rviz':
     (folder/'mission.json').write_text(json.dumps(calibrated))
     assert calibrated['venue_calibration']['confirmed_by_operator']
     assert abs(calibrated['takeoff']['distance_from_left_m']-1.1)<1e-9
-    assert calibrated['venue']['width_left_m']<=2.8
+    assert abs(calibrated['venue']['width_left_m']-4.2)<1e-9
     assert (folder/'venue_calibration.json').exists()
     assert calibrated['venue_calibration']['display_snapshot']['live_updates_hidden']
 gate=GroundGate()
@@ -125,7 +125,7 @@ def run(case):
                         or not node.count_subscribers('/super_venue/clicked_point')):return
                 index=clicked['sent']
                 if index<2 and clicked['ack']==index:
-                    lateral=(1.1,-1.7)[index]
+                    lateral=(1.1,-3.1)[index]
                     msg=PointStamped();msg.header.frame_id='camera_init';msg.header.stamp=node.get_clock().now().to_msg()
                     msg.point.x=.2-math.sin(.7)*lateral;msg.point.y=-.3+math.cos(.7)*lateral;msg.point.z=.8
                     click_pub.publish(msg);clicked['sent']+=1

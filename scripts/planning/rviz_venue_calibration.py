@@ -32,19 +32,18 @@ def selected_geometry(left,right,observation,rotation,rear):
     relative=(basis@(rotation@points.T-origin[:,None]-ground[:,None])).T
     left_y,right_y=relative[:,1]
     if not right_y<0<left_y:
-        raise ValueError('Left/right order is reversed or the aircraft is outside the selected sides; reset and select again')
-    # Never enlarge the requested venue or place it beyond a marked boundary.
-    width=min(2.8,float(left_y-right_y));middle=float((left_y+right_y)/2)
-    left_limit=middle+width/2;right_limit=middle-width/2
-    if not right_limit<0<left_limit:
-        raise ValueError('Aircraft is outside the capped 2.8 m box; reset the selection or reposition before preparation')
+        raise ValueError(f'Points must bracket the aircraft along its left axis: '
+                         f'LEFT={left_y:+.3f} m must be positive, RIGHT={right_y:+.3f} m must be negative. '
+                         'Sides follow the nose, not the screen; reset to select again')
+    # Use the selected sides exactly; no nominal-width cap, recentering or inset.
+    left_limit=float(left_y);right_limit=float(right_y);width=left_limit-right_limit
     return dict(method=METHOD,selected_raw_points=points.tolist(),
                 selected_lateral_limits_m=[float(right_y),float(left_y)],
                 width_m=width,left_offset_m=left_limit,rear_offset_m=float(rear),
                 lateral_limits_m=[right_limit,left_limit],
                 forward_limits_m=[-float(rear),5.8-float(rear)],
                 floor_height_limits_m=[0.,2.8],
-                nominal_maximum_width_m=2.8,
+                width_policy='exact_selected_lateral_boundaries',
                 heading_rule='Sides parallel to the confirmed takeoff heading; picks do not estimate wall yaw')
 
 
@@ -61,7 +60,7 @@ def apply_geometry(config,geometry,observation,alignment_sha256):
 
 
 def validate_geometry(config):
-    """Reject malformed or silently widened saved calibration values."""
+    """Require saved mission sides to match the operator-confirmed selection."""
     data=config.get('venue_calibration',{});geometry=data.get('geometry',{})
     if (data.get('confirmed_by_operator') is not True or geometry.get('method')!=METHOD
             or config['venue'].get('calibration_method')!=METHOD):
@@ -69,8 +68,7 @@ def validate_geometry(config):
     limits=np.asarray(geometry.get('lateral_limits_m'),dtype=float)
     selected=np.asarray(geometry.get('selected_lateral_limits_m'),dtype=float)
     if (limits.shape!=(2,) or selected.shape!=(2,) or not np.all(np.isfinite([*limits,*selected]))
-            or not limits[0]<0<limits[1] or limits[0]<selected[0]-1e-10 or limits[1]>selected[1]+1e-10
-            or not 0<limits[1]-limits[0]<=2.8+1e-10):
+            or not limits[0]<0<limits[1] or not np.allclose(limits,selected,atol=1e-10,rtol=0)):
         raise ValueError('Invalid calibrated lateral interval')
     expected=((config['venue']['width_left_m'],limits[1]-limits[0]),
               (config['takeoff']['distance_from_left_m'],limits[1]),

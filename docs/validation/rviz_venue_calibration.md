@@ -14,7 +14,7 @@ python3 -m unittest \
 ```
 
 Coverage includes environmental point conversion without a vehicle lever arm,
-tilted localization axes, unequal pick heights, narrower/capped venue widths,
+tilted localization axes, unequal pick heights, selected venue widths,
 left/right ordering, immutable session anchors, source/origin changes, release
 checksums, existing mission behavior, and calibration-before-planner ordering.
 Calibration-only preparation does not launch the planner.
@@ -49,3 +49,8 @@ perform an actual mouse click on a rendered frozen cloud. It checks that the
 default tool publishes a `camera_init` point on the rendered surface. This test
 passed, along with all four live integration cases. This
 requires `xdotool` in the cloud test container; the aircraft does not need it.
+
+The subsequent exact-width change removes the 2.8 m cap. Regression cases include
+2.6 m, 3.2 m and an asymmetric 5.4 m interval with the FC only 0.4 m from the left
+side. Both mission sides equal the clicked sides, and edited saved limits are
+rejected. The live RViz case uses a 4.2 m interval and continues to check-only READY.

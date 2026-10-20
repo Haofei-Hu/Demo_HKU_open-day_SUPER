@@ -6,7 +6,7 @@ Sequence: **rise to an FC-centre height of 1.5 m above the floor → fly 4.5 m o
 
 ## 1. Use the measured configuration for this placement
 
-The mission file is `~/Downloads/open_day_mission_measured.json`. When reusing measurements, confirm that they describe the current aircraft and takeoff placement. The outer venue is 5.8 × 2.8 × 2.8 m, with the nose along the 5.8 m dimension. Rear and left offsets are measured from the FC centre.
+The mission file is `~/Downloads/open_day_mission_measured.json`. When reusing measurements, confirm that they describe the current aircraft and takeoff placement. The default outer venue is 5.8 × 2.8 × 2.8 m, with the nose along the 5.8 m dimension. RViz lateral calibration uses the selected left and right boundaries exactly, including widths greater than 2.8 m. Rear and left offsets are measured from the FC centre.
 
 Check the file and aircraft-envelope clearance at 1.5 m. This command starts neither ROS nor flight:
 

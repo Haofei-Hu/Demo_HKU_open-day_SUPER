@@ -41,7 +41,7 @@ The final output is `RESULT: SUCCESS` or `RESULT: FAIL`, with reports under `~/D
 | Final stages | Hover for 6 seconds → land → confirm landed and disarmed |
 | Planning speed / acceleration targets | 2 m/s / 1 m/s² |
 | Trajectory acceptance bounds | 4 m/s / 2 m/s² |
-| Outer venue dimensions | 5.8 m forward × 2.8 m wide × 2.8 m high |
+| Default outer venue dimensions | 5.8 m forward × 2.8 m wide × 2.8 m high; RViz calibration uses the selected lateral width exactly |
 
 SUPER replans continuously and may follow curved obstacle-avoiding routes. Each return is planned back to the original hover point while retaining the takeoff heading. The 1.5 m setting is the takeoff, hover, and mission target height; three-dimensional avoidance may change altitude along the route. There is no additional whole-mission or first-trajectory waiting deadline.
 

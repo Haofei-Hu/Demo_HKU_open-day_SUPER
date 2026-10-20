@@ -41,9 +41,9 @@ offset, or supply the appropriate value. Length and height remain 5.8 m and
    If another tool is active, press **U** with focus on the RViz view to return to
    Publish Point. Move Camera can be used to change the view, then press U again.
 3. Check the complete cyan box against the actual venue. The terminal shows the
-   computed left/right clearances, width and rear offset. The selected width is
-   capped at 2.8 m, centred between the two marked sides. A narrower selection is
-   retained as a narrower box; it is never expanded past a selected boundary.
+   computed left/right clearances, width and rear offset. **The two selected
+   lateral boundaries are used exactly**, including widths greater than 2.8 m.
+   No width cap or recentering is applied. Length remains 5.8 m and height 2.8 m.
 4. Type `confirm` and Enter in the launching terminal to accept, or `reset` and
    Enter to clear both points while keeping the frozen cloud. Type `refresh` for
    a new display snapshot; this also clears both picks. Close RViz or press Ctrl+C
@@ -64,6 +64,9 @@ The display uses five-pixel squares to make sparse points easier to hit. Clicks
 must belong to the current snapshot epoch; they do not use the 250 ms live-pose
 age threshold. Sensor and controller freshness checks remain in force. A frozen
 picture improves selection usability; it does not correct localization drift.
+The aircraft must still lie between the selected sides, with LEFT/RIGHT defined
+along its nose. If this check fails, both markers remain visible and the terminal
+shows each point's signed lateral coordinate; type `reset` to correct them.
 Successful selection prints:
 
 ```text

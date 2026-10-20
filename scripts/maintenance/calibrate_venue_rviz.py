@@ -129,17 +129,18 @@ def calibrate(config,alignment_path,folder,rear_offset):
             if msg.header.frame_id not in ('world','camera_init'):
                 print('Ignored click: expected camera_init fixed frame.',flush=True);return
             if len(state['points'])==2:
-                print('Preview ready. Type confirm or reset in this terminal.',flush=True);return
+                print('Preview ready. Type confirm or reset in this terminal.' if state['geometry'] is not None
+                      else 'Both picks are shown but invalid; type reset to select again.',flush=True);return
             p=[msg.point.x,msg.point.y,msg.point.z]
             if not np.all(np.isfinite(p)):return
             state['points'].append(p)
             if len(state['points'])==2:
                 try:state['geometry']=selected_geometry(*state['points'],observation,rotation,rear_offset)
                 except ValueError as exc:
-                    print('Selection rejected:',exc,flush=True);reset();return
+                    print('Selection rejected:',exc,flush=True);draw();return
                 g=state['geometry']
                 print(f'PREVIEW: left={g["left_offset_m"]:.3f} m, right={g["width_m"]-g["left_offset_m"]:.3f} m, '
-                      f'width={g["width_m"]:.3f} m (maximum 2.8), rear={rear_offset:.3f} m. '
+                      f'width={g["width_m"]:.3f} m (exactly selected sides), rear={rear_offset:.3f} m. '
                       'Check the complete cyan box against the actual venue. Type confirm to accept, or reset to select again.',flush=True)
             else:print('LEFT selected. Select RIGHT boundary next.',flush=True)
             draw()
@@ -153,7 +154,7 @@ def calibrate(config,alignment_path,folder,rear_offset):
         def confirmation(req,res):
             res.success=state['geometry'] is not None
             if res.success:state['confirm']=True
-            res.message='Selection queued for current-session checks' if res.success else 'Select both boundaries first'
+            res.message='Selection queued for current-session checks' if res.success else 'Select two valid boundaries; inspect any Selection rejected message'
             return res
         def resetting(req,res):
             reset();res.success=True;res.message='Select left, then right';return res
