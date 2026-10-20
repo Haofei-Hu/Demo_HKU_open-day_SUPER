@@ -87,7 +87,7 @@ See [RViz boundary selection](RVIZ_VENUE_CALIBRATION.md).
 | Setting | Value |
 |---|---|
 | Virtual takeoff target | FC centre 0.5 m above the floor |
-| Physical target | FC centre 1.5 m above the floor, explicitly selected with `--flight-height 1.5` |
+| Laboratory physical target | FC centre 1.0 m above the floor via `--flight-height 1.0`; separate 2 m outer ceiling |
 | Route | 4.5 m outbound and return to the original hover point, five round trips |
 | Return behavior | SUPER plans a new return path while retaining the initial heading |
 | Final stages | Hover for 6 seconds, land, confirm landed and disarmed |
@@ -160,6 +160,6 @@ python3 ~/Downloads/super_session.py stop
 | `position step` after a stationary replan | Confirm the rebuilt planner logs `VENUE_REST_START_V1`. It retains the measured start instead of relocating it to a grid centre; controller continuity checks remain active |
 | Persistent `WAIT_PLAN` | No executable trajectory yet; inspect this run's `planner_rehearsal.log` for path-search, corridor, or optimization failures |
 
-See [validation scope and known limitations](VALIDATION.md). The complete physical five-round mission remains unverified. Use the separate [1.5 m physical flight guide](PHYSICAL_FLIGHT.md) with [measured aircraft geometry and takeoff placement](FLIGHT_SITE_MEASUREMENTS.md).
+See [validation scope and known limitations](VALIDATION.md). The complete physical five-round mission remains unverified. Use the separate [1 m laboratory flight guide](PHYSICAL_FLIGHT.md) with [measured aircraft geometry and takeoff placement](FLIGHT_SITE_MEASUREMENTS.md).
 
 For variable takeoff placement, [select the left/right venue boundaries in RViz](RVIZ_VENUE_CALIBRATION.md) before physical preparation. The ground rehearsal command above is unchanged.

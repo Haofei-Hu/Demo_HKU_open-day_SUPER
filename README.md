@@ -2,7 +2,7 @@
 
 An indoor localization, planning, and obstacle-avoidance demonstration built on **Livox MID360 → FAST_LIO → SUPER → MAVROS → PX4**.
 
-**[Installation and quick start](docs/QUICK_START.md)** · **[1.5 m physical flight](docs/PHYSICAL_FLIGHT.md)** · [Detailed startup and recovery](docs/REBOOT_QUICK_START.md) · [Documentation index](docs/README.md)
+**[Installation and quick start](docs/QUICK_START.md)** · **[1 m laboratory flight](docs/PHYSICAL_FLIGHT.md)** · [Detailed startup and recovery](docs/REBOOT_QUICK_START.md) · [Documentation index](docs/README.md)
 
 ## Start here
 
@@ -10,7 +10,7 @@ An indoor localization, planning, and obstacle-avoidance demonstration built on 
 |---|---|
 | Install or update the matching scripts | [Complete installer and one-time build](docs/QUICK_START.md#install-or-update-once) |
 | Run an automatic ground rehearsal after reboot | Use the command below; alignment is captured automatically |
-| Run the physical demonstration in a laboratory | [Measured configuration, preparation, start, and landing](docs/PHYSICAL_FLIGHT.md) |
+| Run the physical demonstration in a laboratory | [Aircraft configuration, preparation, start, and landing](docs/PHYSICAL_FLIGHT.md) |
 | Choose left/right boundaries after placing the aircraft | [Per-session RViz boundary calibration](docs/RVIZ_VENUE_CALIBRATION.md) |
 | Inspect results or troubleshoot startup and planning | [Reports and recovery](docs/QUICK_START.md#reports-and-results) |
 | Understand the system or contribute | [Documentation index](docs/README.md) |
@@ -40,17 +40,18 @@ The final output is `RESULT: SUCCESS` or `RESULT: FAIL`, with reports under `~/D
 
 | Setting | Value |
 |---|---|
-| Physical target height | FC centre **1.5 m above the floor**, explicitly selected in the flight command |
+| Laboratory physical target height | FC centre **1.0 m above the floor**, explicitly selected with `--flight-height 1.0` |
 | Virtual ground-rehearsal target height | 0.5 m |
 | Route | 4.5 m outbound → return to the original hover point, **five round trips** |
 | Final stages | Hover for 6 seconds → land → confirm landed and disarmed |
 | Planning speed / acceleration targets | 2 m/s / 1 m/s² |
 | Trajectory acceptance bounds | 4 m/s / 2 m/s² |
+| Laboratory operating box | 5.8 m forward, at most 2 m wide and 2 m high; vehicle extents included |
 | Default outer venue dimensions | 5.8 m forward × 2.8 m wide × 2.8 m high; RViz calibration uses the selected lateral width exactly |
 
-SUPER replans continuously and may follow curved obstacle-avoiding routes. Each return is planned back to the original hover point while retaining the takeoff heading. The 1.5 m setting is the takeoff, hover, and mission target height; three-dimensional avoidance may change altitude along the route. There is no additional whole-mission or first-trajectory waiting deadline.
+SUPER replans continuously and may follow curved obstacle-avoiding routes. Each return is planned back to the original hover point while retaining the takeoff heading. The selected hover height is the takeoff and mission target height, not the ceiling; three-dimensional avoidance may change altitude along the route. There is no additional whole-mission or first-trajectory waiting deadline.
 
-The `observe` policy records motion exceedances while retaining venue, freshness, and continuity checks. Physical execution uses measured aircraft extents and takeoff placement; rehearsal `--fixture-geometry` is not a physical survey.
+The `observe` policy records motion exceedances while retaining venue, freshness, and continuity checks. Physical execution needs aircraft-envelope and placement verification; the laboratory guide labels nominal dimensions as estimates; rehearsal `--fixture-geometry` is not a physical survey.
 
 ## System architecture
 
@@ -72,7 +73,7 @@ The onboard computer connects to the flight controller over USB and provides rem
 
 ## Validation scope
 
-A complete five-round mission has passed with actual captured point clouds, real SUPER, and virtual vehicle feedback. Earlier physical takeoff, hover, and landing tests have separate field records. **The complete 1.5 m physical demonstration remains to be validated on site.** See [verification and known issues](docs/VALIDATION.md); historical debugging notes are not current startup instructions.
+A complete five-round mission has passed with actual captured point clouds, real SUPER, and virtual vehicle feedback. Earlier physical takeoff, hover, and landing tests have separate field records. **The complete physical demonstration remains to be validated on site.** See [verification and known issues](docs/VALIDATION.md); historical debugging notes are not current startup instructions.
 
 ## Repository structure
 

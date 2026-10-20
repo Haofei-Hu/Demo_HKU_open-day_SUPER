@@ -23,7 +23,7 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 
 Always install the complete matching 28-file release. Updating only a controller or reference helper can mix incompatible interfaces: an observed two-file update called a four-argument `inverse_goal()` against an older three-argument implementation. After installation, the normal `--restart` command below clears the previous grounded session before using the new release.
 
-The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified. Keep `flight.round_trips=5`; `--flight-height 1.5` validates the survey at the selected height and saves the matching takeoff stage in a per-run copy. The integration workspaces and earlier localization helpers remain prerequisites.
+The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified. Keep `flight.round_trips=5`. The laboratory trial explicitly uses `--flight-height 1.0`, which saves the 1 m target and matching takeoff stage in a per-run copy; it does not change the canonical 1.5 m default. The integration workspaces and earlier localization helpers remain prerequisites.
 
 This release separates the unchanged **2 m/s, 1 m/s² optimization targets** from **4 m/s, 2 m/s² trajectory acceptance bounds**, and passes the existing rehearsal venue to SUPER's search and corridor generation. It requires two independent, one-time SUPER source patches and one rebuild after installation:
 
@@ -82,7 +82,7 @@ Vision preparation uses the test runner's existing 30-second observation duratio
 
 The canonical route performs five complete round trips in one flight: ten navigation legs and 45 m nominal horizontal travel before curved-path adjustments. Endpoints stay tied to the original takeoff frame. There is one takeoff, one final six-second hover and one landing; intermediate returns continue to the next outbound leg. Logs print `Round trip n/5 complete`. Reports preserve all ten accepted goals/arrival records and require all twenty ordered stages plus `round_trips_completed=5` for success.
 
-Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which retains its stored height. Physical preparation can explicitly select **1.5 m** with `--flight-height 1.5` and a separate per-run mission copy. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
+Ground rehearsals use a requested FC-centre floor height of **0.5 m**. The runner freezes this setting and `TAKEOFF_TO_0_5M` in its per-run `mission.json`; it does not rewrite the measured flight mission, which retains its stored height. The laboratory physical trial explicitly selects **1.0 m** with `--flight-height 1.0` and a separate per-run mission copy. Both reports record the execution context and requested height. Physical preparation rejects rehearsal configurations. The same automatic test command selects 0.5 m without another flag.
 
 During complete-demo map initialization, `Map capture WAIT` means the runner is still waiting for a fresh three-second raw-odometry window whose range is at most 2.5 cm per axis. There is no capture deadline: passing 12 seconds does not fail the rehearsal. Progress and observed ranges appear in the planner-stage log. Lost ground state, stale odometry or changed sources still stop initialization; a stable window is required before a map profile is written. Ctrl+C cancels the run.
 
@@ -227,54 +227,57 @@ delayed replies. A successful readback does not conceal a dead MAVROS process.
 
 ## Prepare physical execution separately
 
-For a complete **virtual** run with manual RViz boundary selection first:
+Use the [complete laboratory flight procedure](PHYSICAL_FLIGHT.md) for first-time
+configuration and the exact installation, selection, start, landing and reporting
+steps. The current trial requests **1 m FC-centre hover height**, **at most 2 m
+lateral width**, and a **2 m outer ceiling**. The height target and ceiling are
+separate. The route remains five 4.5 m out-and-back rounds, followed by a 6-second
+hold and landing. SUPER replans the return with the original heading retained.
 
-```bash
-python3 ~/Downloads/super_demo_test.py \
-  --restart --fixed-lio-extrinsics \
-  --fixture-geometry --motion-policy observe --fast-start \
-  --calibrate-venue --rear-offset 0.5
-```
-
-Once the two picks are confirmed, the runner automatically captures the scene and
-opens the rehearsal viewer for the complete mission. The selection window
-closing is a viewer handoff, not the end of the test. Reports remain under
-`super_demo_tests`. Use `--calibration-only` only when selection itself is the
-intended endpoint. See the [RViz workflow](RVIZ_VENUE_CALIBRATION.md).
-
-The current physical command selects 1.5 m FC-centre height above the floor and five consecutive rounds of 4.5 m forward and return to the original hover point, followed by one six-second hold and landing. SUPER plans a new return trajectory to the original point; the return is not a recorded replay of the outbound path. The initial heading is retained, so a straight return flies backward without a yaw turn.
-
-Before physical preparation, fill a separate measured mission file using the schema in `~/Downloads/open_day_mission.json`. The default box is 5.8 m along the heading, 2.8 m wide and 2.8 m high. RViz calibration uses the selected lateral boundaries exactly, without a 2.8 m width cap; length and height retain their configured demonstration values. Supply the rear offset and all six propeller-inclusive FC-centre extents. For a variable lateral takeoff position, use [RViz left/right calibration](RVIZ_VENUE_CALIBRATION.md) instead of measuring the left offset: add `--calibrate-venue --rear-offset 0.5` to either physical command below when the rear offset is still 0.5 m. Each new preparation opens RViz after alignment, waits for two boundary clicks and confirmation, then prepares the planner with that session's fixed box. Which side has a wall does not matter. Do not substitute synthetic fixture values. The current floor calibration assumes an FC centre 0.085 m above the floor; a different installation requires a separate calibration change. Use the [measurement checklist and exact JSON fields](FLIGHT_SITE_MEASUREMENTS.md) for the aircraft envelope.
-
-The physical entrypoint also requires current RC input/manual POSCTL, one controller, compatible PX4 parameter readbacks and on-site takeover. In particular, it expects `MPC_XY_VEL_MAX=2.0`; the last recorded aircraft setting was 0.5. It checks this setting and does not silently change it. Actual receipt of the new raw position-plus-velocity setpoints and complete physical tracking remain to be verified.
-
-With the measured configuration saved as `~/Downloads/open_day_mission_measured.json`, prepare without flight execution:
+After reboot, with the aircraft stationary and disarmed and RC takeover available,
+use terminal A. The nominal configuration below must already have been created
+and its envelope verified as described in the flight guide; use your measured
+file instead if it is more accurate.
 
 ```bash
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
-  --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
-  --flight-height 1.5 \
-  --motion-policy observe
+  --mission-file "$HOME/Downloads/open_day_mission_nominal.json" \
+  --flight-height 1.0 \
+  --calibrate-venue --rear-offset 0.5 \
+  --venue-width 2 --venue-ceiling 2 \
+  --motion-policy observe \
+  --execute --on-site-supervised
 ```
 
-This starts a new stack, captures a fresh quaternion and prepares the real planner/controller. It writes `venue_reference.json` in the managed session log directory and a separate live venue planner YAML. The six planes use the supplied aircraft extents and surveyed wall offsets, the captured FC ground position/yaw and the paired localization origin. The controller reads this same record, verifies the source identities, file hashes and running SUPER `config_name`, and retains the captured anchor at READY. It changes no source YAML, cloud, speed target, acceptance bound or mission deadline. Existing compiled venue support is required; this Python integration needs no additional C++ rebuild if all nine current markers, including `VENUE_MAP_HEIGHT_V1`, are already installed. `PREPARATION: READY; MISSION: NOT RUN (check-only)` means preparation passed; the check-only controller then exits. Reports are saved under `~/Downloads/super_demo_reports/<timestamp>/`. This entrypoint requires actual mission geometry even in check-only mode.
+QGC opens automatically. After fresh localization and alignment, select LEFT,
+then RIGHT in RViz, inspect the capped cyan box and type `confirm`. The selection
+viewer closes while preparation continues. Wait for `Phase: READY` and keep
+terminal A running. New localization sessions require new picks. This is not
+`--calibration-only`, and it must not use a rehearsal fixture file.
 
-For a supervised physical trial after prerequisites and clearance have been confirmed, run the separate execution entry in terminal A:
+For preparation without execution, omit `--execute --on-site-supervised`.
+The check-only controller exits after readiness; that is not flight completion.
+The existing parameter, localization, venue and RC checks remain in place.
+A normal reboot needs neither a rebuild nor another script installation.
 
-```bash
-python3 ~/Downloads/super_demo.py \
-  --restart --fixed-lio-extrinsics \
-  --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
-  --flight-height 1.5 \
-  --motion-policy observe --execute --on-site-supervised
-```
-
-Keep terminal A running. It prepares another fresh session and waits for `Phase: READY` and an explicit start. With the operator at the aircraft and RC takeover available, terminal B sends the start request once:
+Only when ready to initiate actual flight, use terminal B:
 
 ```bash
 source /opt/ros/humble/setup.zsh
 ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 ```
 
-The start service is flight initiation. Follow the controller's acceptance or rejection; a rejected start does not authorize another mode or arming command. Rebooting the computer, opening a terminal, installing scripts or running the rehearsal cannot initiate this physical mission.
+This requests physical OFFBOARD, arming and mission execution. To request early
+landing while the controller is running:
+
+```bash
+ros2 service call /super_demo/land std_srvs/srv/Trigger '{}'
+```
+
+Use RC takeover for abnormal control. `Ctrl+C` is not a hover or landing command.
+Only stop the background stack after landing and disarming. Keep the complete
+run directory under `~/Downloads/super_demo_reports/` for inspection. The
+[flight guide](PHYSICAL_FLIGHT.md#5-monitor-land-early-and-save-results) lists each
+report and the status command. Preparation success does not verify physical
+tracking or completed flight.

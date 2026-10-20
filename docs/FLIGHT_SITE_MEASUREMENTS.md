@@ -1,15 +1,15 @@
 # Physical mission measurements
 
-## Operator information recorded on October 18
+## Aircraft geometry and calculation basis
 
 The operator reported 5-inch props, a 205 mm wheelbase, a highest point about
 25 cm above the floor, FC height 8.5 cm, and approximately 0.5 m from the FC to
-the rear boundary. Lateral takeoff placement can vary and has not been measured.
+the rear boundary. Lateral takeoff placement can vary and is selected in RViz for each session.
 
-Assuming a symmetric true-X frame, a diagonal motor-to-motor 205 mm wheelbase
-and an FC at the geometric centre, the nominal swept length/width is
+The operator confirmed a symmetric X frame and a centred FC. For a diagonal
+motor-to-motor 205 mm wheelbase, the nominal swept length/width is
 `205 / sqrt(2) + 127 = 271.96 mm`: about 13.6 cm from the FC in each horizontal
-direction. The vertical extents would be 16.5 cm above and 8.5 cm below the FC.
+direction. The operator confirmed vertical extents of 16.5 cm above and 8.5 cm below the FC.
 These horizontal values are calculated estimates; stretched frames, FC offsets,
 and protruding sensors/batteries can change them. Confirm the actual envelope
 before writing measured geometry. The existing 0.2 m planner collision radius
@@ -18,8 +18,10 @@ has not been replaced with this estimate.
 At a 0.5 m rear offset, a nominal 4.5 m forward destination in the 5.8 m box
 leaves about 66.4 cm from the front propeller edge to the front boundary. This is
 static geometric clearance, not a tracking or obstacle-clearance measurement.
-Record the actual left offset for each takeoff placement; no centre placement
-has been assumed or written into the physical mission template.
+Capture the actual left/right sides in RViz for each takeoff placement; no
+centred placement is written into the source mission. The laboratory command
+then explicitly intersects those sides with a 2 m wide operating strip and
+limits the outer ceiling to 2 m; the original venue length remains 5.8 m.
 
 ## Fields to measure
 

@@ -1,101 +1,171 @@
-# Complete physical demonstration: 1.5 m
+# Laboratory flight: 1 m hover target
 
-Sequence: **rise to an FC-centre height of 1.5 m above the floor → fly 4.5 m outbound and return to the original hover point, five round trips → hover for 6 seconds → land and confirm disarmed**. Planning targets remain 2 m/s and 1 m/s²; acceptance bounds remain 4 m/s and 2 m/s².
+Use `super_demo.py` for the actual aircraft. This is separate from the virtual
+`super_demo_test.py` rehearsal.
 
-For the initial **1.0 m hover-height trial**, explicitly use `--flight-height 1.0`
-in the preparation command below. This sets takeoff, outbound target and return
-hover heights to 1.0 m above the floor at the FC centre. Keep `--venue-ceiling 2`:
-the outer ceiling remains 2 m, and avoidance can change altitude inside that box.
-The measured source file is preserved; the effective height appears in the
-per-run `flight_mission.json` and report. Omitting the height option still uses
-the existing 1.5 m default.
+| Setting | Laboratory trial |
+|---|---|
+| Takeoff, outbound and return hover targets | FC centre **1.0 m above the floor** |
+| Outer ceiling | **2.0 m above the floor**, including the aircraft's top extent |
+| Total lateral operating width | At most **2.0 m**, centred on takeoff and clipped to the selected sides |
+| Forward venue length / rear placement | 5.8 m / FC centre 0.5 m from the rear boundary |
+| Route | 4.5 m outbound and return, five round trips |
+| Finish | Hover at home for 6 seconds, land, confirm disarmed |
+| Planning targets / acceptance bounds | 2 m/s and 1 m/s² / 4 m/s and 2 m/s² |
 
-`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `560633172b32a12e95c96ee0d5c7b4613aac2e41`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
+**The 1 m hover target is not a 1 m altitude limit.** SUPER can change altitude
+and follow curved paths to avoid obstacles inside the operating box. The same
+vehicle-inclusive boundaries constrain search, corridors and the controller.
+Returning means planning back to the original hover point, not replaying the
+outbound path; the initial heading is retained.
 
-## 1. Use the measured configuration for this placement
+## 1. Install the matching release once
 
-The mission file is `~/Downloads/open_day_mission_measured.json`. When reusing measurements, confirm that they describe the current aircraft and takeoff placement. The default outer venue is 5.8 × 2.8 × 2.8 m, with the nose along the 5.8 m dimension. RViz lateral calibration uses the selected left and right boundaries exactly, including widths greater than 2.8 m. Rear and left offsets are measured from the FC centre.
+Finish any running task and keep the aircraft landed and disarmed before updating.
+This release needs no new C++ rebuild if the existing nine venue markers are
+installed. Older setups need the [one-time patches and build](QUICK_START.md#install-or-update-once).
 
-Check the file and aircraft-envelope clearance at 1.5 m. This command starts neither ROS nor flight:
+```bash
+(
+set -e
+revision='560633172b32a12e95c96ee0d5c7b4613aac2e41'
+update_dir=$(mktemp -d)
+
+curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
+  "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$revision/scripts/maintenance/install_demo_test.py" \
+  -o "$update_dir/install_demo_test.py"
+
+python3 "$update_dir/install_demo_test.py" --revision "$revision"
+)
+```
+
+The installer backs up replaced scripts and preserves local mission geometry and
+alignment. A normal reboot does not require another download or build.
+
+## 2. Prepare the aircraft configuration once
+
+For the discussed aircraft, the operator confirmed a symmetric X frame, 205 mm
+diagonal wheelbase, centred FC and 5-inch props. The nominal horizontal extent is:
+
+```text
+FC to outer propeller edge = 205 / (2 × sqrt(2)) + 127 / 2
+                          ≈ 136 mm in each horizontal direction
+```
+
+The confirmed vertical extents are 16.5 cm above and 8.5 cm below the FC centre.
+The horizontal values remain calculated estimates. Confirm that the actual
+propeller sweep, LiDAR, battery and other equipment fit within the configured
+envelope; increase any extent that does not cover the aircraft.
+
+This command creates `open_day_mission_nominal.json` and labels the estimates.
+It does not modify the canonical mission or start ROS or flight. If an existing
+measured file is more accurate, use that file in step 3 instead; do not replace
+measured dimensions with estimates.
 
 ```bash
 python3 - <<'PY'
 from pathlib import Path
-import json, sys
-base=Path.home()/'Downloads'
-sys.path.insert(0,str(base))
-from demo_mission import DemoMission
-p=base/'open_day_mission_measured.json'
-if not p.is_file():
-    raise SystemExit('Missing measured configuration: '+str(p)+'; follow the measurement guide, not a virtual fixture')
-c=DemoMission.physical_height(json.loads(p.read_text()),1.5)
-m=DemoMission(c)
-print('Takeoff placement:',c['takeoff'])
-print('Aircraft envelope:',c['vehicle'])
-print('Waypoints:',m.waypoints())
-print('Round trips:',m.round_trips)
-if m.round_trips!=5:
-    raise SystemExit('The measured file does not specify five round trips; check the mission configuration')
-print('CONFIG: PASS; file validation only, not confirmation of on-site flight readiness')
+from datetime import datetime
+import json
+import shutil
+
+base = Path.home() / 'Downloads'
+c = json.loads((base / 'open_day_mission.json').read_text())
+if c.get('execution_context') is not None or 'SYNTHETIC' in str(c.get('status', '')).upper():
+    raise SystemExit('A rehearsal fixture cannot be used as a physical mission')
+for side in ('front', 'rear', 'left', 'right'):
+    c['vehicle']['centre_to_' + side + '_m'] = 0.136
+c['vehicle'].update(centre_to_top_m=0.165, centre_to_bottom_m=0.085)
+c['vehicle']['note'] = (
+    'Nominal horizontal extents: symmetric 205 mm X frame, 5-inch props, '
+    'centred FC. Verify equipment fits before flight. '
+    'Vertical extents confirmed by operator.'
+)
+c['takeoff'].update(
+    forward_from_rear_m=0.5,
+    distance_from_left_m=None,
+    heading_along_length_confirmed=True
+)
+c['flight'].update(height_fc_above_floor_m=1.0, round_trips=5)
+c['sequence'][0] = 'TAKEOFF_TO_1_0M'
+c['status'] = 'NOMINAL_ENVELOPE_REQUIRES_ON_SITE_VERIFICATION'
+p = base / 'open_day_mission_nominal.json'
+if p.exists():
+    backup = p.with_name(p.name + '.backup_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
+    shutil.copy2(p, backup)
+p.write_text(json.dumps(c, indent=2) + '\n')
+print('Saved:', p)
+print('Horizontal geometry is estimated. No flight was started.')
 PY
 ```
 
-If the file is missing, copy `open_day_mission.json` to the separate measured filename and fill the [measurement fields](FLIGHT_SITE_MEASUREMENTS.md). An unspecified left offset cannot be inferred from approximate placement; the template's `null` values are not automatically replaced. Estimates based on 5-inch props and a 205 mm wheelbase are documented in the measurement guide and do not establish the envelope of protruding sensors or batteries.
+The lateral offset deliberately remains unset: fresh RViz selection supplies it.
+Point the nose along the 5.8 m length and use the actual rear offset; side clicks
+do not measure the rear boundary. The floor conversion assumes the FC is 0.085 m
+above the takeoff floor. See [aircraft geometry](FLIGHT_SITE_MEASUREMENTS.md) if
+the installation changes.
 
-If takeoff placement changes, use [RViz lateral calibration](RVIZ_VENUE_CALIBRATION.md)
-to select left/right sides before each preparation instead of measuring and
-entering the lateral offset. The aircraft-envelope measurements are still needed.
-For that workflow the left-offset field may remain unset in the source file;
-the full-file validation above applies only after placement has been supplied.
-Do not fill it with an assumed centred placement to make validation pass.
+## 3. Prepare after each reboot or new placement
 
-## 2. Prepare physical execution after startup
+Keep the aircraft stationary and disarmed. Have an on-site RC operator with
+POSCTL/manual control and takeover available. Preparation checks localization,
+source identities, PX4 parameter readbacks and operating geometry. For example,
+the physical profile expects `MPC_XY_VEL_MAX=2.0`; a mismatch is reported rather
+than silently changed.
 
-Have an on-site RC operator and confirm the required POSCTL/manual input, valid localization, and parameter readbacks. The controller checks these conditions. PX4 speed settings and planner targets are separate: physical preparation currently expects `MPC_XY_VEL_MAX=2.0`; an earlier aircraft readback was 0.5. A mismatch stops preparation with a report rather than silently changing the value.
-
-Terminal A:
+In **terminal A**:
 
 ```bash
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
-  --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
-  --flight-height 1.5 \
+  --mission-file "$HOME/Downloads/open_day_mission_nominal.json" \
+  --flight-height 1.0 \
   --calibrate-venue --rear-offset 0.5 \
   --venue-width 2 --venue-ceiling 2 \
-  --motion-policy observe --execute --on-site-supervised
+  --motion-policy observe \
+  --execute --on-site-supervised
 ```
 
-The script opens or reuses QGC, starts localization, measures the alignment quaternion,
-and prepares external vision. Select the actual left/right boundaries in the frozen
-RViz view and inspect the cyan box before typing `confirm`. The explicit width
-option intersects the selected sides with a strip extending 1 m either side of
-the takeoff centre. The ceiling is 2 m above the floor, with the aircraft's top
-extent subtracted for FC-centre checks. The same box goes to SUPER search,
-corridors and the controller. It then waits for `Phase: READY`. Keep terminal A
-running. These options narrow the selected venue; they do not alter or substitute
-the measured aircraft envelope. Omitting them uses the selected sides and the
-original 2.8 m ceiling.
+This opens or reuses QGC, starts localization, captures a fresh alignment
+quaternion and prepares external vision. In the frozen RViz view:
 
-The physical entrypoint defaults to 1.5 m, including when the stored survey contains a different height. `--flight-height 1.5` explicitly selects that default and saves the effective mission as `flight_mission.json` in the run's report directory without overwriting the measured source file. The height is **1.5 m from the takeoff floor to the FC centre**. With the existing grounded FC-height calibration of 0.085 m, the requested rise is approximately 1.415 m. Ground rehearsal defaults to 0.5 m and accepts an explicit `--rehearsal-height 1.5`.
+1. Select the actual **LEFT**, then **RIGHT** boundary, looking along the nose.
+2. Check the cyan box: up to 1 m on either side of takeoff, clipped to nearer
+   selected sides, and a 2 m outer ceiling.
+3. Type `confirm` in terminal A. Use `reset` for new picks on the same snapshot,
+   or `refresh` for a new snapshot.
+4. Let preparation continue to **`Phase: READY`**. Keep terminal A running.
 
-For preparation checks only, omit `--execute --on-site-supervised`; that mode does not execute flight.
+The selection viewer closing after confirmation does not end preparation.
+Each restarted localization session needs new picks. The source mission is
+preserved; `flight_mission.json` records this run's effective 1 m target and box.
+Selecting points does not arm the aircraft.
 
-## 3. Start after READY
+Always include `--flight-height 1.0`: the existing software default is still
+1.5 m. With the 0.085 m ground FC height, the nominal rise is 0.915 m.
+**Do not change `--venue-ceiling 2` to 1.**
 
-Terminal B:
+For preparation checks only, omit `--execute --on-site-supervised`. That mode
+ends after readiness checks without flight. Do not add `--calibration-only` to
+the complete preparation flow.
+
+## 4. Initiate physical flight after READY
+
+After confirming the configured envelope, clear route and RC takeover, use
+**terminal B**:
 
 ```bash
 source /opt/ros/humble/setup.zsh
 ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 ```
 
-**This call initiates physical flight.** Once accepted, the controller requests OFFBOARD, arms, and executes the mission. If rejected, resolve the reported reason; do not bypass preparation with a separate arming request.
+**This call initiates physical flight:** when accepted, the controller requests
+OFFBOARD, arms and executes the route. A rejected request does not authorize
+bypassing preparation with a separate mode or arming command.
 
-SUPER may alter the path and altitude to avoid obstacles. The 1.5 m setting is the takeoff, hover, and mission target height, not a fixed-altitude two-dimensional route. The return target is the original hover point with the initial heading retained. Venue and propeller-inclusive aircraft-envelope checks remain active.
+## 5. Monitor, land early and save results
 
-## 4. Status, early landing, and results
-
-Use terminal B to inspect mission status:
+Inspect status from terminal B:
 
 ```bash
 timeout 10s ros2 topic echo \
@@ -104,18 +174,27 @@ timeout 10s ros2 topic echo \
   --qos-durability volatile --full-length --field data
 ```
 
-To request early landing while the controller is still operating:
+Request early landing while the controller is running:
 
 ```bash
 ros2 service call /super_demo/land std_srvs/srv/Trigger '{}'
 ```
 
-RC takeover is an independent on-site control path. `Ctrl+C` terminates the process; it is not a hover command or confirmation of landing. Stop the background stack only after landing and disarming.
+Use RC takeover if control is abnormal. `Ctrl+C` is not a hover or landing
+command. Only stop the background stack after landing and disarming:
 
-Reports are saved under `~/Downloads/super_demo_reports/<timestamp>/`:
+```bash
+python3 ~/Downloads/super_session.py stop
+```
 
-- `flight_mission.json`: effective 1.5 m mission copy.
-- `preparation.json`: preparation results and stage-log paths.
-- `report.json`: flight stages, completed round trips, and final result.
+Keep the complete `~/Downloads/super_demo_reports/<timestamp>/` directory:
 
-The release has been checked for 1.5 m configuration handling, ROS controller initialization, and start conditions. **A complete 1.5 m physical demonstration on this aircraft has not yet been verified.** Retain the entire report directory after the field trial.
+- `preparation.json`: preparation steps, errors and log paths.
+- `venue_calibration.json`: clicked boundaries, chosen caps and session anchor.
+- `flight_mission.json`: effective aircraft geometry, 1 m target and operating box.
+- `report.json`: flight stages, completed round trips and final result.
+
+Configuration, controller startup gates and live check-only venue handoff have
+been tested. **The complete 1 m physical mission on this aircraft has not yet
+been verified.** A successful virtual rehearsal or READY state is not a physical
+flight completion record.

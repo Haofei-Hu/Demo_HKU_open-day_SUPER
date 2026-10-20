@@ -82,7 +82,7 @@ selected venue and **does not prepare or execute flight**:
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission.json" \
-  --flight-height 1.5 \
+  --flight-height 1.0 \
   --calibrate-venue --calibration-only --rear-offset 0.5
 ```
 
@@ -149,7 +149,7 @@ Its left and rear placement fields may be empty when `--rear-offset` is supplied
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_measured.json" \
-  --flight-height 1.5 --motion-policy observe \
+  --flight-height 1.0 --motion-policy observe \
   --calibrate-venue --rear-offset 0.5 \
   --venue-width 2 --venue-ceiling 2
 ```
