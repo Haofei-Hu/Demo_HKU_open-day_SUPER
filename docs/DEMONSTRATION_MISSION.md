@@ -98,6 +98,25 @@ SUPER may commit an exploration prefix followed by a backup braking segment. Suc
 
 ## Validation status
 
+### Final reference completion without a terminal command
+
+The complete supervisor can finish a verified final reference even when its last
+command arrives just before the committed polynomial ends and the next command
+belongs to a redundant restart. It waits until the polynomial's planned end has
+passed. The last accepted command must already be near its final endpoint with
+the existing stationary velocity/acceleration criteria; the conservative bound
+on the entire remaining polynomial displacement must fit the existing 15 mm
+endpoint tolerance. The endpoint must also match the confirmed navigation goal.
+
+The supervisor then keeps the last verified position, commands zero feedforward
+velocity, and waits for measured FC position and velocity to satisfy the existing
+arrival check before issuing the next leg. It does not accept the restart, alter
+received timestamps, infer measured arrival, or finish an intermediate stop.
+The report records this evidence in `terminal_reference_holds_by_leg`.
+No new mission deadline, flight tracking tolerance or venue margin is introduced.
+See [the reproduction and verification](validation/final_reference_completion.md).
+
+
 The complete synthetic ROS lifecycle has passed from the flat deployment directory, including return, six-second hold and confirmed landing. An injected return-command dropout produced `FAIL` rather than partial success. Source identity, snapshot capture, time-aligned tracking, rolling-stage handling, release checks and existing ground-manager tests have regression coverage. See [the software validation record](PROGRESS_2026-10-16.md).
 
 The first onboard real-SUPER rehearsal passed real alignment, map capture and 30-second vision sampling, then failed at outbound planning: exploration optimization succeeded while backup optimization repeatedly failed. The current site was subsequently reported to have only approximately 1.5 m forward room, compared with the requested 4.5 m route. A later one-metre real-SUPER/virtual-vehicle observation sequence has been reported complete, with report archival pending. This does not validate the full 4.5 m route. Actual full-mission flight, dynamic obstacle response, physical tracking and surveyed clearance remain unverified. The existing separate 1 m / six-second aircraft hover and landing result does not validate this new mission. Future supervised execution uses a separate entrypoint and requires measured geometry, compatible readback-confirmed PX4 limits, fresh RC/manual POSCTL and an explicit start request; restarting a terminal cannot initiate flight.

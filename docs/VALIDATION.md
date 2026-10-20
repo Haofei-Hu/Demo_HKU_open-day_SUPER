@@ -34,6 +34,17 @@ build completed five round trips and virtual landing on both the failing
 See [bounded backup waypoint verification](validation/bounded_backup_waypoints.md).
 This does not establish physical flight readiness.
 
+The final-reference correction reproduces the first physical outbound failure
+from its recorded polynomial coefficients: the last accepted sample preceded
+the polynomial end by 5.934 ms, then a redundant measured-position restart
+introduced a 0.3996 m reference step. Reference completion now retains the
+verified endpoint while still waiting for measured arrival before the next leg.
+All 89 related tests passed. A real-SUPER virtual replay deliberately omitted
+terminal commands on all ten legs and completed five round trips and landing.
+The recorded FC/reference peak differences of approximately 0.77/0.40/0.30 m
+remain a separate physical tracking/localization concern. See
+[final reference completion](validation/final_reference_completion.md).
+
 ## Known issues
 
 - MAVROS has exited during startup with `std::future_error: Promise already satisfied`; no permanent root-cause fix has been confirmed. See [restricted core-only recovery](REBOOT_QUICK_START.md#recover-an-exited-mavros-in-a-core-only-session).

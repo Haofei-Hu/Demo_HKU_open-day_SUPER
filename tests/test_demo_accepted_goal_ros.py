@@ -1,6 +1,7 @@
 """SUPER accepted goals control leg completion without changing requested targets."""
 from collections import deque
 from copy import deepcopy
+import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace as NS
@@ -13,7 +14,7 @@ sys.path[:0]=[str(ROOT),str(ROOT/'tests'),str(ROOT/'scripts/flight'),str(ROOT/'s
 from builtin_interfaces.msg import Time
 from geometry_msgs.msg import Pose
 from visualization_msgs.msg import Marker
-from mars_quadrotor_msgs.msg import PositionCommand
+from mars_quadrotor_msgs.msg import PositionCommand,PolynomialTrajectory
 from super_demo_control import DemoMissionControl,VenueFrame,planner_goal_marker
 from demo_mission import DemoMission
 from demo_mission_simulation import synthetic_goal_markers
@@ -36,6 +37,7 @@ class Harness(DemoMissionControl):
         self.frame=VenueFrame([0,0,0],[0,0,0,1],self.mission,lambda:False)
         self.mission_report=NS(data=dict(accepted_goals={},planner_motion_by_leg={}),save=Mock(),event=Mock(),completed=Mock())
         self.logs=[];self.errors=[];self.follower=self.make_follower();self.pending=deque();self.poly_pending=deque()
+        self.endpoint_kinds=set();self.plan_evidence=[]
         self.source=NS(node_name='fsm_node',node_namespace='/',endpoint_gid=bytes(range(24)))
         self.planner_sources={'/visualization/goal':self.source.endpoint_gid}
         self.plan_source=NS(node_name='fsm_node',node_namespace='/',endpoint_gid=bytes(range(12))+b'p'*12)
@@ -67,6 +69,119 @@ class Harness(DemoMissionControl):
 
 
 class Tests(unittest.TestCase):
+    def test_recorded_physical_terminal_handoff_reproduces_then_holds(self):
+        recorded=json.loads((ROOT/'tests/fixtures/demo_final_reference_handoff.json').read_text())
+        def message(data):
+            msg=PolynomialTrajectory();msg.header.frame_id='world';msg.type=3;msg.order_pos=7
+            msg.piece_num_pos=len(data['time_pos'])
+            for key,value in data.items():setattr(msg,key,value)
+            return msg
+        previous=message(recorded['previous_plan']);current=message(recorded['current_plan'])
+        plan=Plan(previous);new_plan=Plan(current)
+        for fixed,terminal_queued in ((False,False),(False,True),(True,False),(True,True)):
+            node=Harness();node.now_ns=recorded['current_stamp_ns']
+            node.requested_raw=plan.endpoint.copy();node.mapping.origin=plan.endpoint-node.far
+            node.feedback(node.requested_raw);node.follower.add_plan(previous)
+            p,v,a=plan.evaluate(recorded['previous_stamp_ns']/1e9-plan.start)
+            node.follower.command(recorded['previous_stamp_ns'],p,v,a,p-node.mapping.origin,
+                                  node.goal_q,measured_position=node.home)
+            self.assertFalse(node.follower.resting_at_endpoint())
+            self.assertAlmostEqual(plan.end-recorded['previous_stamp_ns']/1e9,.005934,places=5)
+            current.header.stamp=node.get_clock().now().to_msg()
+            node.poly_pending.append(current)
+            p,v,a=new_plan.evaluate(node.now_ns/1e9-new_plan.start)
+            cmd=PositionCommand();cmd.header.frame_id='world';cmd.header.stamp=current.header.stamp;cmd.trajectory_flag=1
+            for name,vector in (('position',p),('velocity',v),('acceleration',a)):
+                for axis,value in zip(('x','y','z'),vector):setattr(getattr(cmd,name),axis,float(value))
+            if terminal_queued:
+                terminal=deepcopy(cmd)
+                ns=round((plan.end+.0001)*1e9)
+                terminal.header.stamp.sec,terminal.header.stamp.nanosec=divmod(ns,1_000_000_000)
+                for name,vector in zip(('position','velocity','acceleration'),plan.evaluate(plan.duration)):
+                    for axis,value in zip(('x','y','z'),vector):setattr(getattr(terminal,name),axis,float(value))
+                node.pending.append(terminal)
+            node.pending.append(cmd)
+            if not fixed:
+                node.follower.finish_final_rest=lambda now_ns:None
+                with self.assertRaisesRegex(ValueError,'position step'):
+                    node.process_reference(node.home)
+                self.assertAlmostEqual(node.follower.last_continuity_failure['step_m'],recorded['step_m'],places=7)
+            else:
+                node.process_reference(node.home)
+                self.assertEqual(node.follower.phase,'END_HOLD')
+                self.assertEqual(node.follower.last[0],recorded['previous_stamp_ns'])
+                self.assertIsNone(node.follower.last_continuity_failure)
+                self.assertEqual(node.goal_count,1)
+
+    def terminal_before_last_message(self,node,remaining=.005934):
+        node.feedback(node.requested_raw)
+        duration=2.19495056
+        msg=stage_plan(node.mapping.origin+node.home,node.accepted_raw,100.,duration)
+        # MINCO rest endpoints also have zero jerk; use a seventh-order rest
+        # polynomial rather than the older quintic fixture's terminal jerk.
+        start=node.mapping.origin+node.home
+        for axis,name in enumerate(('coef_pos_x','coef_pos_y','coef_pos_z')):
+            delta=node.accepted_raw[axis]-start[axis]
+            setattr(msg,name,[-20*delta/duration**7,70*delta/duration**6,
+                -84*delta/duration**5,35*delta/duration**4,0.,0.,0.,float(start[axis])])
+        node.follower.add_plan(msg);plan=Plan(msg)
+        elapsed=duration-remaining;p,v,a=plan.evaluate(elapsed)
+        stamp=round((100.+elapsed)*1e9)
+        node.follower.command(stamp,p,v,a,p-node.mapping.origin,node.goal_q,
+                              measured_position=node.home)
+        return plan,stamp
+
+    def test_missing_terminal_sample_holds_final_goal_before_reanchored_plan(self):
+        node=Harness();plan,stamp=self.terminal_before_last_message(node)
+        self.assertEqual(node.follower.phase,'TRACK')
+        self.assertLess(stamp/1e9,plan.end)
+        delta=np.array([.3583,-.1687,.0534])
+        node.now_ns=stamp+50_323_456
+        new=stage_plan(node.accepted_raw+delta,node.accepted_raw,node.now_ns/1e9-.028966,1.730439)
+        new.header.stamp=node.get_clock().now().to_msg()
+        p,v,a=Plan(new).evaluate(.028966)
+        cmd=PositionCommand();cmd.header.frame_id='world';cmd.header.stamp=new.header.stamp;cmd.trajectory_flag=1
+        for name,vector in (('position',p),('velocity',v),('acceleration',a)):
+            for axis,value in zip(('x','y','z'),vector):setattr(getattr(cmd,name),axis,float(value))
+        node.poly_pending.append(new);node.pending.append(cmd);node.reference_accepted=Mock()
+        node.process_reference(node.far+delta)
+        self.assertEqual(node.follower.phase,'END_HOLD')
+        self.assertEqual(node.follower.last[0],stamp,'Completion must not retime a received command')
+        np.testing.assert_allclose(node.follower.last[1],node.far,atol=1e-6)
+        np.testing.assert_array_equal(node.native_velocity,np.zeros(3))
+        node.reference_accepted.assert_not_called()
+        self.assertFalse(node.pending);self.assertFalse(node.poly_pending)
+        proof=node.mission_report.data['terminal_reference_holds_by_leg']['outbound']
+        self.assertLess(proof['remaining_polynomial_displacement_bound_m'],.015)
+        self.assertEqual(proof['last_command_stamp_ns'],stamp)
+        node.mission_tick(node.now_ns/1e9,node.far+delta,0.)
+        self.assertEqual(node.goal_count,1,'Reference completion is not measured aircraft arrival')
+        self.assertIsNone(node.arrived_since)
+        node.arrived_since=node.now_ns/1e9-1.1
+        node.mission_tick(node.now_ns/1e9,node.far,0.)
+        self.assertEqual(node.leg,'return');self.assertEqual(node.goal_count,2)
+
+    def test_near_terminal_reference_waits_until_polynomial_end(self):
+        node=Harness();plan,stamp=self.terminal_before_last_message(node)
+        node.now_ns=round((plan.end-.001)*1e9)
+        node.process_reference(node.home)
+        self.assertEqual(node.follower.phase,'TRACK')
+        node.now_ns=round((plan.end+.001)*1e9)
+        node.process_reference(node.home)
+        self.assertEqual(node.follower.phase,'END_HOLD')
+        self.assertEqual(node.follower.last[0],stamp)
+
+    def test_expired_intermediate_stop_does_not_complete_final_goal(self):
+        node=Harness();node.feedback(node.requested_raw)
+        msg=stage_plan(node.mapping.origin+node.home,node.accepted_raw-[.5,0,0],100.,2.)
+        node.follower.add_plan(msg);plan=Plan(msg)
+        p,v,a=plan.evaluate(1.994)
+        node.follower.command(101_994_000_000,p,v,a,p-node.mapping.origin,node.goal_q,measured_position=node.home)
+        node.now_ns=102_010_000_000
+        node.process_reference(node.home)
+        self.assertEqual(node.follower.phase,'TRACK')
+        self.assertNotIn('terminal_reference_holds_by_leg',node.mission_report.data)
+
     def test_five_round_trips_keep_fixed_endpoints_and_land_only_after_tenth_goal(self):
         node=Harness();config=fixture();config['flight']['round_trips']=5
         node.mission=DemoMission(config);node.goal_count=0

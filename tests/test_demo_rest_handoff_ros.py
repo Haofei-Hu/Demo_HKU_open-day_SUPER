@@ -38,6 +38,27 @@ class Tests(unittest.TestCase):
         self.assertFalse(Plan(msg).matches(106000000000,self.stop,np.zeros(3),np.zeros(3)),
                          'Legacy diagnostics must retain their original matching rule')
 
+    def test_terminal_completion_does_not_hide_a_remaining_loop_or_unknown_goal(self):
+        follower=self.follower();msg=stage_plan(self.goal,self.goal,100.,1.)
+        # x = goal + .2*t^3*(1-t)^3: stationary at the goal at both ends,
+        # but the unobserved remaining curve contains a real excursion.
+        msg.coef_pos_x=[0.,-.2,.6,-.6,.2,0.,0.,float(self.goal[0])]
+        follower.add_plan(msg);self.sample(follower,msg,0.)
+        self.assertIsNone(follower.finish_final_rest(101_000_000_000))
+        self.assertEqual(follower.phase,'TRACK')
+        follower=self.follower();msg=stage_plan(self.begin,self.goal,100.,3.)
+        follower.add_plan(msg);self.sample(follower,msg,2.999)
+        follower.final_goal_check=lambda plan,p:False
+        self.assertIsNone(follower.finish_final_rest(103_010_000_000))
+        self.assertEqual(follower.phase,'TRACK')
+
+    def test_terminal_completion_rejects_moving_endpoints(self):
+        follower=self.follower();msg=stage_plan(self.goal,self.goal,100.,1.)
+        msg.coef_pos_x[-2]=.2
+        follower.add_plan(msg);self.sample(follower,msg,.999)
+        self.assertIsNone(follower.finish_final_rest(101_010_000_000))
+        self.assertEqual(follower.phase,'TRACK')
+
     def test_silent_rest_wait_has_no_deadline_and_resumes_continuously(self):
         follower=self.follower();msg=stage_plan(self.begin,self.stop,100.,3.)
         follower.add_plan(msg)

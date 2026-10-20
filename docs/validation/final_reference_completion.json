@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "scope": "Recorded physical polynomial replay and cloud real-SUPER/ideal-vehicle fault injection; no new physical flight",
+  "source_run": "20261020_150021_384581",
+  "supervisor_sha256": "15834e2a10b0c268e6697add0f4fb13b55cb64a5160ed39ea6c2f4d735b6827e",
+  "recorded_fixture_sha256": "92c653fd830c0c7d913ac673cb9b0299cb42c1015434a3fb6c5d5e944b45013b",
+  "recorded_baseline": {
+    "step_m": 0.3996127309232114,
+    "gap_s": 0.050323456,
+    "last_sample_before_polynomial_end_s": 0.005934,
+    "preserved_reproduction": true,
+    "delivery_cases": [
+      "Terminal sample unavailable",
+      "Terminal sample queued but superseded by newest-command policy"
+    ]
+  },
+  "recorded_fc_reference_peak_error_forward_left_up_m": [
+    0.769688161618293,
+    0.4011181652556809,
+    0.3043277188729977
+  ],
+  "physical_tracking_cause_resolved": false,
+  "physical_flight_success_verified": false,
+  "regression": {
+    "passed": 89,
+    "suites": [
+      "test_demo_accepted_goal_ros",
+      "test_demo_rest_handoff_ros",
+      "test_demo_tracking_ros",
+      "test_demo_test_release",
+      "test_bounded_reference",
+      "test_demo_mission",
+      "test_live_venue",
+      "test_live_venue_ros"
+    ]
+  },
+  "cloud_replay": {
+    "result": "SUCCESS",
+    "stage": "DONE",
+    "completed_stages": [
+      "TAKEOFF_TO_1_5M",
+      "STABILIZE_AT_HOME",
+      "ROUND_01_SUPER_OUTBOUND_4_5M",
+      "ROUND_01_STABILIZE_AT_FAR_POINT",
+      "ROUND_01_SUPER_RETURN_HOME",
+      "ROUND_02_SUPER_OUTBOUND_4_5M",
+      "ROUND_02_STABILIZE_AT_FAR_POINT",
+      "ROUND_02_SUPER_RETURN_HOME",
+      "ROUND_03_SUPER_OUTBOUND_4_5M",
+      "ROUND_03_STABILIZE_AT_FAR_POINT",
+      "ROUND_03_SUPER_RETURN_HOME",
+      "ROUND_04_SUPER_OUTBOUND_4_5M",
+      "ROUND_04_STABILIZE_AT_FAR_POINT",
+      "ROUND_04_SUPER_RETURN_HOME",
+      "ROUND_05_SUPER_OUTBOUND_4_5M",
+      "ROUND_05_STABILIZE_AT_FAR_POINT",
+      "ROUND_05_SUPER_RETURN_HOME",
+      "HOLD_HOME_6S",
+      "AUTO_LAND",
+      "CONFIRM_LANDED_AND_DISARMED"
+    ],
+    "round_trips": 5,
+    "injected_legs": [
+      "round_01_outbound",
+      "round_01_return",
+      "round_02_outbound",
+      "round_02_return",
+      "round_03_outbound",
+      "round_03_return",
+      "round_04_outbound",
+      "round_04_return",
+      "round_05_outbound",
+      "round_05_return"
+    ],
+    "dropped_commands_by_leg": {
+      "round_01_outbound": 11,
+      "round_01_return": 12,
+      "round_02_outbound": 13,
+      "round_02_return": 13,
+      "round_03_outbound": 9,
+      "round_03_return": 9,
+      "round_04_outbound": 15,
+      "round_04_return": 10,
+      "round_05_outbound": 11,
+      "round_05_return": 12
+    },
+    "reference_holds": {
+      "round_01_outbound": {
+        "plan_start": 1792480478.510298,
+        "plan_end": 1792480480.7229402,
+        "observed_now_ns": 1792480480724980229,
+        "last_command_stamp_ns": 1792480480614233344,
+        "remaining_polynomial_displacement_bound_m": 0.0010743833702748517,
+        "verified_hold_position": [
+          -0.444948568891109,
+          -4.485225139395498,
+          1.3840867472098637
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 1
+      },
+      "round_01_return": {
+        "plan_start": 1792480485.3082438,
+        "plan_end": 1792480487.4775407,
+        "observed_now_ns": 1792480487524944210,
+        "last_command_stamp_ns": 1792480487364185088,
+        "remaining_polynomial_displacement_bound_m": 0.001289033599447198,
+        "verified_hold_position": [
+          -0.006826999966021541,
+          -0.051898602505839025,
+          1.4356526677721408
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 0
+      },
+      "round_02_outbound": {
+        "plan_start": 1792480492.8321762,
+        "plan_end": 1792480495.042642,
+        "observed_now_ns": 1792480495077681071,
+        "last_command_stamp_ns": 1792480494914056448,
+        "remaining_polynomial_displacement_bound_m": 0.0019138267349879552,
+        "verified_hold_position": [
+          -0.4448591988381596,
+          -4.48520294289264,
+          1.3840951850131056
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 0
+      },
+      "round_02_return": {
+        "plan_start": 1792480499.3001006,
+        "plan_end": 1792480501.7350497,
+        "observed_now_ns": 1792480501775890344,
+        "last_command_stamp_ns": 1792480501613956352,
+        "remaining_polynomial_displacement_bound_m": 0.0013168035111935936,
+        "verified_hold_position": [
+          -0.006815618723635675,
+          -0.05192038791394185,
+          1.4356250089642852
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 1
+      },
+      "round_03_outbound": {
+        "plan_start": 1792480506.7579393,
+        "plan_end": 1792480509.048064,
+        "observed_now_ns": 1792480509076280411,
+        "last_command_stamp_ns": 1792480508963854848,
+        "remaining_polynomial_displacement_bound_m": 0.0003937707148545168,
+        "verified_hold_position": [
+          -0.44493890465203845,
+          -4.485269590206038,
+          1.3840454295637716
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 0
+      },
+      "round_03_return": {
+        "plan_start": 1792480513.621868,
+        "plan_end": 1792480515.84996,
+        "observed_now_ns": 1792480515876286705,
+        "last_command_stamp_ns": 1792480515763792384,
+        "remaining_polynomial_displacement_bound_m": 0.00040536007646547746,
+        "verified_hold_position": [
+          -0.006838723651404033,
+          -0.05186241864606869,
+          1.435596660354733
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 0
+      },
+      "round_04_outbound": {
+        "plan_start": 1792480522.1357415,
+        "plan_end": 1792480524.754896,
+        "observed_now_ns": 1792480524775602201,
+        "last_command_stamp_ns": 1792480524613701376,
+        "remaining_polynomial_displacement_bound_m": 0.0021712793271531096,
+        "verified_hold_position": [
+          -0.444942925164185,
+          -4.485133142628302,
+          1.3840920240344428
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 0
+      },
+      "round_04_return": {
+        "plan_start": 1792480529.0656915,
+        "plan_end": 1792480531.4040558,
+        "observed_now_ns": 1792480531424782219,
+        "last_command_stamp_ns": 1792480531313571328,
+        "remaining_polynomial_displacement_bound_m": 0.0005212918338344002,
+        "verified_hold_position": [
+          -0.006827148292363194,
+          -0.051867911391517335,
+          1.435596785183142
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 1
+      },
+      "round_05_outbound": {
+        "plan_start": 1792480536.7216103,
+        "plan_end": 1792480539.0646234,
+        "observed_now_ns": 1792480539077152591,
+        "last_command_stamp_ns": 1792480538963534336,
+        "remaining_polynomial_displacement_bound_m": 0.0007854103948579167,
+        "verified_hold_position": [
+          -0.44491638395161615,
+          -4.485256669329621,
+          1.3840581663769385
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 1
+      },
+      "round_05_return": {
+        "plan_start": 1792480543.6515312,
+        "plan_end": 1792480545.834597,
+        "observed_now_ns": 1792480545874946101,
+        "last_command_stamp_ns": 1792480545723436288,
+        "remaining_polynomial_displacement_bound_m": 0.001126159252243844,
+        "verified_hold_position": [
+          -0.006805977041396405,
+          -0.05190116975515438,
+          1.4356188695409244
+        ],
+        "measured_arrival_confirmed": false,
+        "discarded_commands": 0,
+        "discarded_plans": 1
+      }
+    },
+    "final_hold_s": 6.049350334011251,
+    "confirmed_virtual_landed": true,
+    "confirmed_virtual_disarmed": true,
+    "report_sha256": "9f6f58f0b0ba03522a5abeba7cbeb85c5aed0414621be5b80577c68305628c4c"
+  }
+}

@@ -89,6 +89,34 @@ class VenueReference(RollingGoalReference):
             and np.linalg.norm(plan.end_velocity)<=.03
             and np.linalg.norm(plan.end_acceleration)<=.10)
 
+    def finish_final_rest(self,now_ns):
+        """Hold a final rest even if its terminal command was superseded or lost.
+
+        This completes the reference, not measured aircraft arrival. The old
+        polynomial must have ended, its last accepted command must already be
+        stationary at the accepted final goal, and its entire remaining motion
+        must fit the existing 15 mm endpoint matching tolerance. No command or
+        measurement stamp is changed and no new trajectory is accepted here.
+        """
+        plan=self.last_plan;sample=self.last_evidence
+        if (self.phase!='TRACK' or plan is None or sample is None or self.last is None
+                or now_ns/1e9<plan.end
+                or np.linalg.norm(sample['raw']-plan.endpoint)>.015
+                or np.linalg.norm(sample['velocity'])>.03
+                or np.linalg.norm(sample['acceleration'])>.10
+                or np.linalg.norm(plan.end_velocity)>.03
+                or np.linalg.norm(plan.end_acceleration)>.10):
+            return None
+        elapsed=min(self.last[0]/1e9-plan.start,plan.duration)
+        remaining=plan.displacement_bound(elapsed,plan.duration)
+        if remaining>.015 or not self.can_hold_endpoint(plan,self.last[1]):return None
+        self.frame.check(self.last[1])
+        self.phase='END_HOLD'
+        return dict(plan_start=plan.start,plan_end=plan.end,observed_now_ns=int(now_ns),
+            last_command_stamp_ns=int(self.last[0]),
+            remaining_polynomial_displacement_bound_m=remaining,
+            verified_hold_position=self.last[1].tolist(),measured_arrival_confirmed=False)
+
     def max_command_gap(self):
         # Actual position continuity is checked against the committed polynomial.
         # An elapsed stamp interval alone is not a mission failure.
@@ -381,6 +409,18 @@ class DemoMissionControl(SuperFlightControl):
 
     def process_reference(self,xyz):
         try:
+            # Resolve an already-finished final reference before consuming a
+            # redundant PlanFromRest from the vehicle's tracking-error position.
+            # Real arrival is still checked by mission_tick using FC feedback.
+            completed=self.follower.finish_final_rest(self.get_clock().now().nanoseconds)
+            if completed is not None:
+                completed.update(discarded_commands=len(self.pending),discarded_plans=len(self.poly_pending))
+                self.pending.clear();self.poly_pending.clear();self.native_velocity=np.zeros(3)
+                self.mission_report.data.setdefault('terminal_reference_holds_by_leg',{})[self.leg_key()]=completed
+                self.mission_report.save()
+                self.get_logger().info('Final committed reference finished; holding verified endpoint. '
+                    'Waiting for measured aircraft arrival before the next goal.')
+                return
             # PositionCommand is a live reference stream, not a work queue.
             # Preserve the newest received stamp and validate it normally;
             # do not spend the control cycle replaying superseded samples.

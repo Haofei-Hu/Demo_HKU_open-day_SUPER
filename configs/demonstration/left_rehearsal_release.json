@@ -15,7 +15,7 @@
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",
-      "sha256": "c4e5dc7ae6bda9d5b78ca00d018f7b0c9b71f00cf73eebe96dfb0b57c270be74"
+      "sha256": "15834e2a10b0c268e6697add0f4fb13b55cb64a5160ed39ea6c2f4d735b6827e"
     },
     "demo_mission_simulation.py": {
       "path": "scripts/simulation/demo_mission_simulation.py",
