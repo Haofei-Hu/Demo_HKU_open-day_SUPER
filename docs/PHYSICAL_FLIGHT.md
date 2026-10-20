@@ -2,7 +2,7 @@
 
 Sequence: **rise to an FC-centre height of 1.5 m above the floor → fly 4.5 m outbound and return to the original hover point, five round trips → hover for 6 seconds → land and confirm disarmed**. Planning targets remain 2 m/s and 1 m/s²; acceptance bounds remain 4 m/s and 2 m/s².
 
-`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `e9bf3bf598813a44ec6da5a1eb7f75b2c68ab763`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
+`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `38f209a9fa13d5d6caf6589348df94c796908351`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
 
 ## 1. Use the measured configuration for this placement
 
