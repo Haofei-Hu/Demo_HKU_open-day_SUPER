@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='24aa618ac4ebacbc8ec26a2c754f8973961e30dd'
+demo_revision='3256ff8f87faa8d3c124f49b4cef43fbcdc95071'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
@@ -22,6 +22,8 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 ```
 
 Always install the complete matching 28-file release. Updating only a controller or reference helper can mix incompatible interfaces: an observed two-file update called a four-argument `inverse_goal()` against an older three-argument implementation. After installation, the normal `--restart` command below clears the previous grounded session before using the new release.
+
+The final-reference completion update changes Python only. A system already built with all ten venue markers needs no additional C++ build. Older installations follow the one-time patch/build procedure below.
 
 The installer validates the matching release manifest and backs up replaced scripts. It preserves measured alignment and local mission geometry. For the canonical `~/Downloads/open_day_mission.json`, an existing 2 m mission is backed up and migrated to the requested 1.5 m height and matching takeoff stage; vehicle, venue and takeoff measurements are retained. Known canonical single-round profiles are also backed up and expanded to five rounds, preserving vehicle, venue, takeoff and alignment measurements. Explicit custom profiles are retained. Other mission settings are retained. It does not launch ROS or initiate flight. Separately named measured mission files are not modified. Keep `flight.round_trips=5`. The laboratory trial explicitly uses `--flight-height 1.0`, which saves the 1 m target and matching takeoff stage in a per-run copy; it does not change the canonical 1.5 m default. The integration workspaces and earlier localization helpers remain prerequisites.
 

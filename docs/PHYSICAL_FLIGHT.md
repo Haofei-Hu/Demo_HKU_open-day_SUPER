@@ -22,15 +22,15 @@ outbound path; the initial heading is retained.
 ## 1. Install the matching release once
 
 Finish any running task and keep the aircraft landed and disarmed before updating.
-This release adds bounded backup-waypoint support and requires ten venue markers.
-After updating, apply the venue patch and rebuild once using the
-[one-time patch and build commands](QUICK_START.md#install-or-update-once), even
-if the previous nine-marker release is installed.
+This release fixes final-reference completion in the Python supervisor. No new
+C++ build is required if all ten venue markers are already installed, including
+`VENUE_BACKUP_WAYPOINTS_V1`. Older installations need the
+[one-time patch and build commands](QUICK_START.md#install-or-update-once).
 
 ```bash
 (
 set -e
-revision='24aa618ac4ebacbc8ec26a2c754f8973961e30dd'
+revision='3256ff8f87faa8d3c124f49b4cef43fbcdc95071'
 update_dir=$(mktemp -d)
 
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
