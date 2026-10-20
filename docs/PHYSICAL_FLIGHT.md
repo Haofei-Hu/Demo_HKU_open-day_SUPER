@@ -10,7 +10,7 @@ The measured source file is preserved; the effective height appears in the
 per-run `flight_mission.json` and report. Omitting the height option still uses
 the existing 1.5 m default.
 
-`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `38f209a9fa13d5d6caf6589348df94c796908351`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
+`super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `560633172b32a12e95c96ee0d5c7b4613aac2e41`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
 
 ## 1. Use the measured configuration for this placement
 

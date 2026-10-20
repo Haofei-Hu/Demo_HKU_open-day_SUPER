@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `38f209a9fa13d5d6caf6589348df94c796908351`.
+Matching release: `560633172b32a12e95c96ee0d5c7b4613aac2e41`.
 These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
 
 ## Install or update once
@@ -10,7 +10,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='38f209a9fa13d5d6caf6589348df94c796908351'
+demo_revision='560633172b32a12e95c96ee0d5c7b4613aac2e41'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
