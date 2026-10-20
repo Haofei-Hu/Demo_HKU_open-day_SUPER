@@ -5,6 +5,26 @@ or controller gains. It records the raw LIO pose, aligned pose, native vision
 input and FC local pose while an operator moves the disarmed aircraft through
 known displacements. It does not publish goals, setpoints, arming or mode requests.
 
+## Install the diagnostic once
+
+This adds only the diagnostic script to an existing demonstration installation:
+
+```bash
+(
+set -e
+check_revision='394b8dce2a80f3cf7e5a9a2b7cda9ebd1b970ba1'
+check_download=$(mktemp -d "$HOME/Downloads/localization_check_install_XXXXXX")
+curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
+  "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$check_revision/scripts/analysis/ground_localization_check.py" \
+  -o "$check_download/ground_localization_check.py"
+python3 -m py_compile "$check_download/ground_localization_check.py"
+if [ -f "$HOME/Downloads/ground_localization_check.py" ]; then
+  cp "$HOME/Downloads/ground_localization_check.py" "$check_download/previous.py"
+fi
+cp "$check_download/ground_localization_check.py" "$HOME/Downloads/"
+)
+```
+
 ## Run from the current installation
 
 Keep the aircraft stationary during automatic preparation. Run in an onboard
