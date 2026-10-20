@@ -7,11 +7,11 @@
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "1df867d08725c5881af7d820eed966ba7912c2696a57c8932129a746afe63b28"
+      "sha256": "abac05083ae4c330239ca18c191577482ce7627fa2bd4ae495f1772e4e375c38"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
-      "sha256": "bf47bd0b19ca828bc329d51628f7ae18dd8d66a239424ea3ec4c1bd7eefff5c5"
+      "sha256": "c4b32f60957d431262826269ee954f9cc4ed54c0e96b3754617a234a309ca0ca"
     },
     "super_demo_control.py": {
       "path": "scripts/flight/super_demo_control.py",

@@ -81,6 +81,25 @@ class Tests(unittest.TestCase):
             self.assertEqual(report.data['round_trips_completed'],5)
             self.assertFalse(report.data['physical_flight_verified'])
 
+    def test_one_metre_hover_does_not_lower_selected_two_metre_ceiling(self):
+        import numpy as np
+        from rviz_venue_calibration import selected_geometry,cap_selected_box,apply_geometry
+        obs=dict(ground_fc_xyz=[0.,0.,0.],ground_fc_yaw_rad=0.,origin=[0.,0.,0.])
+        geometry=cap_selected_box(selected_geometry([0.,1.69,1.], [0.,-1.317,1.],obs,np.eye(3),.5),2.,2.)
+        source=apply_geometry(fixture(),geometry,obs,'test-only')
+        before=deepcopy(source)
+        mission=DemoMission(DemoMission.physical_height(source,1.))
+        self.assertEqual(source,before)
+        self.assertEqual(mission.hover_height,1.)
+        self.assertEqual(mission.height,2.)
+        self.assertEqual(mission.width,2.)
+        self.assertEqual(mission.waypoints()['home_hover'],[0.,0.,1.])
+        self.assertEqual(mission.waypoints()['far_hover'],[4.5,0.,1.])
+        self.assertEqual(mission.waypoints()['return_hover'],[0.,0.,1.])
+        mission.check([1.,0.,1.8])  # Avoidance can rise above the hover target.
+        with self.assertRaises(ValueError):mission.check([1.,0.,2.])
+        self.assertEqual(mission.PHASES[0],'TAKEOFF_TO_1_0M')
+
     def test_physical_height_copy_rejects_fixture_missing_survey_and_ceiling_violation(self):
         for config in (DemoMission.ground_rehearsal(fixture()),
                        dict(fixture(),status='SYNTHETIC_FIXTURE')):

@@ -31,7 +31,7 @@ class DemoMission:
             raise ValueError('Round trips must be a positive integer')
         self.outbound_stage=outbound
         height=f.get('height_fc_above_floor_m')
-        allowed_heights=(.5,1.5) if self.rehearsal_only else (1.5,1.8)
+        allowed_heights=(.5,1.5) if self.rehearsal_only else (1.,1.5,1.8)
         if isinstance(height,bool) or height not in allowed_heights:
             raise ValueError('Final demonstration settings differ: unsupported height')
         takeoff_stage='TAKEOFF_TO_'+str(height).replace('.','_')+'M'

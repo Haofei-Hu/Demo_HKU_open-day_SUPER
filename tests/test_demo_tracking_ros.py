@@ -131,6 +131,9 @@ class Tests(unittest.TestCase):
     def test_physical_entry_accepts_observation_without_initiating_flight(self):
         self.physical_entry(1.5)
 
+    def test_physical_one_metre_hover_retains_explicit_start_gate(self):
+        self.physical_entry(1.)
+
     def test_physical_1_8m_entry_preserves_start_gate_and_motion_policy(self):
         self.physical_entry(1.8)
 
@@ -143,6 +146,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(args.flight_height,1.8)
         self.assertFalse(args.execute)
         self.assertFalse(args.on_site_supervised)
+        args=preparation_arguments(['--mission-file','measured.json','--flight-height','1.0'])
+        self.assertEqual(args.flight_height,1.)
+        self.assertFalse(args.execute)
 
     def physical_entry(self,height):
         import rclpy

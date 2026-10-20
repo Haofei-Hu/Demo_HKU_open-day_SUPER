@@ -2,6 +2,14 @@
 
 Sequence: **rise to an FC-centre height of 1.5 m above the floor → fly 4.5 m outbound and return to the original hover point, five round trips → hover for 6 seconds → land and confirm disarmed**. Planning targets remain 2 m/s and 1 m/s²; acceptance bounds remain 4 m/s and 2 m/s².
 
+For the initial **1.0 m hover-height trial**, explicitly use `--flight-height 1.0`
+in the preparation command below. This sets takeoff, outbound target and return
+hover heights to 1.0 m above the floor at the FC centre. Keep `--venue-ceiling 2`:
+the outer ceiling remains 2 m, and avoidance can change altitude inside that box.
+The measured source file is preserved; the effective height appears in the
+per-run `flight_mission.json` and report. Omitting the height option still uses
+the existing 1.5 m default.
+
 `super_demo.py` is the physical-flight entrypoint. First use the [complete installer](QUICK_START.md#install-or-update-once) for matching release `38f209a9fa13d5d6caf6589348df94c796908351`. The matching release includes the continuous-rest-start C++ correction. Complete the one-time venue patch and rebuild in the quick start before preparing physical flight.
 
 ## 1. Use the measured configuration for this placement

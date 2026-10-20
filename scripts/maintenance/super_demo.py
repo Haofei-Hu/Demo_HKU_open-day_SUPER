@@ -52,7 +52,7 @@ class DemoPreparation(GroundTest):
 def arguments(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mission-file',type=Path,required=True)
-    p.add_argument('--flight-height',type=float,choices=(1.5,1.8),default=1.5,
+    p.add_argument('--flight-height',type=float,choices=(1.,1.5,1.8),default=1.5,
                    help='FC-centre height above floor (default: 1.5 m); saves a per-run mission copy without editing the survey')
     p.add_argument('--calibrate-venue',action='store_true',help='Select left/right sides in RViz after fresh localization')
     p.add_argument('--calibration-only',action='store_true',help='Stop after selection; permits incomplete aircraft geometry, no planner/controller')
