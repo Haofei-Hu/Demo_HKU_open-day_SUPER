@@ -12,6 +12,11 @@
 
 The root retains three complete standalone download entry points: `first_hover_terminal.py`, `odom_age_check.py`, and `update_preview_alignment.py`. [layout.json](layout.json) maps aircraft filenames to categorized sources.
 
+`analysis/hover_drift_check.py` is a standalone read-only ground observer for
+hover-sway diagnosis. It captures live localization parameters and a bounded
+stationary window without requiring external-vision initialization. See the
+[step-by-step download and capture commands](../docs/HOVER_DRIFT_DIAGNOSTIC.md).
+
 ## Deploy into Downloads
 
 Run from this checkout on the onboard computer after landing, disarming, and stopping affected processes:

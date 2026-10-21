@@ -7,6 +7,7 @@
 | Installation, one-command rehearsal after reboot, reports, and recovery | [Quick start](QUICK_START.md) |
 | Laboratory physical trial: 1 m hover, 2 m width and ceiling | [Physical flight](PHYSICAL_FLIGHT.md) |
 | Fixed-position 1 m hover for 20 seconds, then landing | [Fixed hover](FIXED_HOVER.md) |
+| Read-only ground baseline after lateral hover sway | [Hover drift diagnosis, step 1](HOVER_DRIFT_DIAGNOSTIC.md) |
 | Detailed installation, reboot, and troubleshooting procedures | [Startup and recovery](REBOOT_QUICK_START.md) |
 | Aircraft envelope, takeoff placement, and venue measurements | [Site measurements](FLIGHT_SITE_MEASUREMENTS.md) |
 | Current verification scope and known issues | [Validation](VALIDATION.md) |
