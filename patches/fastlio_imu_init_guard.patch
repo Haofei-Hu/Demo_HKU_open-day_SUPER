@@ -1,0 +1,42 @@
+--- a/src/IMU_Processing.hpp
++++ b/src/IMU_Processing.hpp
+@@ -73,9 +73,9 @@
+   V3D mean_acc;
+   V3D mean_gyr;
+   V3D angvel_last;
+-  V3D acc_s_last;
++  V3D acc_s_last = Zero3d; // FASTLIO_IMU_INIT_GUARD_V1
+   double start_timestamp_;
+-  double last_lidar_end_time_;
++  double last_lidar_end_time_ = -1.0;
+   int    init_iter_num = 1;
+   bool   b_first_frame_ = true;
+   bool   imu_need_init_ = true;
+@@ -108,6 +108,8 @@
+   angvel_last       = Zero3d;
+   imu_need_init_    = true;
+   start_timestamp_  = -1;
++  last_lidar_end_time_ = -1.0;
++  acc_s_last = Zero3d;
+   init_iter_num     = 1;
+   v_imu_.clear();
+   IMUpose.clear();
+@@ -341,6 +343,8 @@
+   double t1,t2,t3;
+   t1 = omp_get_wtime();
+ 
++  // Never expose the previous scan when initialization/input is incomplete.
++  cur_pcl_un_->clear();
+   if(meas.imu.empty()) {return;};
+   assert(meas.lidar != nullptr);
+ 
+@@ -358,6 +362,9 @@
+     {
+       cov_acc *= pow(G_m_s2 / mean_acc.norm(), 2);
+       imu_need_init_ = false;
++      // The next propagation starts at this initialized scan boundary.
++      last_lidar_end_time_ = meas.lidar_end_time;
++      acc_s_last = Zero3d;
+ 
+       cov_acc = cov_acc_scale;
+       cov_gyr = cov_gyr_scale;
