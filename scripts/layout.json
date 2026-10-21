@@ -50,6 +50,7 @@
   "left_demo_control.py": "scripts/simulation/left_demo_control.py",
   "left_rehearsal.py": "scripts/simulation/left_rehearsal.py",
   "live_venue.py": "scripts/planning/live_venue.py",
+  "mid360_raw_viewer.py": "scripts/analysis/mid360_raw_viewer.py",
   "odom_age_check.py": "odom_age_check.py",
   "qgc_startup.py": "scripts/maintenance/qgc_startup.py",
   "raw_pose_cov_transport.py": "scripts/localization/raw_pose_cov_transport.py",
