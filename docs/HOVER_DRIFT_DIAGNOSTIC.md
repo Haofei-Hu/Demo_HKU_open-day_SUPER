@@ -1,4 +1,4 @@
-# Step 1: stationary hover-drift diagnosis
+# Hover drift diagnosis: ground observations
 
 Use this first after a hover with lateral sway. Keep the aircraft physically
 stationary on the floor, disarmed, with motors stopped. The measurements describe
@@ -91,3 +91,51 @@ After reviewing this baseline, isolate the RViz display and, if indicated,
 perform a controlled comparison of localization settings or investigate
 mechanical vibration. Change one condition at a time. Do not infer FAST-LIO
 failure merely from sparse points or small EKF innovations.
+
+## Step 2: compare the same cloud with two display durations
+
+After reviewing the stationary capture, keep the same localization session and
+the aircraft disarmed and physically fixed. Read any missing filter parameters
+one at a time; a parameter-service timeout does not itself mean odometry stopped:
+
+```bash
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+for parameter in point_filter_num filter_size_surf filter_size_map; do
+  printf '\n%s\n' "$parameter"
+  timeout 15s ros2 param get /laser_mapping "$parameter" || \
+    printf 'Read failed; retain the output. No value was assumed or changed.\n'
+done
+```
+
+Download [the cloud comparison configuration](../configs/rviz/hover_drift_cloud_compare.rviz)
+from the diagnostic revision into `~/Downloads/hover_drift_cloud_compare.rviz`.
+Open it in an onboard desktop terminal with the same ROS environment:
+
+```bash
+rviz2 -d "$HOME/Downloads/hover_drift_cloud_compare.rviz"
+```
+
+This viewer uses `camera_init`, the observed `/cloud_registered` frame, directly.
+It needs no auxiliary TF publisher and contains no occupancy-map overlay or goal
+tool. Both displays use the same topic, color, point size and QoS; only display
+history differs. The configuration changes no FAST-LIO or PX4 parameter.
+
+1. Leave `SingleFrame` checked and `Accumulated1s` unchecked. Select a view that
+   includes a stationary wall or other rigid structure, and capture a screenshot.
+2. Uncheck `SingleFrame`, check `Accumulated1s`, and wait at least two seconds.
+   Keep the same viewpoint and capture a second screenshot. Use only one display
+   at a time.
+
+If the accumulated view fills in a stable, coherent surface, limited points per
+frame can explain the sparse appearance. If a fixed wall produces persistent
+double edges, thick layers or overall motion, retain that evidence for checking
+registration, geometry and timing. Accumulation can also hide temporal jitter;
+a visually clean result is not a flight-localization acceptance test.
+
+Return the three parameter readbacks and both screenshots, including the display
+checkboxes. If the view is empty or a display reports an error, return that status
+instead. Do not increase point density, alter extrinsics or restart the LIO merely
+to make the comparison look better. A later measured-motion test is still needed
+to examine axis directions, scale and behavior while moving.

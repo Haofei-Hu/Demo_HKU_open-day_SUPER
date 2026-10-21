@@ -1,0 +1,107 @@
+# Display-only comparison of the same registered scan stream.
+# Keep exactly ONE cloud display enabled; preserve the camera between views.
+# No occupancy overlay, planner tools, or extra TF publisher is needed.
+Panels:
+- Class: rviz_common/Displays
+  Help Height: 90
+  Name: Displays
+  Property Tree Widget:
+    Expanded:
+    - /Global Options1
+    - /SingleFrame1
+    - /Accumulated1s1
+    Splitter Ratio: 0.5
+  Tree Height: 600
+- Class: rviz_common/Views
+  Expanded:
+  - /Current View1
+  Name: Views
+  Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ''
+  Displays:
+  - Alpha: 1
+    Class: rviz_default_plugins/PointCloud2
+    Color: 180; 220; 255
+    Color Transformer: FlatColor
+    Decay Time: 0
+    Enabled: true
+    Name: SingleFrame
+    Position Transformer: XYZ
+    Selectable: false
+    Size (Pixels): 2
+    Size (m): 0.01
+    Style: Points
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Best Effort
+      Value: /cloud_registered
+    Use Fixed Frame: true
+    Value: true
+  - Alpha: 1
+    Class: rviz_default_plugins/PointCloud2
+    Color: 180; 220; 255
+    Color Transformer: FlatColor
+    Decay Time: 1
+    Enabled: false
+    Name: Accumulated1s
+    Position Transformer: XYZ
+    Selectable: false
+    Size (Pixels): 2
+    Size (m): 0.01
+    Style: Points
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Best Effort
+      Value: /cloud_registered
+    Use Fixed Frame: true
+    Value: false
+  Enabled: true
+  Global Options:
+    Background Color: 35; 35; 40
+    Fixed Frame: camera_init
+    Frame Rate: 30
+  Name: root
+  Tools:
+  - Class: rviz_default_plugins/Interact
+  - Class: rviz_default_plugins/MoveCamera
+  - Class: rviz_default_plugins/Select
+  - Class: rviz_default_plugins/FocusCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 7.0
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0.0
+        Y: 0.0
+        Z: 0.5
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.7
+      Target Frame: camera_init
+      Value: Orbit (rviz)
+      Yaw: 0.8
+    Saved: null
+Window Geometry:
+  Height: 750
+  Width: 1100
+  X: 0
+  Y: 0
+  Hide Left Dock: false
+  Hide Right Dock: false
