@@ -1,6 +1,6 @@
 # Quick start after power-on or reboot
 
-Matching release: `8616a5eafc6ed064f4a38c5490e1b54eecc31272`.
+Matching release: `a52c2d860fbdbf8dc78fae4f459de3f38f99c996`.
 The rehearsal commands below run a **virtual ground rehearsal on an actual LiDAR
 map**. The physical aircraft remains stationary and disarmed; a virtual vehicle
 executes the motion.
@@ -19,7 +19,7 @@ Finish any running automatic test before updating. Use the complete installer to
 ```bash
 (
 set -e
-demo_revision='8616a5eafc6ed064f4a38c5490e1b54eecc31272'
+demo_revision='a52c2d860fbdbf8dc78fae4f459de3f38f99c996'
 demo_update_dir=$(mktemp -d "$HOME/Downloads/demo_full_update_XXXXXX")
 
 curl -q --noproxy '*' -fL \
@@ -32,7 +32,14 @@ python3 "$demo_update_dir/install_demo_test.py" --revision "$demo_revision"
 )
 ```
 
-This release includes the [takeoff floor-transition correction](validation/takeoff_floor_transition.md) and final-reference completion fixes. **No C++ rebuild is needed if all ten venue markers are already installed**, including `VENUE_BACKUP_WAYPOINTS_V1`. Otherwise, apply the venue patch and rebuild once:
+This release adds `--full-size-execution-venue`: keep SUPER inside the confirmed
+2 m planning width/ceiling while checking actual position against a separately
+confirmed 5.8 × 2.8 × 2.8 m outer box. See the [README startup commands](../README.md#quick-start)
+and [boundary details](PLANNER_VENUE_BOUNDS.md#separate-planning-and-measured-position-boundaries).
+Front/rear limits are unchanged. Without the flag, the original shared boundary
+remains active.
+
+It also includes the [takeoff floor-transition correction](validation/takeoff_floor_transition.md) and final-reference completion fixes. **No C++ rebuild is needed if all ten venue markers are already installed**, including `VENUE_BACKUP_WAYPOINTS_V1`. Otherwise, apply the venue patch and rebuild once:
 
 ```bash
 (

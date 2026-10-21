@@ -11,7 +11,7 @@ Run this once when deploying this release, or when deliberately updating the scr
 ```bash
 (
 set -e
-demo_revision='8616a5eafc6ed064f4a38c5490e1b54eecc31272'
+demo_revision='a52c2d860fbdbf8dc78fae4f459de3f38f99c996'
 demo_update_dir=$(mktemp -d)
 curl -q --noproxy '*' -fL --connect-timeout 10 --max-time 30 \
   "https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/$demo_revision/scripts/maintenance/install_demo_test.py" \
