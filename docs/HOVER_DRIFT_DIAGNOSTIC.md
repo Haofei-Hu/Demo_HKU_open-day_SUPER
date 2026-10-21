@@ -1,5 +1,37 @@
 # Hover drift diagnosis: ground observations
 
+## Surface-filter A/B follow-up
+
+After the static cloud/parameter review, `scripts/analysis/run_lio_surface_ab.sh`
+compares `filter_size_surf=0.5` against `0.2` without modifying installed YAML.
+Download it beside the updated `super_session.py` and `hover_drift_check.py`.
+Existing session helpers remain in `~/Downloads`; no full installer is needed.
+Run the shell script only while the aircraft is physically fixed on the floor,
+disarmed, with motors stopped. Allow approximately four minutes.
+
+The experiment first uses the manager's grounded shutdown to stop the active
+managed stack, including vision/control. Each trial starts only LiDAR, LIO,
+MAVROS and the body helper, fixes extrinsic estimation off, waits 20 seconds,
+verifies live settings and captures 60 seconds of scalar telemetry/cloud counts.
+Both trials rebuild the map; no old map or alignment is reused. Map voxel size
+remains 0.5, point thinning remains 3, and all other dumped LIO parameters must
+match. This tests a single setting; increased point count alone is not success.
+Compare roll/pitch jitter, XY variation and odometry freshness in the resulting
+bundle. This test does not capture actual point coordinates or demonstrate
+airborne behavior; follow up with geometry/A-B-A repetition if warranted.
+
+On success, the script restores and verifies the original 0.5 surface size
+with fixed extrinsics, leaving only the core processes running. Vision/control
+remain stopped because restarting LIO invalidates the previous alignment.
+It never writes PX4 parameters, arms, switches mode or resumes a flight.
+On an error it stops the workflow and retains partial reports without silently
+restarting failed nodes. Do not resume vision or fly from a partial experiment.
+
+`super_session.py start --lio-surf-size VALUE` is a startup-only override;
+an existing managed session with a different override is rejected. Omitting
+the option while reusing a session does not remove an existing override.
+Use a grounded stop followed by a new start to change or remove it.
+
 Use this first after a hover with lateral sway. Keep the aircraft physically
 stationary on the floor, disarmed, with motors stopped. The measurements describe
 the ground baseline; they do not reproduce propeller vibration in flight.

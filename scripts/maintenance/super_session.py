@@ -359,6 +359,8 @@ class Session:
 
     def core_commands(self):
         lio_override = ' -p mapping.extrinsic_est_en:=false' if self.args.fixed_lio_extrinsics else ''
+        if self.args.lio_surf_size is not None:
+            lio_override += ' -p filter_size_surf:='+str(self.args.lio_surf_size)
         return {
             'lidar': shell_command(['ros2', 'launch', 'livox_ros_driver2', 'msg_MID360_launch.py']),
             'lio': 'ros2 run fast_lio fastlio_mapping --ros-args --params-file '
@@ -375,6 +377,9 @@ class Session:
             self.load()
             if self.args.fixed_lio_extrinsics and not self.config.get('fixed_lio_extrinsics',False):
                 raise RuntimeError('Existing session has no fixed-LIO override. Stop it while grounded/disarmed before starting the comparison.')
+            if (self.args.lio_surf_size is not None and
+                    self.config.get('lio_surf_size') != self.args.lio_surf_size):
+                raise RuntimeError('Existing session has a different surface-filter override. Stop it while grounded/disarmed before starting the comparison.')
             self.status()
             return
         for path in [Path(p).expanduser() for p in SETUPS]+[self.scripts/name for name in SCRIPTS]:
@@ -387,13 +392,16 @@ class Session:
         logdir = self.scripts/'super_session_logs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         logdir.mkdir(parents=True)
         self.config = dict(environment=ros_environment(), scripts=str(self.scripts), logs=str(logdir), hover_execute=False,
-                           fixed_lio_extrinsics=self.args.fixed_lio_extrinsics)
+                           fixed_lio_extrinsics=self.args.fixed_lio_extrinsics,
+                           lio_surf_size=self.args.lio_surf_size)
         self.save()
         for index, (name, command) in enumerate(self.core_commands().items()):
             self.launch(name, command, first=index == 0)
         print('Core started. Keep stationary; run align in the command terminal. No vision/control was started.')
         if self.args.fixed_lio_extrinsics:
             print('LIO comparison startup override: mapping.extrinsic_est_en=false. YAML unchanged; verify the live parameter.')
+        if self.args.lio_surf_size is not None:
+            print(f'LIO comparison startup override: filter_size_surf={self.args.lio_surf_size}. YAML unchanged; verify the live parameter.')
 
     def status(self):
         self.load()
@@ -402,6 +410,8 @@ class Session:
         print('Logs:', self.config['logs'])
         if self.config.get('fixed_lio_extrinsics',False):
             print('LIO comparison startup override: mapping.extrinsic_est_en=false (verify the live parameter).')
+        if self.config.get('lio_surf_size') is not None:
+            print(f"LIO comparison startup override: filter_size_surf={self.config['lio_surf_size']} (verify the live parameter).")
         print('A process-active status does not establish ROS/FC readiness.')
 
     def interrupt(self, name):
@@ -853,6 +863,7 @@ def arguments(argv=None):
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
     parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
+    parser.add_argument('--lio-surf-size',type=float,help='start only: surface voxel size in metres, 0.1 to 0.5, for a ground comparison; YAML unchanged')
     parser.add_argument('--parallel-observations',action='store_true',help='align only: collect fresh odometry and alignment concurrently; sampling and quality checks unchanged')
     parser.add_argument('--venue-mission',type=Path,help='demo planner only: measured physical mission; capture one live planner/controller venue frame')
     parser.add_argument('--hold-seconds', type=float, default=6.)
@@ -876,6 +887,9 @@ def arguments(argv=None):
         parser.error('--execute is only valid for hover')
     if args.fixed_lio_extrinsics and args.action != 'start':
         parser.error('--fixed-lio-extrinsics is only valid for start')
+    if args.lio_surf_size is not None and (args.action != 'start' or
+            not math.isfinite(args.lio_surf_size) or not .1 <= args.lio_surf_size <= .5):
+        parser.error('--lio-surf-size requires start and a finite value from 0.1 to 0.5 metres')
     if args.parallel_observations and args.action!='align':
         parser.error('--parallel-observations is only valid for align')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':
