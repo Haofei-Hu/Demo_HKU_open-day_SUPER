@@ -103,10 +103,11 @@ class DemoTest(GroundTest):
     def after_vision_ready(self):
         if getattr(self.args,'calibrate_venue',False):
             from calibrate_venue_rviz import calibrate
+            extra={'full_size_execution_venue':True} if getattr(self.args,'full_size_execution_venue',False) else {}
             self.report['stage']='venue_selection';write_report(self.path,self.report)
             config=calibrate(self.selection_config,self.args.scripts_dir/'aligned_pose_preview.py',
                              self.folder,self.args.rear_offset,getattr(self.args,'rehearsal_width',None),
-                             getattr(self.args,'rehearsal_ceiling',None))
+                             getattr(self.args,'rehearsal_ceiling',None),**extra)
             self.selection_config=DemoMission.ground_rehearsal(config)
             self.save_mission(self.selection_config)
             self.report['venue_calibration_report']=str(self.folder/'venue_calibration.json')
@@ -203,6 +204,8 @@ class DemoTest(GroundTest):
                 if not (self.args.scripts_dir/name).is_file():raise RuntimeError('Missing dependency: '+name)
             config=json.loads(self.args.mission_file.read_text())
             selection=getattr(self.args,'calibrate_venue',False)
+            if getattr(self.args,'full_size_execution_venue',False) and not selection:
+                raise ValueError('--full-size-execution-venue requires --calibrate-venue and preview confirmation')
             width=getattr(self.args,'rehearsal_width',None)
             if width is not None:
                 if not selection:raise ValueError('--rehearsal-width requires --calibrate-venue')
@@ -338,6 +341,8 @@ def main():
     p.add_argument('--fast-start',action='store_true',help='cold start with fresh alignment collectors in parallel and the unchanged 30 s vision window overlapping map/planner preparation')
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
     p.add_argument('--calibrate-venue',action='store_true',help='Select left/right in RViz, then automatically rehearse inside that fixed box')
+    p.add_argument('--full-size-execution-venue',action='store_true',
+                   help='Confirm a separate 5.8 x 2.8 x 2.8 m virtual measured-position boundary')
     p.add_argument('--rear-offset',type=float,help='FC-to-rear distance; left/right clicks do not measure the rear side')
     p.add_argument('--rehearsal-width',type=float,help='Cap total lateral width around takeoff, intersected with selected sides; ground rehearsal only')
     p.add_argument('--rehearsal-height',type=float,choices=(.5,1.5),default=.5,help='Virtual FC height above floor in metres (default: 0.5)')

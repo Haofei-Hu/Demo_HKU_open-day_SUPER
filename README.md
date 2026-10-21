@@ -20,18 +20,21 @@ python3 ~/Downloads/super_demo_test.py \
   --restart --fixed-lio-extrinsics \
   --fixture-geometry --motion-policy observe --fast-start \
   --calibrate-venue --rear-offset 0.5 \
-  --rehearsal-width 2 --rehearsal-height 1.5 --rehearsal-ceiling 2
+  --rehearsal-width 2 --rehearsal-height 1.5 --rehearsal-ceiling 2 \
+  --full-size-execution-venue
 ```
 
 QGC opens automatically. The runner starts localization, measures the session
 alignment, and opens the frozen RViz map. Select **LEFT**, then **RIGHT** looking
-along the nose, check the cyan box, and type `confirm` in terminal 1.
+along the nose, check both boxes, and type `confirm` in terminal 1.
 Use `reset` to pick again or `refresh` for a new snapshot.
 
 After confirmation, preparation continues automatically and the rehearsal RViz
 opens. The virtual vehicle rises to **1.5 m**, flies **4.5 m out and back five
-times**, hovers at home for **6 seconds**, and lands. The outer box is at most
-**2 m wide and 2 m high**, with vehicle extents included. The actual aircraft
+times**, hovers at home for **6 seconds**, and lands. The cyan planning box is at most
+**2 m wide and 2 m high**. The orange measured-position boundary is
+**5.8 m long, 2.8 m wide and 2.8 m high**. Both deduct vehicle extents once.
+The actual aircraft
 remains disarmed; this is real SUPER planning with virtual vehicle feedback,
 not a PX4 dynamics simulation.
 
@@ -71,12 +74,14 @@ python3 ~/Downloads/super_demo.py \
   --flight-height 1.0 \
   --calibrate-venue --rear-offset 0.5 \
   --venue-width 2 --venue-ceiling 2 \
+  --full-size-execution-venue \
   --motion-policy observe \
   --execute --on-site-supervised
 ```
 
 QGC opens automatically. After fresh localization and alignment, select LEFT,
-then RIGHT in RViz and type `confirm` in terminal 1. Each new session needs new
+then RIGHT in RViz, check the cyan planning box and orange execution boundary,
+and type `confirm` in terminal 1. Each new session needs new
 picks. Check that the mission output reports **4.5 m outbound and 5 round trips**.
 For this complete route, omit `--hover-only` and `--hover-seconds`.
 Wait for **`Phase: READY`** and keep terminal 1 running. The selection
@@ -94,9 +99,14 @@ ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 
 **This requests physical OFFBOARD, arming and mission execution.** The route is
 **1 m FC-centre hover target → 4.5 m outbound and return, five round trips →
-6-second hover → land**. The **2 m outer ceiling stays unchanged**; the 1 m
-hover target is not an altitude limit. SUPER can curve and change altitude for
-avoidance within the same vehicle-inclusive box.
+6-second hover → land**. SUPER plans inside the **5.8 m long, at most 2 m wide,
+2 m high** cyan box, including vehicle clearance. Actual position is checked
+against the **5.8 × 2.8 × 2.8 m** orange outer box, also including vehicle clearance.
+The boxes share rear, floor, heading and lateral midpoint; the orange box must
+match the available venue. The front boundary is unchanged, so forward overshoot
+can still stop execution. The **1 m hover target** is separate from both ceilings.
+Without `--full-size-execution-venue`, planning and measured feedback retain the
+same selected box. See [boundary behavior](docs/PLANNER_VENUE_BOUNDS.md#separate-planning-and-measured-position-boundaries).
 
 To request early landing while the controller is running, use **terminal 2**:
 

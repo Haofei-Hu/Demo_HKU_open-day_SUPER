@@ -46,6 +46,7 @@ def planes_for_frame(mission,converter,raw_quaternion,origin,ground_fc_xyz,groun
         fc_centre_lower_forward_left_floor_m=lower.tolist(),fc_centre_upper_forward_left_floor_m=upper.tolist(),
         ground_aligned_xyz=ground.tolist(),takeoff_aligned_yaw_rad=float(ground_yaw),
         fixed_raw_goal_quaternion_xyzw=goal_q.tolist(),
+        boundary_policy=mission.boundary_policy(),
         additional_boundary_inset_m=0.,vehicle_extents_applied_once=True,
         captured_cloud_changed=False,optimization_targets_changed=False,motion_acceptance_changed=False)
     return planes,record

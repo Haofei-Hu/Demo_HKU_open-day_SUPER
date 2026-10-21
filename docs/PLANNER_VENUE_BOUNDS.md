@@ -1,5 +1,37 @@
 # One venue for rehearsal planning and control
 
+## Separate planning and measured-position boundaries
+
+The optional `--full-size-execution-venue` flag is available in both
+`super_demo.py` and `super_demo_test.py` with `--calibrate-venue`. With the
+quick-start width/ceiling settings, SUPER plans inside a 5.8 m long, at most
+2 m wide, 2 m high box. Actual-position feedback is checked against a separate
+5.8 m long, 2.8 m wide, 2.8 m high box. Both deduct the same propeller-inclusive
+vehicle envelope once; no additional planning inset is applied.
+
+RViz previews the planning box in cyan and the execution boundary in orange.
+The larger box preserves the planning box's rear, floor, heading and lateral
+midpoint, including when a nearby selected side clips the planning width.
+Its dimensions are supplied by the operator, not measured from the point cloud.
+Check both boxes against the venue before confirming. The calibrated record,
+live venue record and mission report retain the separate limits.
+
+Search, corridors, complete polynomial checks, accepted goals and outgoing
+reference validation all keep the smaller box. Only measured-position checks
+use the larger box, including tracking, endpoint holds and the final hover.
+Takeoff/landing floor-contact rules, yaw checks, motion settings, PID and waiting
+policies are unchanged. In particular, the front/rear bounds do not move: the
+recorded 1.1 cm forward boundary violation would still stop execution.
+
+This Python-only change requires the matching script bundle; it does not require
+a C++ rebuild if the existing ten venue markers are installed. The flag is opt-in.
+Without it, the shared-box behavior described below remains unchanged. Software
+checks cover reference rejection inside the larger box, all measured flight phases,
+rotated frames, exact preservation of planner planes, floor handling and unchanged
+front/rear rejection. They do not establish physical tracking performance.
+
+## Shared-box behavior (without the optional flag)
+
 The forward ground rehearsal now passes the controller's existing vehicle-inclusive operating box to SUPER before planning. A* search and exploration/backup corridor generation use that same box. The outer dimensions remain 5.8 m forward, 2.8 m wide and 2.8 m high for the canonical mission. There is no additional inset or straight-line tube. Curved obstacle-avoiding routes inside the box remain permitted.
 
 This corrects the integration gap exposed by run `20261017_152536_523398`: the controller received a committed intermediate endpoint at forward/left/floor-height approximately `[1.957, -2.230, 1.662] m`. The right-side hull clearance was approximately `-1.030 m`, so control rejected the trajectory before starting its first horizontal leg. The planner previously did not receive the controller's venue constraints. Raising motion acceptance alone cannot correct this position-boundary mismatch.

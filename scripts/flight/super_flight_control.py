@@ -256,6 +256,9 @@ class SuperFlightControl(FirstHoverControl):
     def check_measured_position(self,xyz):
         return self.frame.check(xyz)
 
+    def check_tracking_position(self,xyz):
+        self.target_ok(xyz,label='Measured position')
+
     def check_envelope(self,xyz,yaw,ground):
         if self.reference is None:return
         if ground:
@@ -265,7 +268,7 @@ class SuperFlightControl(FirstHoverControl):
                                  'forward/left/up='+str(offset.round(4).tolist()))
         if self.frame is not None:self.check_measured_position(xyz)
         if self.execute and self.phase in ('HOLD','WAIT_PLAN','TRACK','END_HOLD'):
-            self.target_ok(xyz,label='Measured position')
+            self.check_tracking_position(xyz)
         if abs(self.angle(yaw-self.reference.yaw))>math.radians(15):
             raise ValueError('Heading departure exceeds 15 degrees')
 

@@ -96,6 +96,34 @@ def cap_selected_box(geometry,width=None,ceiling=None):
     return result
 
 
+def full_size_execution_geometry(geometry):
+    """Explicit 5.8 x 2.8 x 2.8 measured-position box around the planning box.
+
+    Preserve the selected heading, rear, floor and lateral midpoint. This is
+    operator-supplied geometry, not an inference of walls from the point cloud.
+    """
+    right,left=geometry['lateral_limits_m']
+    forward=geometry['forward_limits_m']
+    floor=geometry['floor_height_limits_m']
+    rear=geometry['rear_offset_m']
+    values=[right,left,rear,*forward,*floor]
+    if (not all(math.isfinite(v) for v in values) or not right<left
+            or left-right>2.8+1e-10 or abs(forward[1]-forward[0]-5.8)>1e-10
+            or rear<0 or not np.allclose(forward,[-rear,5.8-rear],atol=1e-10,rtol=0)
+            or floor[0]!=0. or not 0<floor[1]<=2.8):
+        raise ValueError('Planning box must fit the 5.8 x 2.8 x 2.8 execution venue')
+    centre=(right+left)/2
+    return dict(policy='full_size_execution_venue_v1',
+                lateral_limits_m=[centre-1.4,centre+1.4],
+                forward_limits_m=list(forward),floor_height_limits_m=[0.,2.8])
+
+
+def separate_execution_geometry(geometry):
+    result=deepcopy(geometry)
+    result['execution_envelope']=full_size_execution_geometry(geometry)
+    return result
+
+
 def validate_geometry(config):
     """Require saved mission sides to match the operator-confirmed selection."""
     data=config.get('venue_calibration',{});geometry=data.get('geometry',{})
@@ -134,6 +162,9 @@ def validate_geometry(config):
     if any(not isinstance(x,(int,float)) or isinstance(x,bool) or not math.isfinite(x)
            for pair in expected for x in pair) or any(abs(a-b)>1e-10 for a,b in expected):
         raise ValueError('Calibrated mission geometry changed after confirmation')
+    if 'execution_envelope' in geometry:
+        if geometry['execution_envelope']!=full_size_execution_geometry(geometry):
+            raise ValueError('Execution venue changed after confirmation')
     return data
 
 

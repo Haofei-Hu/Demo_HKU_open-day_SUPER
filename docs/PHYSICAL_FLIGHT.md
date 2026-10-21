@@ -131,6 +131,7 @@ python3 ~/Downloads/super_demo.py \
   --flight-height 1.0 \
   --calibrate-venue --rear-offset 0.5 \
   --venue-width 2 --venue-ceiling 2 \
+  --full-size-execution-venue \
   --motion-policy observe \
   --execute --on-site-supervised
 ```
@@ -139,8 +140,11 @@ This opens or reuses QGC, starts localization, captures a fresh alignment
 quaternion and prepares external vision. In the frozen RViz view:
 
 1. Select the actual **LEFT**, then **RIGHT** boundary, looking along the nose.
-2. Check the cyan box: up to 1 m on either side of takeoff, clipped to nearer
-   selected sides, and a 2 m outer ceiling.
+2. Check the cyan planning box: up to 1 m on either side of takeoff, clipped to nearer
+   selected sides, and a 2 m planning ceiling. Also check the orange execution box:
+   5.8 m long, 2.8 m wide and 2.8 m high, with the same rear, floor, heading and
+   lateral midpoint as the planning box. Confirm only if this outer box matches
+   the available venue. Both checks deduct the aircraft envelope once.
 3. Type `confirm` in terminal 1. Use `reset` for new picks on the same snapshot,
    or `refresh` for a new snapshot.
 4. Check that the mission output reports **4.5 m outbound and 5 round trips**.
@@ -159,6 +163,10 @@ Selecting points does not arm the aircraft.
 Always include `--flight-height 1.0`: the existing software default is still
 1.5 m. With the 0.085 m ground FC height, the nominal rise is 0.915 m.
 **Do not change `--venue-ceiling 2` to 1.**
+`--full-size-execution-venue` changes only the measured-position boundary;
+references and SUPER's search, corridors and complete trajectories still use
+the smaller planning box. The front/rear limits remain unchanged. Without this
+flag, both layers use the selected box as before. Reports record both geometries.
 
 For preparation checks only, omit `--execute --on-site-supervised`. That mode
 ends after readiness checks without flight. Do not add `--calibration-only` to

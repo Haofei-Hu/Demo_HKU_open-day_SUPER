@@ -63,6 +63,7 @@ class DemoMission:
         self.rear=self.measure(s.get('forward_from_rear_m'),'takeoff distance from rear boundary')
         self.left=self.measure(s.get('distance_from_left_m'),'takeoff distance from left boundary')
         self.width=float(v['width_left_m']);self.length=fixed['length_forward_m'];self.height=float(fixed['height_m']);self.tolerance=.1
+        self.execution_envelope=deepcopy(calibration['geometry'].get('execution_envelope')) if calibrated else None
         if not 0<self.hull['bottom']<=.085:
             raise ValueError('Measured FC-to-bottom clearance must fit the existing 0.085 m floor calibration')
         # Validate the requested route's hull against the outer venue directly.
@@ -125,12 +126,31 @@ class DemoMission:
         return result
 
     def check(self,point,on_floor=False):
+        """Strict planning/reference boundary, also used for route validation."""
+        return self._check_box(point,self.rear,self.left,self.width,self.length,self.height,on_floor)
+
+    def check_execution(self,point,on_floor=False):
+        """Measured feedback boundary; never used to admit a planner reference."""
+        e=self.execution_envelope
+        if e is None:return self.check(point,on_floor)
+        right,left=e['lateral_limits_m'];rear,front=e['forward_limits_m']
+        return self._check_box(point,-rear,left,left-right,front-rear,
+                               e['floor_height_limits_m'][1],on_floor)
+
+    def boundary_policy(self):
+        planning=dict(forward_limits_m=[-self.rear,self.length-self.rear],
+            lateral_limits_m=[self.left-self.width,self.left],floor_height_limits_m=[0.,self.height])
+        return dict(planning_outer_box=planning,
+            measured_execution_outer_box=deepcopy(self.execution_envelope or planning),
+            vehicle_extents_applied_once=True,additional_planner_inset_m=0.)
+
+    def _check_box(self,point,rear,left,width,length,height,on_floor):
         if len(point)!=3 or not all(math.isfinite(v) for v in point):raise ValueError('Invalid venue point')
-        x,y,z=self.rear+point[0],self.width-self.left+point[1],point[2]
+        x,y,z=rear+point[0],width-left+point[1],point[2]
         h=self.hull
-        clearances={'rear':x-h['rear'],'front':self.length-x-h['front'],
-                    'right':y-h['right'],'left':self.width-y-h['left'],
-                    'ceiling':self.height-z-h['top']}
+        clearances={'rear':x-h['rear'],'front':length-x-h['front'],
+                    'right':y-h['right'],'left':width-y-h['left'],
+                    'ceiling':height-z-h['top']}
         if not on_floor:clearances['floor']=z-h['bottom']
         if any(value < -1e-9 for value in clearances.values()):
             raise ValueError(f'Aircraft envelope outside venue: relative FC xyz={list(point)}; clearance m={clearances}')
@@ -161,7 +181,7 @@ class TakeoffFloorPolicy:
         self.last_check = dict(phase=phase, landed_state=landed_state,
                                relative_fc_xyz=[float(v) for v in point])
         # Side walls and ceiling apply even during contact with the floor.
-        clearances = mission.check(point, on_floor=True)
+        clearances = mission.check_execution(point, on_floor=True)
         clearance = float(point[2] - mission.hull['bottom'])
         if phase not in self.INITIAL_PHASES or clearance > self.ground_tolerance_m:
             self.takeoff_complete = True
@@ -196,6 +216,7 @@ class MissionReport:
             requested_fc_floor_height_m=mission.hover_height,
             round_trips_requested=mission.round_trips,round_trips_completed=0,
             mission=mission.config,waypoints=mission.waypoints(),expected_stages=list(self.phases),events=[],
+            venue_boundary_policy=mission.boundary_policy(),
             completed_stages=[],error=None,physical_flight_verified=False,
             started_at=datetime.now().astimezone().isoformat())
         self.save()

@@ -37,9 +37,10 @@ class DemoPreparation(GroundTest):
     def after_vision_ready(self):
         if not self.args.calibrate_venue:return
         from calibrate_venue_rviz import calibrate
+        extra={'full_size_execution_venue':True} if self.args.full_size_execution_venue else {}
         config=calibrate(self.calibration_source,self.args.scripts_dir/'aligned_pose_preview.py',
                          self.folder,self.args.rear_offset,venue_width=self.args.venue_width,
-                         venue_ceiling=self.args.venue_ceiling)
+                         venue_ceiling=self.args.venue_ceiling,**extra)
         if not self.args.calibration_only:
             config=DemoMission.physical_height(config,self.args.flight_height)
         self.args.mission_file=self.folder/'flight_mission.json'
@@ -60,6 +61,8 @@ def arguments(argv=None):
     p.add_argument('--rear-offset',type=float,help='Previously surveyed FC-to-rear offset; lateral selection does not measure the rear boundary')
     p.add_argument('--venue-width',type=float,help='Optional total width cap centred on takeoff and intersected with RViz-selected sides')
     p.add_argument('--venue-ceiling',type=float,help='Optional outer top boundary above floor, at most 2.8 m; includes aircraft top clearance')
+    p.add_argument('--full-size-execution-venue',action='store_true',
+                   help='Confirm a separate 5.8 x 2.8 x 2.8 m measured-position boundary around the planning box')
     p.add_argument('--scripts-dir',type=Path,default=Path.home()/'Downloads')
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
@@ -72,6 +75,8 @@ def arguments(argv=None):
     p.add_argument('--qgc-path',type=Path,help='installed QGroundControl executable; defaults to the Downloads AppImage')
     p.add_argument('--ros-env',action='store_true',help=argparse.SUPPRESS)
     args=p.parse_args(argv)
+    if args.full_size_execution_venue and not args.calibrate_venue:
+        p.error('--full-size-execution-venue requires --calibrate-venue and preview confirmation')
     if not math.isfinite(args.hover_seconds) or args.hover_seconds<=0:
         p.error('--hover-seconds must be finite and positive')
     if args.hover_only and args.calibration_only:

@@ -47,6 +47,8 @@ class LiveVenue:
         self.goal_q=np.asarray(data['fixed_raw_goal_quaternion_xyzw'],dtype=float)
         planes,geometry=planes_for_frame(mission,load_converter(alignment_path),
             self.goal_q,self.origin,self.ground,self.yaw)
+        if 'boundary_policy' in data and data['boundary_policy']!=mission.boundary_policy():
+            raise ValueError('Live planning/execution boundary policy differs')
         configured=np.asarray(yaml.safe_load(Path(planner_config).read_bytes())
                               .get('super_planner',{}).get('venue_halfspaces',[]),dtype=float)
         recorded=np.asarray(data['halfspaces'],dtype=float)

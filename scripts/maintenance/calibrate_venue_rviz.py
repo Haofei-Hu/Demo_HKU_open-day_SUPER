@@ -16,7 +16,7 @@ import yaml
 from control_bridge_preview import load_converter
 from create_live_venue_profile import capture
 from live_venue import digest,source_ids
-from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session,cap_rehearsal_width,cap_rehearsal_ceiling,cap_selected_box
+from rviz_venue_calibration import selected_geometry,apply_geometry,world_rotation,wireframe,validate_session,cap_rehearsal_width,cap_rehearsal_ceiling,cap_selected_box,separate_execution_geometry
 
 
 class FrozenCloud:
@@ -69,7 +69,7 @@ def rviz_config(focal_point=(0.,0.,0.)):
 
 
 def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehearsal_ceiling=None,
-              *,venue_width=None,venue_ceiling=None):
+              *,venue_width=None,venue_ceiling=None,full_size_execution_venue=False):
     if (rehearsal_width is not None or rehearsal_ceiling is not None) and config.get('execution_context')!='ground_rehearsal':
         raise ValueError('Width/ceiling caps are available only for ground rehearsal')
     if (rehearsal_width is not None or rehearsal_ceiling is not None) and (venue_width is not None or venue_ceiling is not None):
@@ -115,12 +115,21 @@ def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehe
                 label.pose.position.x,label.pose.position.y,label.pose.position.z=map(float,p)
                 label.pose.position.z+=.15;label.text='1 LEFT' if i==0 else '2 RIGHT';msg.markers.append(label)
             if state['geometry'] is not None:
-                vertices,edges=wireframe(state['geometry'],observation,rotation)
-                m=marker(Marker.LINE_LIST,20);m.scale.x=.025;m.color.g=m.color.b=1.
-                for a,b in edges:
-                    for index in (a,b):
-                        p=Point();p.x,p.y,p.z=map(float,vertices[index]);m.points.append(p)
-                msg.markers.append(m)
+                boxes=[(state['geometry'],20,(0.,1.,1.),'PLANNING')]
+                if 'execution_envelope' in state['geometry']:
+                    boxes.append((state['geometry']['execution_envelope'],21,(1.,.65,0.),'EXECUTION BOUNDARY'))
+                for geometry,identifier,colour,name in boxes:
+                    vertices,edges=wireframe(geometry,observation,rotation)
+                    m=marker(Marker.LINE_LIST,identifier);m.scale.x=.025
+                    m.color.r,m.color.g,m.color.b=colour
+                    for a,b in edges:
+                        for index in (a,b):
+                            p=Point();p.x,p.y,p.z=map(float,vertices[index]);m.points.append(p)
+                    msg.markers.append(m)
+                    label=marker(Marker.TEXT_VIEW_FACING,identifier+10);label.scale.z=.15
+                    label.color.r,label.color.g,label.color.b=colour
+                    label.pose.position.x,label.pose.position.y,label.pose.position.z=map(float,vertices[-1])
+                    label.text=name;msg.markers.append(label)
             pub.publish(msg)
         def reset():
             state.update(points=[],geometry=None,confirm=False);draw()
@@ -147,7 +156,10 @@ def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehe
                     if rehearsal_ceiling is not None:
                         state['geometry']=cap_rehearsal_ceiling(state['geometry'],rehearsal_ceiling)
                     state['geometry']=cap_selected_box(state['geometry'],venue_width,venue_ceiling)
+                    if full_size_execution_venue:
+                        state['geometry']=separate_execution_geometry(state['geometry'])
                 except ValueError as exc:
+                    state['geometry']=None
                     print('Selection rejected:',exc,flush=True);draw();return
                 g=state['geometry']
                 width=rehearsal_width if rehearsal_width is not None else venue_width
@@ -155,7 +167,14 @@ def calibrate(config,alignment_path,folder,rear_offset,rehearsal_width=None,rehe
                 print(f'PREVIEW: left={g["left_offset_m"]:.3f} m, right={g["width_m"]-g["left_offset_m"]:.3f} m, '
                       f'width={g["width_m"]:.3f} m ({policy}), rear={rear_offset:.3f} m. '
                       f'Outer ceiling={g["floor_height_limits_m"][1]:.3f} m above floor. '
-                      'Check the complete cyan box against the actual venue. Type confirm to accept, or reset to select again.',flush=True)
+                      'Cyan box is the planning boundary.',flush=True)
+                if 'execution_envelope' in g:
+                    e=g['execution_envelope']
+                    print('EXECUTION PREVIEW: orange box = 5.8 m forward x 2.8 m wide x 2.8 m high; '
+                          f'lateral limits={e["lateral_limits_m"]}; same rear, floor, heading and lateral midpoint. '
+                          'This is the actual-position stop boundary, not a larger planning area. '
+                          'Confirm only if the orange box matches the available venue.',flush=True)
+                print('Check the complete box(es). Type confirm to accept, or reset to select again.',flush=True)
             else:print('LEFT selected. Select RIGHT boundary next.',flush=True)
             draw()
         def refresh():

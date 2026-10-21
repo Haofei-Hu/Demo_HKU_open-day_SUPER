@@ -232,7 +232,7 @@ class DemoMissionControl(SuperFlightControl):
         self.mission_report.data['committed_endpoints']=self.plan_evidence
         self.mission_report.data['tracking_policy']='FC pose timestamp matched to previously sent position/velocity reference'
         self.mission_report.data['post_takeoff_position_policy']=dict(
-            abort_boundary='Configured outer venue including propeller-inclusive vehicle envelope',
+            abort_boundary='Confirmed measured-execution venue including propeller-inclusive vehicle envelope',
             straight_line_corridor_m=None,tracking_error_abort_m=None,initial_offset_abort_m=None,
             arrival_tolerance_per_axis_m=.1)
         self.mission_report.data['peak_reference_speed_mps']=0.
@@ -281,6 +281,11 @@ class DemoMissionControl(SuperFlightControl):
         else:
             self.get_logger().info(f'MISSION {config["mission_id"]}: {self.mission.hover_height:g} m rise, '
                 f'{self.mission.round_trips} round trips of {self.distance:g} m each way, final 6 s hold, LAND; no parameter writes.')
+        if self.mission.execution_envelope is not None:
+            self.get_logger().info('SPLIT_VENUE_V1: planner outer box '
+                f'{self.mission.length:g} x {self.mission.width:g} x {self.mission.height:g} m; '
+                'measured-position outer box 5.8 x 2.8 x 2.8 m (forward/width/height); '
+                'same frame and front/rear; vehicle extents deducted once; no additional inset.')
 
     def leg_key(self):
         return self.leg if self.mission.round_trips==1 else f'round_{self.round_index:02d}_{self.leg}'
@@ -343,6 +348,8 @@ class DemoMissionControl(SuperFlightControl):
         return 'fixed XY/yaw' if self.hover_only else super().route_description()
 
     def position_policy_message(self):
+        if self.mission.execution_envelope is not None:
+            return 'references use planning box; measured position uses confirmed 5.8 x 2.8 x 2.8 m box; 0.10 m arrival detection only'
         return 'post-takeoff position uses vehicle-inclusive venue bounds; 0.10 m arrival detection only'
 
     def goal_policy_message(self):
@@ -450,9 +457,10 @@ class DemoMissionControl(SuperFlightControl):
         finally:
             self.mission_report.data['measured_floor_check']=dict(self.frame.floor_policy.last_check)
 
-    def check_envelope(self,xyz,yaw,ground):
-        super().check_envelope(xyz,yaw,ground)
-        if self.frame is not None and self.phase=='FINAL_HOLD':self.target_ok(xyz,'Measured home hover')
+    def check_tracking_position(self,xyz):
+        # The base controller's measured tracking hook must not use target_ok:
+        # that method deliberately retains the smaller planning/reference box.
+        return self.check_measured_position(xyz)
 
     def tracking_ok(self,xyz,target):
         # FC poses describe a past instant. Compare with the position/velocity
