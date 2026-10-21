@@ -199,6 +199,38 @@ class Tests(unittest.TestCase):
             if action=='vision':argv+=['0','0','0','1']
             with self.assertRaises(SystemExit):m.arguments(argv)
 
+    def test_surface_override_is_startup_only_and_changes_only_surface_size(self):
+        base=m.Session(m.arguments(['start','--fixed-lio-extrinsics'])).core_commands()
+        trial=m.Session(m.arguments(['start','--fixed-lio-extrinsics','--lio-surf-size','0.2'])).core_commands()
+        self.assertEqual(trial['lio'],base['lio']+' -p filter_size_surf:=0.2')
+        for name in ('lidar','mavros','body'):self.assertEqual(base[name],trial[name])
+        for value in ('nan','inf','0','-1','0.09','0.51'):
+            with self.assertRaises(SystemExit):m.arguments(['start','--lio-surf-size',value])
+        for action in ('stop','align','hover'):
+            with self.assertRaises(SystemExit):m.arguments([action,'--lio-surf-size','0.2'])
+
+    def test_surface_override_is_recorded_without_starting_vision_or_control(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scripts=Path(directory)
+            for name in m.SCRIPTS:(scripts/name).write_text('# prerequisite\n')
+            s=self.manager(['start','--fixed-lio-extrinsics','--lio-surf-size','0.2','--scripts-dir',directory])
+            with patch.object(s,'exists',return_value=False),patch.object(m,'SETUPS',()), \
+                 patch.object(m,'unmanaged_processes',return_value=[]),patch.object(m,'ros_environment',return_value={}):
+                s.start()
+            self.assertEqual(s.config['lio_surf_size'],.2)
+            self.assertEqual([name for name,_ in s.started],list(m.CORE))
+
+    def test_surface_override_never_silently_reuses_different_configuration(self):
+        for existing in (None,.5):
+            s=self.manager(['start','--lio-surf-size','0.2'])
+            s.config['lio_surf_size']=existing
+            with patch.object(s,'exists',return_value=True),self.assertRaisesRegex(RuntimeError,'different surface-filter'):
+                s.start()
+            self.assertEqual(s.started,[])
+        s=self.manager(['start','--lio-surf-size','0.2']);s.config['lio_surf_size']=.2
+        with patch.object(s,'exists',return_value=True),redirect_stdout(io.StringIO()):s.start()
+        self.assertEqual(s.started,[])
+
     def test_fixed_lio_start_records_override_and_preserves_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             scripts=Path(directory)/'Downloads';scripts.mkdir()
