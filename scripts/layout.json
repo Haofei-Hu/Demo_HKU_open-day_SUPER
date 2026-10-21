@@ -45,6 +45,7 @@
   "ground_xy_fusion_transport.py": "scripts/localization/ground_xy_fusion_transport.py",
   "hover_drift_check.py": "scripts/analysis/hover_drift_check.py",
   "hover_reference.py": "scripts/flight/hover_reference.py",
+  "imu_source_check.py": "scripts/analysis/imu_source_check.py",
   "install_demo_test.py": "scripts/maintenance/install_demo_test.py",
   "install_left_rehearsal.py": "scripts/maintenance/install_left_rehearsal.py",
   "left_demo_control.py": "scripts/simulation/left_demo_control.py",
