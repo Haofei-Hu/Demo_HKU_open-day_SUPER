@@ -338,6 +338,7 @@ def main():
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
+    p.add_argument('--lio-imu-source',choices=('livox','px4'),default='livox',help='PX4 uses nominal mounting and data_raw; default retains Livox IMU')
     p.add_argument('--fast-start',action='store_true',help='cold start with fresh alignment collectors in parallel and the unchanged 30 s vision window overlapping map/planner preparation')
     p.add_argument('--fixture-geometry',action='store_true',help='labelled virtual placement/body for rehearsal only')
     p.add_argument('--calibrate-venue',action='store_true',help='Select left/right in RViz, then automatically rehearse inside that fixed box')

@@ -45,8 +45,8 @@ class BodyDebug(Node):
             Odometry, '/Odometry', self.callback, qos_profile_sensor_data)
         self.last_log = 0
         self.get_logger().info(
-            'DEBUG ONLY: nominal +45deg yaw, LiDAR 0.10m above FC; '
-            'factory IMU offset, no live extrinsic estimate. '
+            f'DEBUG ONLY: nominal Q_BI={Q_BI.tolist()}, T_BI={T_BI.tolist()}; '
+            'no live extrinsic estimate. '
             'Output /super_debug/body_pose; original frame/time retained.')
 
     def callback(self, msg):

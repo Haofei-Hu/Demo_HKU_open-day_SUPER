@@ -3,11 +3,11 @@
   "files": {
     "super_demo_test.py": {
       "path": "scripts/maintenance/super_demo_test.py",
-      "sha256": "cb585f13122f6bd1c56e78c70767b9839fe78fb6ed7b4529c7ad3038f98d398b"
+      "sha256": "0ff9893f79737155d55fc672b2ce7565e6179f73853affe8379dccf092ba5bb7"
     },
     "super_demo.py": {
       "path": "scripts/maintenance/super_demo.py",
-      "sha256": "efb1c0239a0faed70ce4c2953381c74a2f91643fcf1f4d7af4652671198b82c6"
+      "sha256": "5beff309de6c7aefff011c830db264f36253454bcfadd2b4456b32e9b1cbf6ee"
     },
     "demo_mission.py": {
       "path": "scripts/flight/demo_mission.py",
@@ -43,11 +43,11 @@
     },
     "super_ground_test.py": {
       "path": "scripts/maintenance/super_ground_test.py",
-      "sha256": "b2e0c53bae8b69c9c805d0ab998bc35875ca3f367a2fbf601faf9dcebc823800"
+      "sha256": "bcfe81a78313735bf5d45af744f373d655ab25fd39b26c834bb0041832c9ce22"
     },
     "super_session.py": {
       "path": "scripts/maintenance/super_session.py",
-      "sha256": "d12985636dfea7b632428588cb437fc47b19d85b94e0b107d4985206b2da78a3"
+      "sha256": "51d60d71e2e1df951f4e0f914e198627a8cd015f272b0fae2f96d286cf3a7748"
     },
     "create_super_speed_ground_profile.py": {
       "path": "scripts/maintenance/create_super_speed_ground_profile.py",
@@ -125,6 +125,14 @@
     "ground_localization_check.py": {
       "path": "scripts/analysis/ground_localization_check.py",
       "sha256": "3db847042065bf32e91dfc61f184df6570f87b056a5f209fe79dad27369c915b"
+    },
+    "configure_lio_imu.py": {
+      "path": "scripts/maintenance/configure_lio_imu.py",
+      "sha256": "b2bff08318cffbd1dabb3e41410cddd8e6b461f4bb137bc1f495f2eb5159f7e2"
+    },
+    "px4_imu_input_check.py": {
+      "path": "scripts/maintenance/px4_imu_input_check.py",
+      "sha256": "237bbfc68138cd7783383d0c95e833fe25db4542aebeabfcfd90096d8aa7d62f"
     }
   }
 }

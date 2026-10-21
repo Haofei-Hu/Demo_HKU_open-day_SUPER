@@ -67,6 +67,7 @@ def arguments(argv=None):
     p.add_argument('--session',default='super-flight')
     p.add_argument('--restart',action='store_true')
     p.add_argument('--fixed-lio-extrinsics',action='store_true')
+    p.add_argument('--lio-imu-source',choices=('livox','px4'),default='livox',help='PX4 uses nominal mounting and data_raw; default retains Livox IMU')
     p.add_argument('--execute',action='store_true')
     p.add_argument('--on-site-supervised',action='store_true')
     p.add_argument('--hover-only',action='store_true',help='Take off, hold fixed XY/yaw and land; no outbound or return flight')

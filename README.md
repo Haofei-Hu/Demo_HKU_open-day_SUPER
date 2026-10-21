@@ -4,6 +4,9 @@ An indoor localization, planning, and obstacle-avoidance demonstration built on 
 
 **[Installation and quick start](docs/QUICK_START.md)** · **[1 m laboratory flight](docs/PHYSICAL_FLIGHT.md)** · [Detailed startup and recovery](docs/REBOOT_QUICK_START.md) · [Documentation index](docs/README.md)
 
+Optional [PX4 IMU comparison and rollback](docs/PX4_IMU_COMPARISON.md) is available
+with `--lio-imu-source px4`. The default continues to use the MID360 IMU.
+
 ## Quick start
 
 Run these commands on the onboard Ubuntu computer after the

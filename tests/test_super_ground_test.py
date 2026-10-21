@@ -84,6 +84,13 @@ class Tests(unittest.TestCase):
         Observer.error=None
         Observer.calls=0
 
+    def test_px4_imu_selection_reaches_managed_start(self):
+        with tempfile.TemporaryDirectory() as folder:
+            runner,calls=self.runner(folder,extra=['--lio-imu-source','px4'])
+            runner.prepare()
+            self.assertEqual(calls[0],('start',('--lio-imu-source','px4')))
+            self.assertEqual([c[0] for c in calls],['start','align','vision','planner'])
+
     def test_nominal_workflow_uses_current_survey_once_and_saves_result(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(m,'AuditObserver',Observer):
             runner,calls=self.runner(folder,extra=['--fixed-lio-extrinsics'])

@@ -329,6 +329,9 @@ class Session:
         return dict(line.rsplit(':', 1) for line in output.splitlines())
 
     def require_core(self):
+        if self.config.get('lio_imu_source')=='px4' or (self.scripts/'lio_imu_mount_state.json').exists():
+            from configure_lio_imu import verify_mount
+            verify_mount(self.scripts,self.config.get('lio_imu_source','livox'))
         windows = self.windows()
         for name in CORE:
             if windows.get(name) != '0':
@@ -358,21 +361,46 @@ class Session:
         print(f'{name}: {logfile}')
 
     def core_commands(self):
-        lio_override = ' -p mapping.extrinsic_est_en:=false' if self.args.fixed_lio_extrinsics else ''
-        return {
+        config=self.config or {}
+        source=config.get('lio_imu_source',getattr(self.args,'lio_imu_source','livox'))
+        lio_override = ' -p mapping.extrinsic_est_en:=false' if self.args.fixed_lio_extrinsics or source=='px4' else ''
+        profile=('"$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml"')
+        if source=='px4':
+            if not config.get('lio_config_path'):raise RuntimeError('Prepare the PX4 IMU profile before launching LIO')
+            profile=shlex.quote(config['lio_config_path'])
+        commands={
             'lidar': shell_command(['ros2', 'launch', 'livox_ros_driver2', 'msg_MID360_launch.py']),
             'lio': 'ros2 run fast_lio fastlio_mapping --ros-args --params-file '
-                   '"$(ros2 pkg prefix fast_lio)/share/fast_lio/config/mid360.yaml" '
-                   '-p use_sim_time:=false -p publish.map_en:=false -p publish.path_en:=false '
+                   +profile+' -p use_sim_time:=false -p publish.map_en:=false -p publish.path_en:=false '
                    '-p publish.scan_publish_en:=true -p publish.scan_bodyframe_pub_en:=false'+lio_override,
             'mavros': shell_command(['ros2', 'launch', 'mavros', 'px4.launch',
                        'fcu_url:='+self.args.fcu_url, 'gcs_url:=udp://127.0.0.1:14555@127.0.0.1:14550']),
             'body': shell_command(['python3', '-u', self.scripts/'fastlio_body_debug.py']),
         }
+        order=('mavros','lidar','lio','body') if source=='px4' else CORE
+        return {name:commands[name] for name in order}
+
+    def prepare_imu_source(self,logdir):
+        source=getattr(self.args,'lio_imu_source','livox')
+        if source=='livox' and not (self.scripts/'lio_imu_mount_state.json').exists():return
+        helper=self.scripts/'configure_lio_imu.py'
+        required=[helper]
+        if source=='px4':required.append(self.scripts/'px4_imu_input_check.py')
+        if any(not path.is_file() for path in required):
+            raise RuntimeError('Install matching IMU selection and input-check helpers before switching IMU')
+        record=Path(logdir)/'lio_imu_selection.json'
+        command=['python3',helper,'--scripts-dir',self.scripts,'--imu-source',source,'--record',record]
+        if source=='px4':command+=['--target',Path(logdir)/'fastlio_px4_imu.yaml']
+        run(['bash','--noprofile','--norc','-c',source_prefix()+shell_command(command)])
+        evidence=json.loads(record.read_text())
+        self.config['lio_imu_record']=str(record)
+        if source=='px4':self.config['lio_config_path']=evidence['profile']
 
     def start(self):
         if self.exists():
             self.load()
+            if self.config.get('lio_imu_source','livox')!=getattr(self.args,'lio_imu_source','livox'):
+                raise RuntimeError('Existing session uses a different IMU. Stop while grounded/disarmed, then start with the requested --lio-imu-source.')
             if self.args.fixed_lio_extrinsics and not self.config.get('fixed_lio_extrinsics',False):
                 raise RuntimeError('Existing session has no fixed-LIO override. Stop it while grounded/disarmed before starting the comparison.')
             self.status()
@@ -387,12 +415,14 @@ class Session:
         logdir = self.scripts/'super_session_logs'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         logdir.mkdir(parents=True)
         self.config = dict(environment=ros_environment(), scripts=str(self.scripts), logs=str(logdir), hover_execute=False,
-                           fixed_lio_extrinsics=self.args.fixed_lio_extrinsics)
+                           fixed_lio_extrinsics=self.args.fixed_lio_extrinsics or self.args.lio_imu_source=='px4',
+                           lio_imu_source=self.args.lio_imu_source)
+        self.prepare_imu_source(logdir)
         self.save()
         for index, (name, command) in enumerate(self.core_commands().items()):
             self.launch(name, command, first=index == 0)
         print('Core started. Keep stationary; run align in the command terminal. No vision/control was started.')
-        if self.args.fixed_lio_extrinsics:
+        if self.config.get('fixed_lio_extrinsics'):
             print('LIO comparison startup override: mapping.extrinsic_est_en=false. YAML unchanged; verify the live parameter.')
 
     def status(self):
@@ -400,6 +430,9 @@ class Session:
         for name, dead in self.windows().items():
             print(f'{name}: '+('EXITED; inspect log' if dead == '1' else 'process active'))
         print('Logs:', self.config['logs'])
+        print('LIO IMU source:',self.config.get('lio_imu_source','livox'))
+        if self.config.get('lio_imu_source')=='px4':
+            print('PX4 nominal mounting/time-offset assumptions:',self.config.get('lio_imu_record'))
         if self.config.get('fixed_lio_extrinsics',False):
             print('LIO comparison startup override: mapping.extrinsic_est_en=false (verify the live parameter).')
         print('A process-active status does not establish ROS/FC readiness.')
@@ -550,6 +583,10 @@ class Session:
             elif action == 'align':
                 if any(name in windows for name in ('preview', 'vision', 'hover')):
                     raise RuntimeError('Alignment requires a fresh core-only session; do not rebase a running relay')
+                if self.config.get('lio_imu_source')=='px4':
+                    run(['python3',self.scripts/'px4_imu_input_check.py','--seconds','10',
+                         '--report',Path(self.config['logs'])/'px4_imu_input.json'])
+                    gate.wait(gate.grounded,'fresh ground state after IMU observation')
                 gate.pull()
                 gate.set_ctrl(0)
                 odometry=['python3', '-u', self.scripts/'odom_age_check.py']
@@ -853,6 +890,8 @@ def arguments(argv=None):
     parser.add_argument('--hover-height', type=float, default=1.)
     parser.add_argument('--goal-height',type=float,help='disarmed vertical goal: FC-centre floor height in (0.085, 1] m')
     parser.add_argument('--fixed-lio-extrinsics',action='store_true',help='start only: disable online IMU-LiDAR extrinsic estimation via a startup override; YAML unchanged')
+    parser.add_argument('--lio-imu-source',choices=('livox','px4'),default='livox',
+                        help='start only: select internal Livox IMU or nominal PX4 data_raw mounting; default livox')
     parser.add_argument('--parallel-observations',action='store_true',help='align only: collect fresh odometry and alignment concurrently; sampling and quality checks unchanged')
     parser.add_argument('--venue-mission',type=Path,help='demo planner only: measured physical mission; capture one live planner/controller venue frame')
     parser.add_argument('--hold-seconds', type=float, default=6.)
@@ -876,6 +915,8 @@ def arguments(argv=None):
         parser.error('--execute is only valid for hover')
     if args.fixed_lio_extrinsics and args.action != 'start':
         parser.error('--fixed-lio-extrinsics is only valid for start')
+    if args.lio_imu_source!='livox' and args.action!='start':
+        parser.error('--lio-imu-source is only valid for start')
     if args.parallel_observations and args.action!='align':
         parser.error('--parallel-observations is only valid for align')
     if args.planner_profile != 'diagnostic' and args.action != 'planner':

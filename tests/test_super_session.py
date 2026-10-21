@@ -187,6 +187,23 @@ class Tests(unittest.TestCase):
             with self.assertRaises(SystemExit): m.arguments(argv)
         self.assertEqual(m.arguments(['vision','0','0','0','1']).quaternion,[0.,0.,0.,1.])
 
+    def test_px4_core_starts_mavros_first_and_uses_separate_profile(self):
+        s=m.Session(m.arguments(['start','--lio-imu-source','px4']))
+        s.config={'lio_imu_source':'px4','lio_config_path':'/tmp/profile with spaces.yaml'}
+        commands=s.core_commands()
+        self.assertEqual(list(commands),['mavros','lidar','lio','body'])
+        parts=shlex.split(commands['lio'])
+        self.assertEqual(parts[parts.index('--params-file')+1],'/tmp/profile with spaces.yaml')
+        self.assertIn('mapping.extrinsic_est_en:=false',parts)
+        baseline=m.Session(m.arguments(['start'])).core_commands()
+        for key in ('mavros','lidar','body'):self.assertEqual(commands[key],baseline[key])
+
+    def test_existing_session_cannot_change_imu_in_place(self):
+        s=self.manager(['start','--lio-imu-source','px4'])
+        with patch.object(s,'exists',return_value=True):
+            with self.assertRaisesRegex(RuntimeError,'different IMU'):s.start()
+        self.assertEqual(s.started,[])
+
     def test_fixed_lio_extrinsics_changes_only_lio_startup(self):
         baseline=m.Session(m.arguments(['start'])).core_commands()
         fixed=m.Session(m.arguments(['start','--fixed-lio-extrinsics'])).core_commands()

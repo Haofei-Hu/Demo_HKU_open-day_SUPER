@@ -331,6 +331,8 @@ class GroundTest:
                 raise RuntimeError('Managed session already exists; use --restart only while grounded/disarmed')
             self.action('stop')
         extra = ['--fixed-lio-extrinsics'] if self.args.fixed_lio_extrinsics else []
+        if getattr(self.args,'lio_imu_source','livox')!='livox':
+            extra+=['--lio-imu-source',self.args.lio_imu_source]
         self.action('start', *extra)
         self.session.load()
         self.report['session'] = self.session.config
@@ -403,6 +405,7 @@ def arguments(argv=None):
     parser.add_argument('--scripts-dir', type=Path, default=Path.home()/'Downloads')
     parser.add_argument('--session', default='super-flight')
     parser.add_argument('--restart', action='store_true', help='explicitly replace a managed grounded/disarmed session')
+    parser.add_argument('--lio-imu-source',choices=('livox','px4'),default='livox')
     parser.add_argument('--fixed-lio-extrinsics', action='store_true', help='use the existing fixed-extrinsic startup override')
     parser.add_argument('--test-profile',choices=('handover','forward-5m-2mps'),default='handover',
                         help='ground audit: default 0.30 m low speed, or 5 m at max 2 m/s and 1 m/s^2')
