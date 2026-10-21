@@ -1,11 +1,20 @@
 # Quick start after power-on or reboot
 
 Matching release: `8616a5eafc6ed064f4a38c5490e1b54eecc31272`.
-These commands run a **virtual ground rehearsal on an actual LiDAR map**. The physical aircraft remains stationary and disarmed; a virtual vehicle executes the motion.
+The rehearsal commands below run a **virtual ground rehearsal on an actual LiDAR
+map**. The physical aircraft remains stationary and disarmed; a virtual vehicle
+executes the motion.
+
+For **actual flight: 1 m takeoff → 4.5 m outbound and return five times →
+6-second hover → land**, use the
+[README terminal 1 and terminal 2 commands](../README.md#2-actual-flight-1-m-takeoff-and-five-round-trips).
+They include fresh RViz boundary selection, an explicit start after READY, and
+an early-landing command. The separate [fixed-hover mode](FIXED_HOVER.md) sends
+no outbound or return goals.
 
 ## Install or update once
 
-Finish any running automatic test before updating. Use the complete installer to avoid mixing script versions. It downloads and verifies all 28 files before backing up and replacing changed files. Existing alignment and measured mission configurations are preserved according to the installer rules.
+Finish any running automatic test before updating. Use the complete installer to avoid mixing script versions. It downloads and verifies all files in the release manifest before backing up and replacing changed files. Existing alignment and measured mission configurations are preserved according to the installer rules.
 
 ```bash
 (

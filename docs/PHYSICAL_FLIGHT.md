@@ -1,4 +1,4 @@
-# Laboratory flight: 1 m hover target
+# Laboratory flight: 1 m takeoff and five round trips
 
 Use `super_demo.py` for the actual aircraft. This is separate from the virtual
 `super_demo_test.py` rehearsal.
@@ -122,6 +122,9 @@ than silently changed.
 In **terminal 1**:
 
 ```bash
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_nominal.json" \
@@ -140,7 +143,13 @@ quaternion and prepares external vision. In the frozen RViz view:
    selected sides, and a 2 m outer ceiling.
 3. Type `confirm` in terminal 1. Use `reset` for new picks on the same snapshot,
    or `refresh` for a new snapshot.
-4. Let preparation continue to **`Phase: READY`**. Keep terminal 1 running.
+4. Check that the mission output reports **4.5 m outbound and 5 round trips**.
+   Let preparation continue to **`Phase: READY`**. Keep terminal 1 running.
+
+This is the complete SUPER route: 1 m takeoff, five 4.5 m outbound/return trips,
+a final 6-second hover at home, and landing. Omit `--hover-only` and
+`--hover-seconds` for this route. Existing PID and hover-thrust settings are used;
+this command does not tune them.
 
 The selection viewer closing after confirmation does not end preparation.
 Each restarted localization session needs new picks. The source mission is
@@ -162,6 +171,9 @@ After confirming the configured envelope, clear route and RC takeover, use
 
 ```bash
 source /opt/ros/humble/setup.zsh
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
 ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 ```
 

@@ -45,7 +45,11 @@ The automatically opened rehearsal RViz shows virtual motion on the captured
 map. The [terminal 3 viewer](#terminal-3--live-point-cloud-and-super-planning)
 below shows the actual aircraft stack.
 
-### 2. Laboratory flight: 1 m hover target
+### 2. Actual flight: 1 m takeoff and five round trips
+
+**Take off to 1 m FC-centre height → fly 4.5 m outbound and return five times →
+hover at home for 6 seconds → land.** SUPER plans the outbound and return paths,
+including curved obstacle avoidance. Use the two terminals below for this route.
 
 First create and verify the aircraft configuration using
 [the one-time configuration step](docs/PHYSICAL_FLIGHT.md#2-prepare-the-aircraft-configuration-once).
@@ -58,6 +62,9 @@ takeover available.
 **Terminal 1 — prepare, select boundaries, then wait for READY**
 
 ```bash
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
 python3 ~/Downloads/super_demo.py \
   --restart --fixed-lio-extrinsics \
   --mission-file "$HOME/Downloads/open_day_mission_nominal.json" \
@@ -70,13 +77,18 @@ python3 ~/Downloads/super_demo.py \
 
 QGC opens automatically. After fresh localization and alignment, select LEFT,
 then RIGHT in RViz and type `confirm` in terminal 1. Each new session needs new
-picks. Wait for **`Phase: READY`** and keep terminal 1 running. The selection
+picks. Check that the mission output reports **4.5 m outbound and 5 round trips**.
+For this complete route, omit `--hover-only` and `--hover-seconds`.
+Wait for **`Phase: READY`** and keep terminal 1 running. The selection
 window closing does not end preparation, and `confirm` does not arm the aircraft.
 
 **Terminal 2 — start actual flight only after READY and on-site clearance**
 
 ```bash
 source /opt/ros/humble/setup.zsh
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
 ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 ```
 
@@ -85,6 +97,16 @@ ros2 service call /super_demo/start std_srvs/srv/Trigger '{}'
 6-second hover → land**. The **2 m outer ceiling stays unchanged**; the 1 m
 hover target is not an altitude limit. SUPER can curve and change altitude for
 avoidance within the same vehicle-inclusive box.
+
+To request early landing while the controller is running, use **terminal 2**:
+
+```bash
+ros2 service call /super_demo/land std_srvs/srv/Trigger '{}'
+```
+
+The flight command uses the existing PX4 PID and hover-thrust settings. The
+grounded vision initialization still performs its usual external-vision fusion
+setup; it does not tune those control gains.
 
 For a **fixed-position hover diagnostic**, add `--hover-only --hover-seconds 20`
 to terminal 1 above. Terminal 2 uses the same explicit start service. This runs
@@ -143,12 +165,6 @@ viewer uses isolated domain 197. The identity `world` → `camera_init` display
 transform is private to this viewer. Opening or closing it does not send flight
 commands; closing RViz also stops its own display-transform process. Keep
 terminal 1 running.
-
-To request early landing while the controller is running, use **terminal 2**:
-
-```bash
-ros2 service call /super_demo/land std_srvs/srv/Trigger '{}'
-```
 
 Use RC takeover for abnormal control. `Ctrl+C` is not a hover or landing command.
 After landing and disarming, stop the background stack from terminal 2 before
