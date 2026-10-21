@@ -21,7 +21,7 @@ set -e
 mkdir -p "$HOME/Downloads"
 diagnostic_dir=$(mktemp -d "$HOME/Downloads/hover_drift_tool_XXXXXX")
 curl -q -fL --connect-timeout 10 --max-time 60 \
-  'https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/main/scripts/analysis/hover_drift_check.py' \
+  'https://raw.githubusercontent.com/Haofei-Hu/Demo_HKU_open-day_SUPER/a252be4165bf0f0c64217fec5a84a6ae5b578b85/scripts/analysis/hover_drift_check.py' \
   -o "$diagnostic_dir/hover_drift_check.py"
 /usr/bin/python3 -m py_compile "$diagnostic_dir/hover_drift_check.py"
 install -m 0644 "$diagnostic_dir/hover_drift_check.py" "$HOME/Downloads/hover_drift_check.py"
@@ -29,8 +29,7 @@ printf 'Diagnostic installed: %s\n' "$HOME/Downloads/hover_drift_check.py"
 BASH
 ```
 
-For a reproducible run, replace `main` in the download URL with the reviewed
-commit SHA. The script's SHA-256 is included in its report. No complete demo
+The download is pinned to the reviewed diagnostic source commit. The script's SHA-256 is included in its report. No complete demo
 update or C++ rebuild is required for this additional observer.
 
 ## Start or reuse the existing core, then observe
