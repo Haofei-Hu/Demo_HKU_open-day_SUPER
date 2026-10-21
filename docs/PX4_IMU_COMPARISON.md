@@ -1,5 +1,7 @@
 # FAST-LIO with the PX4 IMU
 
+Matching installer release: `2f09a97609a017fa38ec8fb91b1363cec42d02c6`.
+
 The default remains the MID360 internal IMU. Select `--lio-imu-source px4`
 explicitly for a new session. This is a nominal-mount comparison, not a calibrated
 or flight-validated sensor replacement.
